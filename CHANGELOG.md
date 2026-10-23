@@ -1,3 +1,12 @@
+# 4.3 — Duże reaktory i setki Fuel Cells
+- Naprawiono przycisk „Zastosuj nowe wymiary”: dotychczas przycinał wymiary do 12 i wnętrze do 400 pól.
+- Edytor pozwala na 16×16×16 (wnętrze 2744 pól), a pole Fuel Cells do 1400.
+- Dodano nowy, szybszy algorytm wielowątkowy do dużych reaktorów FE/t, obsługujący setki ogniw i pasywne Redstone Heat Sinki.
+- Poprawiono krytyczny błąd walidatora: puste pola i bloki rdzenia nie powinny podlegać limitowi 999 sztuk.
+- Domyślne limity pasywnych chłodnic podniesiono do 9999; wpisane przez użytkownika mniejsze limity są nadal respektowane.
+- Wyniki dużych Workerów podlegają ponownej walidacji przez główny symulator.
+- Duży tryb obecnie obsługuje FE/t, bez gwarancji globalnego optimum. Pozostałe cele dla wielkich wnętrz są jawnie ograniczone.
+
 # 4.1 (GitHub Pages)
 
 - Równoległe, niezależne wyszukiwania Web Workers (1–4).
