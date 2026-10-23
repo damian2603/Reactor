@@ -41,7 +41,7 @@ async function search(data,shouldStop,isPaused){
   while(isPaused()&&!shouldStop())await new Promise(r=>setTimeout(r,35));
   if(shouldStop())break;
   const pattern=parity[(it+index)&1],targetLow=Math.max(1,Math.floor(maxFuel*(it%11===0?.4:it%5===0?.65:.84)));
-  const desired=targetLow+next(maxFuel-targetLow+1);
+  const desired=it%10===0?maxFuel:targetLow+next(maxFuel-targetLow+1);
   const g=Array(N).fill('.'),cover=new Uint8Array(N),occupied=new Uint8Array(N);
   const selected=[];
   // Favor low-overlap coolant adjacency; this avoids redstone competing for the same air cells.
