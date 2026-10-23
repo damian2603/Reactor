@@ -302,8 +302,9 @@ self.onmessage=ev=>{const data=ev.data||{};
 const waitTick=()=>new Promise(resolve=>setTimeout(resolve,0));
 async function runWorker(data,id){
  const {dims,p,seed,iterations,index,limits}=data;
- if(p.goal==='energy'&&dims.reduce((a,b)=>a*b,1)>220){
-  await self.runLargeEnergy(data,()=>stopped||id!==launchId,()=>paused);
+ if(dims.reduce((a,b)=>a*b,1)>220){
+  if(p.goal==='energy')await self.runLargeEnergy(data,()=>stopped||id!==launchId,()=>paused);
+  else await self.runLargeIrradiation(data,()=>stopped||id!==launchId,()=>paused);
   return;
  }
  CURRENT_LIMITS=limits||{};state.g=seed.slice();rngSeed=data.rng>>>0;
@@ -367,3 +368,4 @@ async function runWorker(data,id){
 // Load the same FE/t rules as the browser (classic Worker importScripts).
 importScripts('./fe_optimizer.js?v=20261023-fe1');
 importScripts('./large_energy.worker.js?v=20261023-big2');
+importScripts('./large_irradiation.worker.js?v=20261023-bigirr1');
