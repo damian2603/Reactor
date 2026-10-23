@@ -59,7 +59,7 @@ function pick(a){return a[(rand()*a.length)|0]}
 function randomInt(a,b){return a+Math.floor(rand()*(b-a+1))}
 function shuffle(arr){let a=arr.slice();for(let i=a.length-1;i>0;i--){let j=(rand()*(i+1))|0;[a[i],a[j]]=[a[j],a[i]]}return a}
 let CURRENT_LIMITS={};
-function limitFor(t){return CURRENT_LIMITS[t]===undefined?999:CURRENT_LIMITS[t]}
+function limitFor(t){if(t==='.'||t==='F'||t==='M'||t==='I')return Infinity;return CURRENT_LIMITS[t]===undefined?9999:CURRENT_LIMITS[t]}
 function orientedTriads(w,h,d){let o=[];for(let y=0;y<h;y++)for(let z=0;z<d;z++)for(let x=0;x<w;x++)for(const [dx,dy,dz] of DIR){let bx=x+2*dx,by=y+2*dy,bz=z+2*dz,ax=x+dx,ay=y+dy,az=z+dz;if(bx>=0&&by>=0&&bz>=0&&bx<w&&by<h&&bz<d)o.push([idx(x,y,z,w,d),idx(ax,ay,az,w,d),idx(bx,by,bz,w,d)])}return o}
 function statsForSearch(g,dims,p){let r=simulation(g,...dims,{...p,machines:0});
  const slots=machineSlots(dims),limit=Math.min(slots,p.machines);
