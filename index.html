@@ -37,7 +37,7 @@
   <label class="formfield"><span class="label">Irradiation z gry</span><input id="refLines" type="text" inputmode="numeric" placeholder="np. 17"></label>
   <button class="btn small" id="compareGame" type="button">Porównaj z symulatorem</button>
   <div id="calibrationResult" class="v3diagnostics" aria-live="polite">Możesz wpisać odczyty z gry, aby zweryfikować zgodność symulacji.</div></div>
-<div class="toolbar" style="margin:8px 0 10px"><label class="inlinecheck"><input type="checkbox" id="parallelSearch" checked>Web Workers — wyszukiwanie bez blokowania interfejsu</label><label class="formfield" style="min-width:125px"><span class="label">Wątki</span><select id="workerCount" class="input"><option value="1">1</option><option value="2" selected>2</option><option value="3">3</option><option value="4">4</option></select></label></div><p class="hint" id="workerInfo">Przy uruchomieniu z GitHub Pages przeglądarka może wykorzystać kilka rdzeni. Lokalny plik HTML korzysta z trybu zgodności.</p><div class="btnrow"><button class="btn primary" id="run">▶ Run</button><button class="btn" id="pause" disabled>⏸ Pause</button><button class="btn" id="stop" disabled>■ Stop</button></div><div class="progress"><div id="progressBar" style="width:0"></div></div><div class="subheading" style="margin-top:10px">Wyniki wyszukiwania</div><div id="bestSummary" class="hint" style="min-height:34px">Jeszcze brak wyników.</div><div class="v3h">WARIANTY NIEZDOMINOWANE · Wydajność / Paliwo / Zapas chłodzenia</div><div id="v3Archive" class="v3Archive"></div><div class="toolbar" style="margin:9px 0"><button class="btn small" id="applyBest" disabled>Zastosuj najlepszy stabilny</button><button class="btn small" id="applyNear" disabled>Zastosuj najlepszy bliski</button><button class="btn small" id="heatFix">Napraw chłodzenie</button></div><div class="status" id="status">Gotowy. Załaduj przykład lub uruchom optymalizację.</div><div class="hint" id="attempts" style="margin-top:5px"></div></section>
+<div class="toolbar" style="margin:8px 0 10px"><label class="inlinecheck"><input type="checkbox" id="parallelSearch" checked>Web Workers — wyszukiwanie bez blokowania interfejsu</label><label class="formfield" style="min-width:125px"><span class="label">Wątki</span><select id="workerCount" class="input"><option value="1">1</option><option value="2" selected>2</option><option value="3">3</option><option value="4">4</option></select></label></div><p class="hint" id="workerInfo">Przy uruchomieniu z GitHub Pages przeglądarka może wykorzystać kilka rdzeni. Lokalny plik HTML korzysta z trybu zgodności.</p><div class="btnrow"><button class="btn primary" id="run">▶ Run</button><button class="btn" id="pause" disabled>⏸ Pause</button><button class="btn" id="stop" disabled>■ Stop</button></div><div class="progress"><div id="progressBar" style="width:0"></div></div><div class="subheading" style="margin-top:10px">Wyniki wyszukiwania</div><div id="bestSummary" class="hint" style="min-height:34px">Jeszcze brak wyników.</div><div class="v3h">NAJLEPSZE RÓŻNE WARIANTY · Wydajność / Paliwo / Zapas chłodzenia</div><div id="v3Archive" class="v3Archive"></div><div class="toolbar" style="margin:9px 0"><button class="btn small" id="applyBest" disabled>Zastosuj najlepszy stabilny</button><button class="btn small" id="applyNear" disabled>Zastosuj najlepszy bliski</button><button class="btn small" id="heatFix">Napraw chłodzenie</button></div><div class="status" id="status">Gotowy. Załaduj przykład lub uruchom optymalizację.</div><div class="hint" id="attempts" style="margin-top:5px"></div></section>
 <section class="panel"><div class="sectiontop"><h2>03 · Limity chłodnic</h2><button class="btn small" id="resetLimits">Reset</button></div><p class="hint">Pasywne chłodnice są domyślnie dostępne. Aktywne można włączyć powyżej i ustawić limit większy od zera; potrzebują 10 mB/t chłodziwa na blok. Zero = wyłączone. Warianty aktywne potrzebują realnego dopływu płynu.</p><div class="scroll" style="max-height:345px"><table class="cooler-table"><thead><tr><th>Heat Sink</th><th>H/t</th><th>Maks.</th></tr></thead><tbody id="coolers"></tbody></table></div></section>
 </aside>
 <div class="pane center">
@@ -482,16 +482,27 @@ function v4ArchiveCrowding(arr,p){
  return distance;
 }
 
+// Store a diverse shortlist of safe layouts, not only strictly non-dominated designs.
 function v3ArchiveAdd(c,p){
  if(!v3Eligible(c.s,p))return false;
  const k=v3Fingerprint(c.g);
  if(V3.archive.some(a=>a.hash===k))return false;
  const obj={g:c.g.slice(),s:c.s,hash:k,score:v3SearchValue(c.s,p)};
- if(V3.archive.some(a=>v3Dominates(a,obj,p)))return false;
- V3.archive=V3.archive.filter(a=>!v3Dominates(obj,a,p));V3.archive.push(obj);
- V3.archive.sort((a,b)=>b.score-a.score);
- if(V3.archive.length>V3_LIMIT){const c=v4ArchiveCrowding(V3.archive,p);const keep=V3.archive.map((a,i)=>({...a,_crowd:c[i]})).sort((a,b)=>b._crowd-a._crowd||b.score-a.score).slice(0,V3_LIMIT);V3.archive=keep.map(({_crowd,...a})=>a);V3.archive.sort((a,b)=>b.score-a.score);if(!V3.archive.includes(obj))return false}
- return true
+ const candidates=[...V3.archive,obj].sort((a,b)=>b.score-a.score);
+ if(candidates.length<=V3_LIMIT){V3.archive=candidates;return true}
+ const kept=[],quota=new Map(),later=[];
+ for(const candidate of candidates){
+  const st=candidate.s;
+  const group=[st.lines,st.machines,st.fuelCells].join('|');
+  const used=quota.get(group)||0;
+  if(used<2){kept.push(candidate);quota.set(group,used+1)}
+  else later.push(candidate);
+  if(kept.length===V3_LIMIT)break;
+ }
+ if(kept.length<V3_LIMIT)kept.push(...later.slice(0,V3_LIMIT-kept.length));
+ kept.sort((a,b)=>b.score-a.score);
+ V3.archive=kept;
+ return kept.includes(obj);
 }
 function v3ArchiveDisplay(){
  const body=$('v3Archive');if(!body)return;
@@ -801,9 +812,19 @@ async function runOptimizerWorkers(){
  const update=()=>{
   const n=lastDone.reduce((a,b)=>a+b,0),unique=lastUnique.reduce((a,b)=>a+b,0);
   $('progressBar').style.width=(100*n/total).toFixed(2)+'%';
-  $('attempts').textContent=`Web Workers: ${workersN} · ${n}/${total} prób · unikalne lokalnie: ${unique} · ${V3.archive.length} wariantów Pareto`;
+  $('attempts').textContent=`Web Workers: ${workersN} · ${n}/${total} prób · unikalne lokalnie: ${unique} · ${V3.archive.length} różnych wariantów`;
   showBest();v3ArchiveDisplay();
  };
+ // Feed the same safe seed layouts to the archive in both optimization modes.
+ const initialGrids=[state.g.slice(),...PRESETS.filter(q=>q.dims.join(',')===dims.join(',')).map(q=>q.grid)];
+ for(const g of initialGrids){
+  if(g.length!==N)continue;
+  const hash=v3Fingerprint(g);if(V3.seen.has(hash))continue;
+  V3.seen.add(hash);
+  const candidate={g:g.slice(),s:statsForSearch(g,dims,p)};
+  rememberCandidate(candidate,p);v3ArchiveAdd(candidate,p);
+ }
+ update();
  info(`Przeszukiwanie równoległe: ${workersN} wątki. Możesz wstrzymać lub zatrzymać.`);
  const seedBase=p.deterministic?(0x91a5634a^N^p.maxFuel^p.machines)>>>0:(Date.now()>>>0);
  try{
