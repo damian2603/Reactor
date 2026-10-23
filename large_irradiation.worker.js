@@ -64,10 +64,10 @@
       for(let i=0;i<nFuel;i++){const loc=sites[i];g[loc]='F';Fs.push(loc)}
       // Build real F-M-I linear connections. Never place a chamber where a fuel already exists.
       // A few variations favor many lines, many sinks, or compromise between the two.
-      const lineFraction=t%9===0?.17:t%9===1?.30:t%9===2?.75:.35+rand()*.55;
+      const lineFraction=t%11===0?.20:t%11===1?.50:t%11===2?.75:t%11===3?1:.65+rand()*.35;
       let estimatedLines=0;
       for(const f of Fs){
-        const attempts=1+(rand()<lineFraction*.55?1:0)+(rand()<lineFraction*.22?1:0);
+        const attempts=1+(rand()<lineFraction*.85?1:0)+(rand()<lineFraction*.55?1:0)+(rand()<lineFraction*.22?1:0);
         for(let a=0;a<attempts;a++){
           if(rand()>lineFraction)continue;
           let candidates=[];
