@@ -311,7 +311,7 @@ async function runWorker(data,id){
  let sent=0,lastAlternative=-99;
  const MAX_CANDIDATES=110;
  function report(c,it=-1){
- if(!c||!c.s||!c.s.lines)return;
+ if(!c||!c.s||(p.goal!=='energy'&&!c.s.lines))return;
  const s=c.s,score=grade(c),improved=s.safe&&(!best||score>grade(best));
  if(improved)best={g:c.g.slice(),s};
  if(!s.safe){
@@ -359,3 +359,6 @@ async function runWorker(data,id){
  if(best)self.postMessage({type:'candidate',grid:best.g,index});
  self.postMessage({type:'done',index,done:steps,unique});
 }
+
+// Load the same FE/t rules as the browser (classic Worker importScripts).
+importScripts('./fe_optimizer.js?v=20261023-fe1');
