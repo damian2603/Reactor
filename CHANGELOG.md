@@ -1,3 +1,11 @@
+## 4.4 — 2026-10-23
+
+- Duże reaktory do 16×16×16 obsługują teraz także **Irradiation Lines**, **Neutronium/min** oraz pozostałe cele korzystające z linii, nie tylko FE/t.
+- Nowy `large_irradiation.worker.js`: szybkie konstruowanie prawidłowych połączeń Fuel Cell → Moderator → Irradiation Chamber, chłodzenie pasywne i dopasowanie liczby Irradiatorów do bilansu ciepła.
+- Osobne heurystyki dla różnych gęstości Fuel Cells; limit do 344 ogniw nie oznacza, że program musi wykorzystać wszystkie.
+- Kandydaci dużego generatora są ponownie przeliczani i walidowani przez główny silnik przed pokazaniem ich w archiwum i udostępnieniem eksportu.
+- Test regresyjny na 16×16×16: 27/27 kandydatów z 28 prób przeszło walidację. Wynik modelowy (HEU-235, 8 maszyn, moderacja 0%): 111 linii i 4800 szt./min w najlepszym kandydacie tej krótkiej próby. Nie jest to wynik potwierdzony w grze ani globalne optimum.
+
 # 4.3 — Duże reaktory i setki Fuel Cells
 - Naprawiono przycisk „Zastosuj nowe wymiary”: dotychczas przycinał wymiary do 12 i wnętrze do 400 pól.
 - Edytor pozwala na 16×16×16 (wnętrze 2744 pól), a pole Fuel Cells do 1400.
