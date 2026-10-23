@@ -1,10 +1,10 @@
-# Project Infinity Reactor Studio 4.2
+# Project Infinity Reactor Studio 4.4
 
 Generator reaktorów dla **NuclearCraft: Neoteric 1.20.1 / Project Infinity 0.1**.
 
 ## Uruchomienie GitHub Pages
 1. Stwórz **publiczne** repozytorium na GitHub.
-2. W katalogu głównym umieść `index.html`, `optimizer.worker.js`, `large_energy.worker.js`, `fuel_data.js`, `fuel_ui.js`, `fe_optimizer.js` i `.nojekyll`.
+2. W katalogu głównym umieść `index.html`, `optimizer.worker.js`, `large_energy.worker.js`, `large_irradiation.worker.js`, `fuel_data.js`, `fuel_ui.js`, `fe_optimizer.js` i `.nojekyll`.
 3. Otwórz **Settings → Pages → Build and deployment → Deploy from a branch → main → /(root) → Save**.
 4. Otwórz adres `https://TWOJ-LOGIN.github.io/NAZWA-REPO/`.
 
@@ -17,13 +17,15 @@ Generator reaktorów dla **NuclearCraft: Neoteric 1.20.1 / Project Infinity 0.1*
 4. W wynikach zobaczysz **FE/t**, Fuel Cells i Net Heat. Kliknij wariant, aby obejrzeć warstwy, a potem wyeksportuj projekt jako NBT/MBTool.
 5. Wynik FE/t jest **modelem stabilnego, wychłodzonego reaktora przy 100% reactivity**, obliczanym z logiki Neoteric i mnożników Project Infinity. Rzeczywista produkcja może się zmieniać podczas rozruchu, przy zgromadzonym cieple i innych stanach maszyny. Przed uruchomieniem potwierdź wartości w grze.
 
-## Duże reaktory do 16×16×16 (4.3)
-1. Wybierz **Cel generatora → Maksymalna produkcja FE/t**. Włącz **Web Workers** i otwórz stronę przez GitHub Pages (nie `file://`).
+## Duże reaktory do 16×16×16 (4.4) — FE/t oraz Irradiation
+1. Wybierz cel: **Maksymalna produkcja FE/t**, **Irradiation Lines** lub **Neutronium/min**. Włącz **Web Workers** i uruchom przez GitHub Pages (nie `file://`).
 2. Wpisz **16 × 16 × 16** i kliknij **Zastosuj nowe wymiary**. Wnętrze ma wtedy **14 × 14 × 14 = 2744** pola.
 3. Ustaw **Maks. Fuel Cells** na 344 (lub inny limit). **To wartość maksymalna**, nie wymaganie wykorzystania dokładnie tylu ogniw.
-4. Kliknij **Run**. Duży tryb FE używa szybkiego konstruktora z izolowanymi Fuel Cells, opcjonalnymi moderatorami i **pasywnymi Redstone Heat Sinkami**. Nie używa jeszcze wszystkich typów chłodnic na tej skali.
+4. Dla **FE/t** kliknij **Run** — szybki konstruktor dobiera Fuel Cells i pasywne Redstone Heat Sinki. Dla **Irradiation/Neutronium** ustaw np. HEU-235, moderację 0%, limit 8 Irradiatorów, włącz automatyczny dobór maszyn i kliknij **Run**. Generator łączy prawidłowe **Fuel Cell → Moderator → Irradiation Chamber** z chłodnicami, przechodząc od rzadszych do gęstszych rdzeni.
 5. Wyniki z Workerów są zawsze ponownie przeliczane przez główny silnik, sprawdzający reguły chłodnic i Net Heat. Bezpieczne konfiguracje można eksportować do MBTool.
-6. Dla mniejszych wnętrz (do **220** pól) nadal działa rozbudowany algorytm wielokryterialny. Dla większych na razie zoptymalizowany został **cel FE/t**; pozostałe cele wyświetlą wyraźny komunikat o ograniczeniu zamiast zmieniać rozmiar bez ostrzeżenia.
+6. Dla wnętrz do **220 pól** działa dokładniejsze wyszukiwanie memetyczne. Dla większych uruchamiają się osobne szybkie algorytmy **FE/t** i **Irradiation/Neutronium**. Duży tryb Irradiation wykorzystuje na razie pasywne Redstone, Cryotheum, Quartz, Cobalt, Liquid Helium, Magnesium i Boron Heat Sinki, nie wszystkie chłodnice ani globalny solver. Wyniki są dalej walidowane przez wspólny symulator przed dodaniem do archiwum.
+
+**Przykład — 16×16×16 dla Neutronium:** wybierz `Neutronium/min`, `HEU-235`, `Moderation 0%`, `Maks. Fuel Cells 344`, `Pracujące Irradiatory 8`, zaznacz automatyczny dobór, `2 Web Workers` i `400–1200 prób`. W wynikach zobaczysz projekty z aktywnymi liniami oraz oszacowanie Neutronium/min.
 
 **Uwaga:** liczby Fuel Cells, produkcja FE/t i margines chłodzenia są prognozą symulatora. W grze sprawdź rzeczywistą produkcję, moderację i aktywność chłodnic; model nie gwarantuje maksimum globalnego ani nie uwzględnia każdej sytuacji pracy.
 
