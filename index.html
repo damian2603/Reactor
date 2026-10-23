@@ -841,7 +841,7 @@ async function runOptimizerWorkers(){
   await new Promise(resolve=>{
    function onFinish(){if(finished.size===workersN)resolve()}
    for(let k=0;k<workersN;k++){
-    const w=new Worker('./optimizer.worker.js');V4_WORKERS.push(w);
+    const w=new Worker('./optimizer.worker.js?v=20261023-v4.3');V4_WORKERS.push(w);
     w.onmessage=event=>{
      const m=event.data||{};
      if(m.type==='candidate'&&Array.isArray(m.grid)&&m.grid.length===N){
