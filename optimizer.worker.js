@@ -304,10 +304,38 @@ async function runWorker(data,id){
  const seen=new Set(),elites=[],seedObjs=[seed,...PRESETS.filter(t=>t.dims.join(',')===dims.join(',')).map(t=>t.grid)];
  let work={g:seed.slice(),s:statsForSearch(seed,dims,p)},best=null,near=null;
  const grade=x=>v3SearchValue(x.s,p);
- function report(c){if(!c||!c.s||!c.s.lines)return;
-  if(c.s.safe&&(!best||grade(c)>grade(best))){best={g:c.g.slice(),s:c.s};self.postMessage({type:'candidate',grid:c.g,index})}
-  else if(c.s.layoutOK&&(!near||grade(c)>grade(near))){near={g:c.g.slice(),s:c.s};if(!best&&index===0)self.postMessage({type:'candidate',grid:c.g,index})}
+ // Stream diverse stable candidates instead of only new global records.
+ const reportedBuckets=new Map(),reportedGrids=new Set();
+ let sent=0,lastAlternative=-99;
+ const MAX_CANDIDATES=110;
+ function report(c,it=-1){
+ if(!c||!c.s||!c.s.lines)return;
+ const s=c.s,score=grade(c),improved=s.safe&&(!best||score>grade(best));
+ if(improved)best={g:c.g.slice(),s};
+ if(!s.safe){
+  if(s.layoutOK&&(!near||score>grade(near))){
+   near={g:c.g.slice(),s};
+   if(!best&&index===0&&sent<8&&(it<0||it-lastAlternative>=25)){
+    self.postMessage({type:'candidate',grid:c.g,index,kind:'near'});sent++;
+    if(it>=0)lastAlternative=it;
+   }
+  }
+  return;
  }
+ const hash=canonicalGrid(c.g,dims);
+ const bucket=[s.lines,s.machines,s.fuelCells,Math.floor(Math.max(0,-s.net)/250)].join('|');
+ const previous=reportedBuckets.get(bucket);
+ if(previous===undefined||score>previous)reportedBuckets.set(bucket,score);
+ if(reportedGrids.has(hash))return;
+ const novelBucket=previous===undefined;
+ const meaningfulImprovement=previous!==undefined&&score>previous+25;
+ const sample=it>=0&&it-lastAlternative>=11;
+ if(improved||(sent<MAX_CANDIDATES&&sample&&(novelBucket||meaningfulImprovement))||(it<0&&sent<MAX_CANDIDATES)){
+  self.postMessage({type:'candidate',grid:c.g,index,kind:improved?'best':'alternative'});
+  reportedGrids.add(hash);sent++;
+  if(it>=0)lastAlternative=it;
+ }
+}
  for(const g of seedObjs){if(g.length!==seed.length)continue;let cand={g:g.slice(),s:statsForSearch(g,dims,p)};elites.push(cand);report(cand);seen.add(canonicalGrid(g,dims));}
  let unique=0,steps=0;
  for(let it=0;it<iterations;it++){
@@ -318,7 +346,7 @@ async function runWorker(data,id){
   const fingerprint=canonicalGrid(candidate.g,dims);
   if(!seen.has(fingerprint)){
    seen.add(fingerprint);unique++;
-   report(candidate);
+   report(candidate,it);
    if(grade(candidate)>=grade(work)||rand()<Math.exp(Math.max(-40,(grade(candidate)-grade(work))/Math.max(20,1100*(1-it/iterations)))))work=candidate;
    if(candidate.s.invalidCount===0&&candidate.s.limitsOK){elites.push(candidate);elites.sort((a,b)=>grade(b)-grade(a));const known=new Set();const filtered=[];for(const cand of elites){const k=canonicalGrid(coreOnly(cand.g),dims);if(!known.has(k)){filtered.push(cand);known.add(k)}if(filtered.length>=12)break}elites.splice(0,elites.length,...filtered)}
   }
