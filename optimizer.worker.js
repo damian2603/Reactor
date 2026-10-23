@@ -366,4 +366,4 @@ async function runWorker(data,id){
 
 // Load the same FE/t rules as the browser (classic Worker importScripts).
 importScripts('./fe_optimizer.js?v=20261023-fe1');
-importScripts('./large_energy.worker.js?v=20261023-big1');
+importScripts('./large_energy.worker.js?v=20261023-big2');
