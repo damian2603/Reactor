@@ -1,0 +1,897 @@
+<!doctype html><html lang="pl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#090e17"><title>Project Infinity • Reactor Studio 4.1 (GitHub Pages) — NuclearCraft Neoteric</title><style>:root{color-scheme:dark;--bg:#090e17;--panel:#121c2b;--panel2:#172337;--panel3:#1a2a40;--line:#2c3e57;--txt:#eaf1fb;--mut:#9eacc4;--a:#80e0c7;--a2:#90aafc;--danger:#ff858d;--ok:#92e7b2;--warning:#eac78d;--shadow:#0005}*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse 65% 340px at 85% -5%,#1b3950 0,transparent 100%),#090e17;color:var(--txt);font:14px/1.48 Inter,system-ui,-apple-system,"Segoe UI",sans-serif}button,input,select{font:inherit}button{cursor:pointer}button:disabled{cursor:default;opacity:.42}a{color:#95cdfc;text-decoration:none}a:hover{text-decoration:underline}header{border-bottom:1px solid var(--line);padding:22px max(16px,calc((100% - 1460px)/2));background:#101a2a8f}header .top{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}.logo{display:flex;gap:12px;align-items:center}.mark{width:42px;height:42px;display:grid;place-items:center;background:linear-gradient(135deg,#86e8cb,#719de0);color:#102132;border-radius:12px;font-weight:900;font-size:21px}.eyebrow{color:var(--a);font-weight:750;letter-spacing:.11em;text-transform:uppercase;font-size:11px}.title{font-size:clamp(22px,3vw,30px);letter-spacing:-.045em;line-height:1.08;margin:3px 0}.subtitle{color:var(--mut);margin:9px 0 0;max-width:830px}.tag{border:1px solid #45657a;border-radius:99px;padding:6px 12px;color:#ccf5ec;font-size:12px;background:#132b35}.layout{display:grid;grid-template-columns:minmax(290px,318px) minmax(400px,1fr) minmax(240px,295px);gap:15px;max-width:1470px;margin:0 auto;padding:17px 16px 60px;align-items:start}.pane{display:flex;flex-direction:column;gap:14px;min-width:0}.panel{background:linear-gradient(165deg,#152034,#111b29);border:1px solid var(--line);border-radius:15px;padding:16px;box-shadow:0 5px 22px #0002;min-width:0}.panel h2{font-size:14px;letter-spacing:.005em;margin:0 0 14px;font-weight:800}.sectiontop{display:flex;justify-content:space-between;align-items:center;gap:8px}.sectiontop h2{margin:0}.subheading{font-size:11px;font-weight:750;text-transform:uppercase;letter-spacing:.1em;color:var(--mut);margin:18px 0 7px}.formfield{margin:11px 0;display:block}.formfield .label{display:block;font-size:12px;color:#d1def0;margin-bottom:5px;font-weight:650}.formfield input,.formfield select,.input{background:#0b1421;border:1px solid #3d536b;border-radius:9px;color:var(--txt);padding:9px 10px;width:100%;outline:none;min-width:0}.formfield input:focus,.formfield select:focus,.input:focus{border-color:#8bdecf}.cols2{display:grid;grid-template-columns:1fr 1fr;gap:9px}.cols3{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}.hint{font-size:11.5px;color:var(--mut);line-height:1.52}.inlinecheck{display:flex;align-items:center;gap:8px;color:#c9d7e7;font-size:12px;margin:9px 0}.inlinecheck input{accent-color:var(--a);width:16px;height:16px}.toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.btn{padding:9px 11px;border-radius:9px;border:1px solid #435874;background:#203048;color:var(--txt);font-weight:700;transition:border-color .12s,background .12s}.btn:hover{background:#293e59}.btn.primary{background:linear-gradient(105deg,#8be7d2,#94c5ed);color:#10283a;border:0}.btn.warn{border-color:#705b43;color:#ffdc9c}.btn.selected{border-color:#9cdfcf;background:#254a4b}.btn.small{padding:6px 9px;font-size:12px}.btn.wide{width:100%;padding:11px}.btnrow{display:flex;gap:7px;flex-wrap:wrap}.btnrow>*{flex:1}.value{font-variant-numeric:tabular-nums}.tiny{font-size:11px}.muted{color:var(--mut)}.labelmut{font-size:11px;color:var(--mut)}.num{font-weight:800;font-size:22px;letter-spacing:-.035em}.good{color:var(--ok)!important}.bad{color:var(--danger)!important}.warntext{color:var(--warning)!important}.metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}.metric{background:#0c1727;border:1px solid #293d55;border-radius:11px;padding:10px 11px;min-width:0}.metric .num{font-size:clamp(17px,2vw,22px);overflow-wrap:anywhere}.meter{height:7px;background:#1d3247;border-radius:99px;overflow:hidden;margin-top:9px}.meter>span{display:block;height:100%;background:#8cdec9;max-width:100%}.meter.danger>span{background:#e99a76}.status{border-radius:9px;border:1px solid #32565e;background:#132a38;padding:10px 12px;font-size:12px;color:#bee6e1;margin-top:12px;min-height:37px}.status.error{border-color:#824e4f;background:#351e29;color:#ffb7b6}.status.warn{border-color:#776246;background:#30291d;color:#f3d69e}.progress{height:8px;border-radius:8px;background:#263246;overflow:hidden;margin:10px 0 0}.progress div{background:#84dbc4;height:100%;transition:width .15s}.summary{margin:12px 0 0;font-size:12px;color:#c5d6e5}.tabs{display:flex;gap:5px;border:1px solid #2b425b;border-radius:9px;padding:4px;background:#0d1725}.tabs button{border:0;background:transparent;color:#a6b9d1;padding:7px 13px;border-radius:6px;font-weight:700;flex:1}.tabs button.active{color:#f3f9ff;background:#30445e}.layerhead{display:flex;justify-content:space-between;align-items:center;gap:9px;margin:12px 0}.layerhead strong{font-size:14px}.stage{margin:0 auto;width:min(100%,550px);padding:15px;background:radial-gradient(circle at 50% 38%,#1b3446 0,#0a1422 75%);border:1px solid #283d56;border-radius:14px;min-height:240px;display:flex;align-items:center;justify-content:center}.reactor-grid{--cols:3;width:100%;display:grid;grid-template-columns:repeat(var(--cols),minmax(0,1fr));gap:4px;max-width:min(100%,520px)}.cell{aspect-ratio:1;border-radius:6px;border:1px solid #ffffff21;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-width:0;padding:3px;position:relative;user-select:none;cursor:pointer;transition:filter .12s,transform .12s;overflow:hidden}.cell:hover{filter:brightness(1.2);transform:translateY(-1px)}.cell .symbol{font-size:clamp(10px,1.7vw,19px);font-weight:900;line-height:1.1}.cell .cname{font-size:clamp(6px,.73vw,10px);font-weight:650;text-align:center;line-height:1.07;opacity:.8;word-break:break-all}.cell.F{background:#dbb95e;color:#201b10}.cell.M{background:#99cbb0;color:#183029}.cell.I{background:#ae8fe3;color:#211e36}.cell.air{background:#192639;color:#8191a7;border-style:dashed}.cell.sink{background:#3974ad;color:#f2fbff}.cell.sinkalt{background:#326e7d;color:#f7faff}.cell.shell{background:#566477;color:#fff}.cell.machine{background:#ab79c2;color:#1b112b}.cell.port{background:#d2a76a;color:#2c1b16}.cell.controller{background:#f3a978;color:#221b19}.cell.invalid{outline:3px solid #f67c88;outline-offset:-3px}.cell.selectedblock{box-shadow:inset 0 0 0 3px #d9fdf8}.cell.slim .cname{display:none}.legend{display:flex;gap:11px;flex-wrap:wrap;margin-top:13px;color:#bfccdb;font-size:11px}.swatch{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:middle}.palette{display:grid;grid-template-columns:repeat(auto-fit,minmax(105px,1fr));gap:6px;max-height:202px;overflow:auto;margin-top:7px;padding-right:3px}.palette button{padding:8px 5px;border-radius:7px;border:1px solid #3b506a;background:#16253b;color:#c7d5e4;font-size:11px;text-align:center}.palette button.pick{border-color:#9ce4d0;background:#274c50;color:#e8fff8}.palette button.unavailable{opacity:.48}.material-list{display:grid;grid-template-columns:1fr;gap:1px;max-height:380px;overflow:auto}.material{display:flex;justify-content:space-between;gap:6px;padding:7px 3px;border-bottom:1px solid #293e52;font-size:12px}.material span{max-width:210px}.scroll{max-height:180px;overflow:auto}.cooler-table{width:100%;border-collapse:collapse;font-size:12px}.cooler-table th,.cooler-table td{padding:7px 5px;border-bottom:1px solid #2c3b54;text-align:left}.cooler-table td:nth-child(2),.cooler-table th:nth-child(2){text-align:right}.cooler-table td:last-child{width:66px;text-align:right}.cooler-table input{width:60px;background:#0c1727;color:#e8f1f8;border:1px solid #41536a;border-radius:5px;padding:6px}.dialog{position:fixed;inset:0;background:#000a;display:none;place-items:center;z-index:20;padding:16px}.dialog.visible{display:grid}.dialog .panel{max-width:700px;width:100%;max-height:88vh;overflow:auto}.dialog h2{margin-bottom:8px}.dialog textarea{width:100%;min-height:160px;background:#0b1421;border:1px solid #40536b;border-radius:8px;color:#dcefff;padding:10px;font-family:ui-monospace,monospace}.details{border:1px solid #32475d;border-radius:8px;padding:9px 11px;background:#0e1d2c;color:#bccddf;font-size:11.5px}.footer{font-size:11px;color:#8da0b9;line-height:1.6}.footlinks{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px}input[type=range]{width:100%;accent-color:#85dbc5}select optgroup{color:#9cacc7}@media(max-width:1180px){.layout{grid-template-columns:minmax(250px,315px) minmax(0,1fr)}.right{grid-column:1/-1;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}.right .panel{margin:0}}@media(max-width:710px){.layout{grid-template-columns:1fr}.right{display:flex;flex-direction:column}.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.stage{min-height:190px}.cell .symbol{font-size:clamp(12px,4vw,20px)}.cell .cname{font-size:clamp(7px,1.8vw,10px)}.panel{padding:14px}.layout{padding:12px 11px 40px}}@media print{body{background:white;color:#111}header{display:none}.layout{display:block}.left,.right,.toolbar,.palette,.tabs,.layerhead button{display:none!important}.panel,.stage{box-shadow:none;border-color:#bbb}.metric{background:#fff}.cell{print-color-adjust:exact;-webkit-print-color-adjust:exact}.material{border-color:#ddd}}
+
+/* Reactor Studio FINAL 4.0 · multiobjective search */
+.v3tools{margin:13px 0;padding:12px;border:1px solid #355870;background:#122638;border-radius:12px}
+.v3h{font-size:11px;letter-spacing:.085em;color:#95e6d7;font-weight:800;margin:12px 0 7px}
+.v3tools .v3h{margin-top:0}.v3tools .hint{margin:8px 0}
+.v3diagnostics{font-size:12px;line-height:1.55;color:#b7cfe0;padding:9px;background:#071725a8;border-radius:7px;margin-top:9px}
+.v3Archive{display:grid;grid-template-columns:1fr 1fr;gap:6px;max-height:320px;overflow:auto;scrollbar-width:thin}
+.v3result{display:flex;flex-direction:column;align-items:flex-start;text-align:left;background:#162f40;border:1px solid #2b5662;color:#d7eff7;gap:2px;padding:8px;border-radius:8px}
+.v3result span{font-size:11px;line-height:1.35;color:#a3becd}.v3result:hover,.v3result:focus-visible{background:#1a4255;outline:1px solid #68bfb1}
+@media(max-width:540px){.v3Archive{grid-template-columns:1fr}}
+
+/* Production release: operational audit and history */
+.readiness{display:inline-flex;border:1px solid #647c86;padding:6px 10px;border-radius:9px;margin-bottom:7px;font-weight:800;font-size:12px;letter-spacing:.01em}
+.readiness.ready{background:#133629;border-color:#35735b;color:#a4f0c8}.readiness.caution{background:#30261a;border-color:#7b6544;color:#edd1a5}.readiness.notready{background:#352126;border-color:#8d5059;color:#ffb1b8}
+.operatingTable thead th{position:sticky;top:0;background:#17263a;z-index:1}.operatingTable td{white-space:nowrap}.operatingTable tr.chosen{background:#214451;color:#fff}.optimizerBusy .stage{outline:1px solid #28415c}
+#operatingPanel{scroll-margin-top:18px}
+</style></head><body>
+<header><div class="top"><div class="logo"><div class="mark">N</div><div><div class="eyebrow">NuclearCraft: Neoteric 1.20.1 · Project Infinity 0.1</div><h1 class="title">Reactor Studio <span style="font-size:.5em;color:#96dece;vertical-align:middle">2.0</span></h1></div></div><span class="tag">Tryb offline · bez instalacji</span></div><p class="subtitle">Projektuj i optymalizuj reaktory jak w leu-235.com, ale według konfiguracji Project Infinity. Edycja warstw, walidacja chłodnic, produkcja Neutronium i eksport NBT do MBTool.</p></header>
+<main class="layout">
+<aside class="pane left">
+<section class="panel"><h2>01 · Rozmiar i paliwo</h2><div class="subheading">Wymiary zewnętrzne — X × Y × Z</div><div class="cols3"><label class="formfield"><span class="label">Szerokość</span><input type="number" id="dimX" min="3" max="12" value="5"></label><label class="formfield"><span class="label">Wysokość</span><input type="number" id="dimY" min="3" max="12" value="7"></label><label class="formfield"><span class="label">Głębokość</span><input type="number" id="dimZ" min="3" max="12" value="5"></label></div><button class="btn wide" id="resize">Zastosuj nowe wymiary</button>
+<label class="formfield"><span class="label">Paliwo NuclearCraft</span><select id="fuel"></select></label>
+<div class="cols2"><label class="formfield"><span class="label">Base Heat (H/t)</span><input id="fuelHeat" type="number" step="any" min="0" value="300"></label><label class="formfield"><span class="label">Base FE/t</span><input id="fuelPower" type="number" step="any" min="0" value="960"></label></div><label class="formfield"><span class="label">Irradiation paliwa</span><input id="fuelRate" type="number" step="0.01" min="0" value="108.4"></label><p class="hint">HEU-235: 108,4 z Twojego pomiaru. Dla innych paliw wpisz irradiation z gry — nie zakładam niezweryfikowanych wartości.</p></section>
+<section class="panel"><h2>02 · Cel generatora</h2><label class="formfield"><span class="label">Optymalizuj pod</span><select id="goal"><option value="neutronium">Neutronium/min · Platinum → Neutronium</option><option value="lines">Irradiation Lines</option><option value="energy">Produkcję FE/t (szacunek)</option><option value="cooling">Zapas chłodzenia</option><option value="efficiency">Oszczędność Fuel Cells</option></select></label>
+<div class="cols2"><label class="formfield"><span class="label">Pracujące Irradiatory</span><input type="number" id="machineCount" min="0" max="250" value="8"></label><label class="formfield"><span class="label">Zapas Heat (H/t)</span><input type="number" id="reserve" min="0" max="50000" value="100"></label></div><label class="formfield"><span class="label">Moderation: <b id="modLabel">0%</b></span><input id="moderation" type="range" min="0" max="100" value="0"></label>
+<div class="cols2"><label class="formfield"><span class="label">Maks. Fuel Cells</span><input id="maxFuel" type="number" value="5" min="1" max="100"></label><label class="formfield"><span class="label">Próby optymalizatora</span><select id="iterations"><option value="100">100 • szybko</option><option value="400" selected>400 • standard</option><option value="1200">1200 • dokładniej</option><option value="3000">3000 • dłużej</option><option value="8000">8000 • intensywnie</option></select></label></div>
+<label class="inlinecheck"><input type="checkbox" id="autoMachines" checked>Automatycznie dobierz liczbę pracujących Irradiatorów (do podanego limitu)</label><label class="inlinecheck"><input type="checkbox" id="safeAtFull">Wymagaj stabilności także przy 100% moderacji (zabezpieczenie po restarcie)</label><label class="inlinecheck"><input type="checkbox" id="deterministic" checked>Powtarzalne wyniki (stałe ziarno losowe)</label><label class="inlinecheck"><input type="checkbox" id="keepSafe" checked>Odrzucaj projekty z dodatnim Net Heat</label><label class="inlinecheck"><input type="checkbox" id="allowEditCore" checked>Szukaj też nowych układów Fuel Cells i linii</label><label class="inlinecheck"><input type="checkbox" id="allowActive">Dopuść aktywne chłodnice — zakładam, że chłodziwo będzie stale dostarczane</label><div class="subheading" style="margin-top:8px">Symetria malowania w edytorze</div><div class="toolbar"><label class="inlinecheck"><input type="checkbox" id="symX">Oś X</label><label class="inlinecheck"><input type="checkbox" id="symY">Oś Y</label><label class="inlinecheck"><input type="checkbox" id="symZ">Oś Z</label></div><div class="v3tools"><div class="v3h">REACTOR STUDIO 3.0 · MEMETIC SEARCH</div>
+  <div class="cols2"><label class="formfield"><span class="label">Czas receptury (ticków)</span><input id="recipeBaseTicks" type="number" min="1" max="10000000" value="2000"></label>
+  <label class="formfield"><span class="label">Wynik na cykl (szt.)</span><input id="recipeOutputCount" type="number" min="1" max="64" value="1"></label></div>
+  <p class="hint">Dla Project Infinity: Platinum → Neutronium = 200 ticków × timeModifier 10 = 2000 ticków, 1 sztuka. Inne receptury możesz ustawić ręcznie.</p>
+  <div class="btnrow"><button class="btn small" id="testModel" type="button">Sprawdź model</button><button class="btn small" id="coolPro" type="button">❄ Chłodzenie PRO (stały rdzeń)</button><button class="btn small" id="saveSnapshot" type="button">Zapisz archiwum wyników</button></div>
+  <div id="v3Diagnostics" class="v3diagnostics" aria-live="polite"></div><div class="v3h">TESTY REGRESJI · POTWIERDZENIE WZORCÓW</div><button class="btn small" id="regressionTest" type="button">Uruchom test zgodności</button><div id="regressionResult" class="v3diagnostics" aria-live="polite"></div>
+  <div class="v3h">ZGODNOŚĆ Z DESIGNEREM W GRZE</div><p class="hint">Designer zakłada 100% moderacji i ciepło odpowiadające 1 Irradiatorowi. Wpisz wartości z wybranego paliwa w grze.</p>
+  <div class="cols2"><label class="formfield"><span class="label">Heat/t z gry</span><input id="refHeat" type="text" inputmode="decimal" placeholder="np. 3955"></label>
+  <label class="formfield"><span class="label">Cooling/t z gry</span><input id="refCooling" type="text" inputmode="decimal" placeholder="np. 4155"></label></div>
+  <label class="formfield"><span class="label">Irradiation z gry</span><input id="refLines" type="text" inputmode="numeric" placeholder="np. 17"></label>
+  <button class="btn small" id="compareGame" type="button">Porównaj z symulatorem</button>
+  <div id="calibrationResult" class="v3diagnostics" aria-live="polite">Możesz wpisać odczyty z gry, aby zweryfikować zgodność symulacji.</div></div>
+<div class="toolbar" style="margin:8px 0 10px"><label class="inlinecheck"><input type="checkbox" id="parallelSearch" checked>Web Workers — wyszukiwanie bez blokowania interfejsu</label><label class="formfield" style="min-width:125px"><span class="label">Wątki</span><select id="workerCount" class="input"><option value="1">1</option><option value="2" selected>2</option><option value="3">3</option><option value="4">4</option></select></label></div><p class="hint" id="workerInfo">Przy uruchomieniu z GitHub Pages przeglądarka może wykorzystać kilka rdzeni. Lokalny plik HTML korzysta z trybu zgodności.</p><div class="btnrow"><button class="btn primary" id="run">▶ Run</button><button class="btn" id="pause" disabled>⏸ Pause</button><button class="btn" id="stop" disabled>■ Stop</button></div><div class="progress"><div id="progressBar" style="width:0"></div></div><div class="subheading" style="margin-top:10px">Wyniki wyszukiwania</div><div id="bestSummary" class="hint" style="min-height:34px">Jeszcze brak wyników.</div><div class="v3h">WARIANTY NIEZDOMINOWANE · Wydajność / Paliwo / Zapas chłodzenia</div><div id="v3Archive" class="v3Archive"></div><div class="toolbar" style="margin:9px 0"><button class="btn small" id="applyBest" disabled>Zastosuj najlepszy stabilny</button><button class="btn small" id="applyNear" disabled>Zastosuj najlepszy bliski</button><button class="btn small" id="heatFix">Napraw chłodzenie</button></div><div class="status" id="status">Gotowy. Załaduj przykład lub uruchom optymalizację.</div><div class="hint" id="attempts" style="margin-top:5px"></div></section>
+<section class="panel"><div class="sectiontop"><h2>03 · Limity chłodnic</h2><button class="btn small" id="resetLimits">Reset</button></div><p class="hint">Pasywne chłodnice są domyślnie dostępne. Aktywne można włączyć powyżej i ustawić limit większy od zera; potrzebują 10 mB/t chłodziwa na blok. Zero = wyłączone. Warianty aktywne potrzebują realnego dopływu płynu.</p><div class="scroll" style="max-height:345px"><table class="cooler-table"><thead><tr><th>Heat Sink</th><th>H/t</th><th>Maks.</th></tr></thead><tbody id="coolers"></tbody></table></div></section>
+</aside>
+<div class="pane center">
+<section class="panel"><div class="sectiontop"><h2>Projekt · edytor warstw</h2><div class="toolbar"><button class="btn small" id="preset">Wczytaj przykład</button><button class="btn small" id="clear">Wyczyść</button><button class="btn small" id="undoEdit" title="Cofnij edycję (Ctrl+Z)">↶ Cofnij</button><button class="btn small" id="redoEdit" title="Ponów edycję (Ctrl+Y)">↷ Ponów</button></div></div><div class="tabs" style="margin-top:13px"><button id="tabInterior" class="active">Wnętrze</button><button id="tabWhole">Cały reaktor / obudowa</button></div><div class="layerhead"><button class="btn small" id="prev">← Warstwa niżej</button><strong id="layerTitle">Warstwa 1 / 5</strong><button class="btn small" id="next">Warstwa wyżej →</button></div><div class="stage"><div class="reactor-grid" id="editorGrid"></div></div><p class="hint" id="selectedDesc" style="margin:9px 0">Kliknij pole, żeby umieścić wybrany blok. Czerwony kontur oznacza nieaktywny blok.</p><div class="legend"><span><i class="swatch" style="background:#dbb95e"></i>Fuel Cell</span><span><i class="swatch" style="background:#99cbb0"></i>Moderator</span><span><i class="swatch" style="background:#ae8fe3"></i>Chamber</span><span><i class="swatch" style="background:#3974ad"></i>Heat Sink</span><span><i class="swatch" style="background:#f67c88"></i>Błąd</span></div>
+<div class="subheading">Pędzel — kliknij, żeby wybrać rodzaj bloku</div><div class="palette" id="palette"></div></section>
+<section class="panel"><div class="sectiontop"><h2>Obliczenia aktualnego projektu</h2><span id="validationTag" class="tag">Niezbadany</span></div><div class="metrics"><div class="metric"><div class="labelmut">Irradiation Lines</div><div class="num" id="metricLines">–</div></div><div class="metric"><div class="labelmut">Neutronium/min</div><div class="num good" id="metricProduct">–</div></div><div class="metric"><div class="labelmut">Net Heat</div><div class="num" id="metricNet">–</div></div><div class="metric"><div class="labelmut">Heat/t</div><div class="num" id="metricHeat">–</div></div><div class="metric"><div class="labelmut">Cooling/t</div><div class="num" id="metricCool">–</div></div><div class="metric"><div class="labelmut">Fuel Cells / Komory</div><div class="num" id="metricCells">–</div></div><div class="metric"><div class="labelmut">Czas sztabki</div><div class="num" id="metricTicks">–</div></div><div class="metric"><div class="labelmut">FE/t (model)</div><div class="num" id="metricFe">–</div></div><div class="metric"><div class="labelmut">Zapas na kolejne Irradiatory</div><div class="num" id="metricCapacity">–</div></div></div><div class="meter" id="heatratio"><span id="heatratioFill" style="width:0"></span></div><p id="statExplain" class="summary"></p><div class="details" id="problemList">Zacznij od przykładu.</div></section>
+<section class="panel" id="operatingPanel"><div class="sectiontop"><h2>Raport pracy i bezpieczeństwa</h2><button class="btn small" id="exportOperating">↓ CSV obciążenia</button></div>
+<div id="readiness" class="readiness">Sprawdzanie…</div><p id="readinessNotes" class="hint"></p><p id="maxSafeCount" class="summary"></p>
+<div class="scroll" style="max-height:275px"><table class="cooler-table operatingTable"><thead><tr><th>Irr.</th><th>Heat/t</th><th>Net H/t</th><th>Szt./min</th><th>Rezerwa ✓</th></tr></thead><tbody id="operationRows"></tbody></table></div>
+<p class="hint">Dane modelowe przy 20 TPS, bez przestojów i z ciągłym podawaniem Platinum. Tabela pokazuje wpływ liczby równocześnie pracujących maszyn na ciepło.</p></section>
+<section class="panel"><h2>Eksport i import</h2><div class="toolbar"><button class="btn" id="saveLocal">Zapisz w przeglądarce</button><button class="btn" id="restoreLocal">Przywróć zapis</button></div><div class="toolbar" style="margin-top:10px"><button class="btn" id="saveJSON">↓ Projekt JSON</button><button class="btn" id="loadJSON">↑ JSON / Building Gadgets 2</button><button class="btn" id="exportBG">↓ Building Gadgets 2</button><button class="btn" id="saveNBT">↓ MBTool .nbt</button><button class="btn primary" id="savePack">↓ Datapack MBTool ZIP</button><button class="btn" id="saveTXT">↓ Warstwy TXT</button><button class="btn" id="print">Druk</button></div><label class="inlinecheck"><input type="checkbox" id="coolantVerified">Potwierdzam ciągłą dostawę 10 mB/t chłodziwa na każdą aktywną chłodnicę (jeżeli występują)</label><label class="inlinecheck"><input type="checkbox" id="unsafeExport">Pozwól eksportować projekty z błędami lub dodatnim Net Heat (tylko do testów)</label><p class="hint" style="margin-top:12px">Eksport NBT to skompresowana struktura Minecrafta (palette, blocks, size). ZIP ma strukturę <code>data/mbtool/mbtool_structures/</code> i jest gotowy do folderu <code>datapacks</code>. Importowane JSON-y z tej aplikacji zachowują konfigurację i układ.</p></section>
+</div>
+<aside class="pane right"><section class="panel"><h2>Lista materiałów</h2><div class="material-list" id="materials"></div><p class="hint" id="materialsTotal" style="margin-top:8px"></p></section>
+<section class="panel"><h2>Parametry reaktora</h2><div id="details" class="details">–</div><div class="subheading">Porównanie przy obciążeniu</div><label class="formfield"><span class="label">Symulacja pracujących maszyn: <b id="trialCountLabel">8</b></span><input id="trialCount" type="range" min="0" max="30" value="8"></label><p class="hint" id="trialResult"></p></section>
+<section class="panel"><h2>Punkty startowe</h2><p class="hint">Wczytaj jeden z poprzednich projektów HEU-235 i wykorzystaj go jako punkt startowy optymalizatora. Możesz też malować własne układy.</p><div id="presets" style="display:grid;gap:7px"></div></section>
+<section class="panel"><h2>Ograniczenia i źródła</h2><p class="hint">Obliczenia replikują logikę <code>DesignSimulator</code> i reguły <code>HeatSinkDef</code> dla gałęzi <code>1.20</code>. Generator korzysta z mutacji topologii, lokalnej optymalizacji chłodzenia i elitarnych projektów; nie dowodzi globalnego maksimum. Weryfikuj wynik w Designerze przed włączeniem paliwa.</p><p class="hint">Produkcja Neutronium zakłada recepturę Platinum → Neutronium (2000 ticków bazowo), 20 TPS i ciągły transport. Wartości FE/t to przybliżenie; inne źródła paliwa mogą wymagać ręcznego ustawienia irradiation.</p><div class="footlinks"><a href="https://leu-235.com/" target="_blank" rel="noopener">Inspiracja: leu-235.com ↗</a><a href="https://github.com/BOLTMAGIC/Project-Infinity-0.1" target="_blank" rel="noopener">Config paczki ↗</a><a href="https://github.com/igentuman/NuclearCraft-Neoteric/tree/1.20" target="_blank" rel="noopener">Kod moda ↗</a></div></section></aside>
+</main>
+<div id="dialog" class="dialog"><div class="panel"><div class="sectiontop"><h2>Wczytywanie projektu JSON</h2><button id="closeDialog" class="btn small">Zamknij</button></div><p class="hint">Wklej JSON z Reactor Studio albo JSON z Building Gadgets 2 (z polem statePosArrayList), lub wybierz plik.</p><input id="importFile" type="file" accept=".json,.nbt,application/json" class="input"><textarea id="importText" placeholder="{ ... }" style="margin:10px 0"></textarea><div class="btnrow"><button id="loadImport" class="btn primary">Wczytaj projekt</button><button id="cancelImport" class="btn">Anuluj</button></div></div></div>
+<script type="application/json" id="gameData">{"fuels":[["TBU","thorium",120,18],["LEU-235","uranium",240,50],["LEU-233","uranium",288,60],["HEU-235","uranium",960,300],["HEU-233","uranium",1152,360],["MIX-239","mixed",310,57.5],["MIX-241","mixed",468,97.5],["LEN-236","neptunium",180,36],["HEN-236","neptunium",720,216],["LEP-239","plutonium",210,40],["LEP-241","plutonium",330,70],["HEP-239","plutonium",840,240],["HEP-241","plutonium",1320,420],["LEA-242","americium",384,94],["HEA-242","americium",1536,564],["LECM-243","curium",420,112],["LECM-245","curium",324,68],["LECM-247","curium",276,54],["HECM-243","curium",1680,672],["HECM-245","curium",1296,408],["HECM-247","curium",1104,324],["LEB-248","berkelium",270,52],["HEB-248","berkelium",1080,312],["LECF-249","californium",432,116],["LECF-251","californium",450,120],["HECF-249","californium",1728,696],["HECF-251","californium",1800,720],["XEN-298","xenorium",4536,768]],"sinks":{"tin":[120,["lapis_heat_sink-2"]],"iron":[80,["gold_heat_sink"]],"gold":[120,["water_heat_sink","redstone_heat_sink"]],"lead":[60,["iron_heat_sink"]],"water":[60,["fission_reactor_solid_fuel_cell|#nuclearcraft:moderators"]],"slime":[145,["water_heat_sink","lead_heat_sink"]],"boron":[160,["quartz_heat_sink","#nuclearcraft:fission_reactor_casing|#nuclearcraft:moderators"]],"empty":[0,[]],"lapis":[120,["fission_reactor_solid_fuel_cell","#nuclearcraft:fission_reactor_casing"]],"silver":[170,["glowstone_heat_sink>2","tin_heat_sink|fission_reactor_irradiation_chamber"]],"quartz":[90,["#nuclearcraft:moderators"]],"purpur":[95,["#nuclearcraft:fission_reactor_casing","iron_heat_sink"]],"cobalt":[75,["fission_reactor_irradiation_chamber"]],"copper":[80,["glowstone_heat_sink"]],"diamond":[150,["water_heat_sink","quartz_heat_sink"]],"arsenic":[135,["#nuclearcraft:moderators>3"]],"emerald":[160,["fission_reactor_solid_fuel_cell","#nuclearcraft:moderators"]],"lithium":[130,["lead_heat_sink-2"]],"platinum":[180,["fission_reactor_irradiation_chamber","#nuclearcraft:moderators"]],"redstone":[90,["fission_reactor_solid_fuel_cell"]],"fluorite":[160,["gold_heat_sink","prismarine_heat_sink"]],"obsidian":[40,["glowstone_heat_sink-2"]],"enderium":[120,["#nuclearcraft:fission_reactor_casing^3"]],"aluminum":[175,["quartz_heat_sink","lapis_heat_sink"]],"magnesium":[110,["#nuclearcraft:fission_reactor_casing","#nuclearcraft:moderators"]],"cryotheum":[160,["fission_reactor_solid_fuel_cell>2"]],"glowstone":[130,["#nuclearcraft:moderators>2"]],"manganese":[150,["fission_reactor_solid_fuel_cell>2"]],"end_stone":[40,["enderium_heat_sink"]],"netherite":[150,["obsidian_heat_sink","fission_reactor_irradiation_chamber"]],"carobbiite":[140,["end_stone_heat_sink","fission_reactor_irradiation_chamber"]],"prismarine":[115,["water_heat_sink"]],"villiaumite":[180,["redstone_heat_sink","end_stone_heat_sink"]],"active_water":[250,["fission_reactor_solid_fuel_cell|#nuclearcraft:moderators"]],"nether_brick":[70,["obsidian_heat_sink"]],"empty_active":[0,[]],"liquid_helium":[140,["redstone_heat_sink","#nuclearcraft:fission_reactor_casing"]],"active_redstone":[270,["fission_reactor_solid_fuel_cell"]],"active_enderium":[360,["#nuclearcraft:fission_reactor_casing^3"]],"liquid_nitrogen":[185,["copper_heat_sink","purpur_heat_sink"]],"active_cryotheum":[480,["fission_reactor_solid_fuel_cell>2"]],"active_liquid_helium":[420,["redstone_heat_sink","#nuclearcraft:fission_reactor_casing"]],"active_liquid_nitrogen":[555,["copper_heat_sink","purpur_heat_sink"]]},"presets":[{"id":"HEU235_5x7x5_13_LINII_4_FUEL_MBTool","name":"5×7×5 · 13 linii","desc":"4 Fuel Cells, 7 Irradiatorów","dims":[3,5,3],"grid":["I","boron","enderium","boron",".","boron","enderium","boron","enderium","M","quartz","boron","quartz","diamond","quartz","boron","quartz","boron","F","M","I","M","water","M","I","M","F","M","arsenic","M","arsenic","prismarine","arsenic","M","arsenic","M","I","M","F","M","arsenic","M","F","M","I"],"wall":[[0,0,0,"nuclearcraft:fission_reactor_casing"],[1,0,0,"nuclearcraft:fission_reactor_casing"],[2,0,0,"nuclearcraft:fission_reactor_casing"],[3,0,0,"nuclearcraft:fission_reactor_casing"],[4,0,0,"nuclearcraft:fission_reactor_casing"],[0,0,1,"nuclearcraft:fission_reactor_casing"],[1,0,1,"nuclearcraft:fission_reactor_casing"],[2,0,1,"nuclearcraft:fission_reactor_casing"],[3,0,1,"nuclearcraft:fission_reactor_casing"],[4,0,1,"nuclearcraft:fission_reactor_casing"],[0,0,2,"nuclearcraft:fission_reactor_casing"],[1,0,2,"nuclearcraft:fission_reactor_casing"],[2,0,2,"nuclearcraft:fission_reactor_casing"],[3,0,2,"nuclearcraft:fission_reactor_casing"],[4,0,2,"nuclearcraft:fission_reactor_casing"],[0,0,3,"nuclearcraft:fission_reactor_casing"],[1,0,3,"nuclearcraft:fission_reactor_casing"],[2,0,3,"nuclearcraft:fission_reactor_casing"],[3,0,3,"nuclearcraft:fission_reactor_casing"],[4,0,3,"nuclearcraft:fission_reactor_casing"],[0,0,4,"nuclearcraft:fission_reactor_casing"],[1,0,4,"nuclearcraft:fission_reactor_casing"],[2,0,4,"nuclearcraft:fission_reactor_casing"],[3,0,4,"nuclearcraft:fission_reactor_casing"],[4,0,4,"nuclearcraft:fission_reactor_casing"],[0,1,0,"nuclearcraft:fission_reactor_casing"],[1,1,0,"nuclearcraft:irradiator"],[2,1,0,"nuclearcraft:irradiator"],[3,1,0,"nuclearcraft:irradiator"],[4,1,0,"nuclearcraft:fission_reactor_casing"],[0,1,1,"nuclearcraft:fission_reactor_casing"],[4,1,1,"nuclearcraft:fission_reactor_casing"],[0,1,2,"nuclearcraft:fission_reactor_casing"],[4,1,2,"nuclearcraft:fission_reactor_casing"],[0,1,3,"nuclearcraft:fission_reactor_casing"],[4,1,3,"nuclearcraft:fission_reactor_casing"],[0,1,4,"nuclearcraft:fission_reactor_casing"],[1,1,4,"nuclearcraft:fission_reactor_casing"],[2,1,4,"nuclearcraft:fission_reactor_casing"],[3,1,4,"nuclearcraft:fission_reactor_casing"],[4,1,4,"nuclearcraft:fission_reactor_casing"],[0,2,0,"nuclearcraft:fission_reactor_casing"],[1,2,0,"nuclearcraft:irradiator"],[2,2,0,"nuclearcraft:fission_reactor_casing"],[3,2,0,"nuclearcraft:irradiator"],[4,2,0,"nuclearcraft:fission_reactor_casing"],[0,2,1,"nuclearcraft:fission_reactor_casing"],[4,2,1,"nuclearcraft:fission_reactor_casing"],[0,2,2,"nuclearcraft:fission_reactor_casing"],[4,2,2,"nuclearcraft:fission_reactor_casing"],[0,2,3,"nuclearcraft:fission_reactor_casing"],[4,2,3,"nuclearcraft:fission_reactor_casing"],[0,2,4,"nuclearcraft:fission_reactor_casing"],[1,2,4,"nuclearcraft:fission_reactor_casing"],[2,2,4,"nuclearcraft:fission_reactor_casing"],[3,2,4,"nuclearcraft:fission_reactor_casing"],[4,2,4,"nuclearcraft:fission_reactor_casing"],[0,3,0,"nuclearcraft:fission_reactor_casing"],[1,3,0,"nuclearcraft:irradiator"],[2,3,0,"nuclearcraft:fission_reactor_controller"],[3,3,0,"nuclearcraft:irradiator"],[4,3,0,"nuclearcraft:fission_reactor_casing"],[0,3,1,"nuclearcraft:fission_reactor_casing"],[4,3,1,"nuclearcraft:fission_reactor_casing"],[0,3,2,"nuclearcraft:fission_reactor_casing"],[4,3,2,"nuclearcraft:fission_reactor_casing"],[0,3,3,"nuclearcraft:fission_reactor_casing"],[4,3,3,"nuclearcraft:fission_reactor_casing"],[0,3,4,"nuclearcraft:fission_reactor_casing"],[1,3,4,"nuclearcraft:fission_reactor_port"],[2,3,4,"nuclearcraft:fission_reactor_port"],[3,3,4,"nuclearcraft:fission_reactor_casing"],[4,3,4,"nuclearcraft:fission_reactor_casing"],[0,4,0,"nuclearcraft:fission_reactor_casing"],[1,4,0,"nuclearcraft:fission_reactor_casing"],[2,4,0,"nuclearcraft:fission_reactor_casing"],[3,4,0,"nuclearcraft:fission_reactor_casing"],[4,4,0,"nuclearcraft:fission_reactor_casing"],[0,4,1,"nuclearcraft:fission_reactor_casing"],[4,4,1,"nuclearcraft:fission_reactor_casing"],[0,4,2,"nuclearcraft:fission_reactor_casing"],[4,4,2,"nuclearcraft:fission_reactor_casing"],[0,4,3,"nuclearcraft:fission_reactor_casing"],[4,4,3,"nuclearcraft:fission_reactor_casing"],[0,4,4,"nuclearcraft:fission_reactor_casing"],[1,4,4,"nuclearcraft:fission_reactor_casing"],[2,4,4,"nuclearcraft:fission_reactor_casing"],[3,4,4,"nuclearcraft:fission_reactor_casing"],[4,4,4,"nuclearcraft:fission_reactor_casing"],[0,5,0,"nuclearcraft:fission_reactor_casing"],[1,5,0,"nuclearcraft:fission_reactor_casing"],[2,5,0,"nuclearcraft:fission_reactor_casing"],[3,5,0,"nuclearcraft:fission_reactor_casing"],[4,5,0,"nuclearcraft:fission_reactor_casing"],[0,5,1,"nuclearcraft:fission_reactor_casing"],[4,5,1,"nuclearcraft:fission_reactor_casing"],[0,5,2,"nuclearcraft:fission_reactor_casing"],[4,5,2,"nuclearcraft:fission_reactor_casing"],[0,5,3,"nuclearcraft:fission_reactor_casing"],[4,5,3,"nuclearcraft:fission_reactor_casing"],[0,5,4,"nuclearcraft:fission_reactor_casing"],[1,5,4,"nuclearcraft:fission_reactor_casing"],[2,5,4,"nuclearcraft:fission_reactor_casing"],[3,5,4,"nuclearcraft:fission_reactor_casing"],[4,5,4,"nuclearcraft:fission_reactor_casing"],[0,6,0,"nuclearcraft:fission_reactor_casing"],[1,6,0,"nuclearcraft:fission_reactor_casing"],[2,6,0,"nuclearcraft:fission_reactor_casing"],[3,6,0,"nuclearcraft:fission_reactor_casing"],[4,6,0,"nuclearcraft:fission_reactor_casing"],[0,6,1,"nuclearcraft:fission_reactor_casing"],[1,6,1,"nuclearcraft:fission_reactor_casing"],[2,6,1,"nuclearcraft:fission_reactor_casing"],[3,6,1,"nuclearcraft:fission_reactor_casing"],[4,6,1,"nuclearcraft:fission_reactor_casing"],[0,6,2,"nuclearcraft:fission_reactor_casing"],[1,6,2,"nuclearcraft:fission_reactor_casing"],[2,6,2,"nuclearcraft:fission_reactor_casing"],[3,6,2,"nuclearcraft:fission_reactor_casing"],[4,6,2,"nuclearcraft:fission_reactor_casing"],[0,6,3,"nuclearcraft:fission_reactor_casing"],[1,6,3,"nuclearcraft:fission_reactor_casing"],[2,6,3,"nuclearcraft:fission_reactor_casing"],[3,6,3,"nuclearcraft:fission_reactor_casing"],[4,6,3,"nuclearcraft:fission_reactor_casing"],[0,6,4,"nuclearcraft:fission_reactor_casing"],[1,6,4,"nuclearcraft:fission_reactor_casing"],[2,6,4,"nuclearcraft:fission_reactor_casing"],[3,6,4,"nuclearcraft:fission_reactor_casing"],[4,6,4,"nuclearcraft:fission_reactor_casing"]],"irradiators":7},{"id":"NC_HEU235_5x7x5_4F_12L_8IRR_MBTool","name":"5×7×5 · 12 linii","desc":"4 Fuel Cells, 8 Irradiatorów","dims":[3,5,3],"grid":["I","boron","enderium","boron",".","boron","enderium","boron","enderium","M","quartz","boron","quartz","diamond","quartz","boron","quartz","boron","F","boron","I","M","water","M","I","M","F","M","arsenic","M","arsenic","prismarine","arsenic","M","arsenic","M","I","M","F","M","arsenic","M","F","M","I"],"wall":[[0,0,0,"nuclearcraft:fission_reactor_casing"],[1,0,0,"nuclearcraft:fission_reactor_casing"],[2,0,0,"nuclearcraft:fission_reactor_casing"],[3,0,0,"nuclearcraft:fission_reactor_casing"],[4,0,0,"nuclearcraft:fission_reactor_casing"],[0,0,1,"nuclearcraft:fission_reactor_casing"],[1,0,1,"nuclearcraft:fission_reactor_casing"],[2,0,1,"nuclearcraft:fission_reactor_casing"],[3,0,1,"nuclearcraft:fission_reactor_casing"],[4,0,1,"nuclearcraft:fission_reactor_casing"],[0,0,2,"nuclearcraft:fission_reactor_casing"],[1,0,2,"nuclearcraft:fission_reactor_casing"],[2,0,2,"nuclearcraft:fission_reactor_casing"],[3,0,2,"nuclearcraft:fission_reactor_casing"],[4,0,2,"nuclearcraft:fission_reactor_casing"],[0,0,3,"nuclearcraft:fission_reactor_casing"],[1,0,3,"nuclearcraft:fission_reactor_casing"],[2,0,3,"nuclearcraft:fission_reactor_casing"],[3,0,3,"nuclearcraft:fission_reactor_casing"],[4,0,3,"nuclearcraft:fission_reactor_casing"],[0,0,4,"nuclearcraft:fission_reactor_casing"],[1,0,4,"nuclearcraft:fission_reactor_casing"],[2,0,4,"nuclearcraft:fission_reactor_casing"],[3,0,4,"nuclearcraft:fission_reactor_casing"],[4,0,4,"nuclearcraft:fission_reactor_casing"],[0,1,0,"nuclearcraft:fission_reactor_casing"],[1,1,0,"nuclearcraft:irradiator"],[2,1,0,"nuclearcraft:irradiator"],[3,1,0,"nuclearcraft:irradiator"],[4,1,0,"nuclearcraft:fission_reactor_casing"],[0,1,1,"nuclearcraft:fission_reactor_casing"],[4,1,1,"nuclearcraft:fission_reactor_casing"],[0,1,2,"nuclearcraft:fission_reactor_casing"],[4,1,2,"nuclearcraft:fission_reactor_casing"],[0,1,3,"nuclearcraft:fission_reactor_casing"],[4,1,3,"nuclearcraft:fission_reactor_casing"],[0,1,4,"nuclearcraft:fission_reactor_casing"],[1,1,4,"nuclearcraft:fission_reactor_casing"],[2,1,4,"nuclearcraft:fission_reactor_casing"],[3,1,4,"nuclearcraft:fission_reactor_casing"],[4,1,4,"nuclearcraft:fission_reactor_casing"],[0,2,0,"nuclearcraft:fission_reactor_casing"],[1,2,0,"nuclearcraft:irradiator"],[2,2,0,"nuclearcraft:fission_reactor_casing"],[3,2,0,"nuclearcraft:irradiator"],[4,2,0,"nuclearcraft:fission_reactor_casing"],[0,2,1,"nuclearcraft:fission_reactor_casing"],[4,2,1,"nuclearcraft:fission_reactor_casing"],[0,2,2,"nuclearcraft:fission_reactor_casing"],[4,2,2,"nuclearcraft:fission_reactor_casing"],[0,2,3,"nuclearcraft:fission_reactor_casing"],[4,2,3,"nuclearcraft:fission_reactor_casing"],[0,2,4,"nuclearcraft:fission_reactor_casing"],[1,2,4,"nuclearcraft:fission_reactor_casing"],[2,2,4,"nuclearcraft:fission_reactor_casing"],[3,2,4,"nuclearcraft:fission_reactor_casing"],[4,2,4,"nuclearcraft:fission_reactor_casing"],[0,3,0,"nuclearcraft:fission_reactor_casing"],[1,3,0,"nuclearcraft:irradiator"],[2,3,0,"nuclearcraft:fission_reactor_controller"],[3,3,0,"nuclearcraft:irradiator"],[4,3,0,"nuclearcraft:fission_reactor_casing"],[0,3,1,"nuclearcraft:fission_reactor_casing"],[4,3,1,"nuclearcraft:fission_reactor_casing"],[0,3,2,"nuclearcraft:fission_reactor_casing"],[4,3,2,"nuclearcraft:fission_reactor_casing"],[0,3,3,"nuclearcraft:fission_reactor_casing"],[4,3,3,"nuclearcraft:fission_reactor_casing"],[0,3,4,"nuclearcraft:fission_reactor_casing"],[1,3,4,"nuclearcraft:fission_reactor_port"],[2,3,4,"nuclearcraft:fission_reactor_port"],[3,3,4,"nuclearcraft:fission_reactor_casing"],[4,3,4,"nuclearcraft:fission_reactor_casing"],[0,4,0,"nuclearcraft:fission_reactor_casing"],[1,4,0,"nuclearcraft:irradiator"],[2,4,0,"nuclearcraft:fission_reactor_casing"],[3,4,0,"nuclearcraft:fission_reactor_casing"],[4,4,0,"nuclearcraft:fission_reactor_casing"],[0,4,1,"nuclearcraft:fission_reactor_casing"],[4,4,1,"nuclearcraft:fission_reactor_casing"],[0,4,2,"nuclearcraft:fission_reactor_casing"],[4,4,2,"nuclearcraft:fission_reactor_casing"],[0,4,3,"nuclearcraft:fission_reactor_casing"],[4,4,3,"nuclearcraft:fission_reactor_casing"],[0,4,4,"nuclearcraft:fission_reactor_casing"],[1,4,4,"nuclearcraft:fission_reactor_casing"],[2,4,4,"nuclearcraft:fission_reactor_casing"],[3,4,4,"nuclearcraft:fission_reactor_casing"],[4,4,4,"nuclearcraft:fission_reactor_casing"],[0,5,0,"nuclearcraft:fission_reactor_casing"],[1,5,0,"nuclearcraft:fission_reactor_casing"],[2,5,0,"nuclearcraft:fission_reactor_casing"],[3,5,0,"nuclearcraft:fission_reactor_casing"],[4,5,0,"nuclearcraft:fission_reactor_casing"],[0,5,1,"nuclearcraft:fission_reactor_casing"],[4,5,1,"nuclearcraft:fission_reactor_casing"],[0,5,2,"nuclearcraft:fission_reactor_casing"],[4,5,2,"nuclearcraft:fission_reactor_casing"],[0,5,3,"nuclearcraft:fission_reactor_casing"],[4,5,3,"nuclearcraft:fission_reactor_casing"],[0,5,4,"nuclearcraft:fission_reactor_casing"],[1,5,4,"nuclearcraft:fission_reactor_casing"],[2,5,4,"nuclearcraft:fission_reactor_casing"],[3,5,4,"nuclearcraft:fission_reactor_casing"],[4,5,4,"nuclearcraft:fission_reactor_casing"],[0,6,0,"nuclearcraft:fission_reactor_casing"],[1,6,0,"nuclearcraft:fission_reactor_casing"],[2,6,0,"nuclearcraft:fission_reactor_casing"],[3,6,0,"nuclearcraft:fission_reactor_casing"],[4,6,0,"nuclearcraft:fission_reactor_casing"],[0,6,1,"nuclearcraft:fission_reactor_casing"],[1,6,1,"nuclearcraft:fission_reactor_casing"],[2,6,1,"nuclearcraft:fission_reactor_casing"],[3,6,1,"nuclearcraft:fission_reactor_casing"],[4,6,1,"nuclearcraft:fission_reactor_casing"],[0,6,2,"nuclearcraft:fission_reactor_casing"],[1,6,2,"nuclearcraft:fission_reactor_casing"],[2,6,2,"nuclearcraft:fission_reactor_casing"],[3,6,2,"nuclearcraft:fission_reactor_casing"],[4,6,2,"nuclearcraft:fission_reactor_casing"],[0,6,3,"nuclearcraft:fission_reactor_casing"],[1,6,3,"nuclearcraft:fission_reactor_casing"],[2,6,3,"nuclearcraft:fission_reactor_casing"],[3,6,3,"nuclearcraft:fission_reactor_casing"],[4,6,3,"nuclearcraft:fission_reactor_casing"],[0,6,4,"nuclearcraft:fission_reactor_casing"],[1,6,4,"nuclearcraft:fission_reactor_casing"],[2,6,4,"nuclearcraft:fission_reactor_casing"],[3,6,4,"nuclearcraft:fission_reactor_casing"],[4,6,4,"nuclearcraft:fission_reactor_casing"]],"irradiators":8},{"id":"NC_HEU235_5x7x5_4F_11L_10IRR_MBTool","name":"5×7×5 · 11 linii","desc":"4 Fuel Cells, 10 Irradiatorów","dims":[3,5,3],"grid":["I","boron","enderium","boron",".","boron","enderium","boron","enderium","M","quartz","boron","quartz","diamond","quartz","boron","quartz","boron","F","boron","I","boron","water","M","I","M","F","M","arsenic","M","arsenic","prismarine","arsenic","M","arsenic","M","I","M","F","M","arsenic","M","F","M","I"],"wall":[[0,0,0,"nuclearcraft:fission_reactor_casing"],[1,0,0,"nuclearcraft:fission_reactor_casing"],[2,0,0,"nuclearcraft:fission_reactor_casing"],[3,0,0,"nuclearcraft:fission_reactor_casing"],[4,0,0,"nuclearcraft:fission_reactor_casing"],[0,0,1,"nuclearcraft:fission_reactor_casing"],[1,0,1,"nuclearcraft:fission_reactor_casing"],[2,0,1,"nuclearcraft:fission_reactor_casing"],[3,0,1,"nuclearcraft:fission_reactor_casing"],[4,0,1,"nuclearcraft:fission_reactor_casing"],[0,0,2,"nuclearcraft:fission_reactor_casing"],[1,0,2,"nuclearcraft:fission_reactor_casing"],[2,0,2,"nuclearcraft:fission_reactor_casing"],[3,0,2,"nuclearcraft:fission_reactor_casing"],[4,0,2,"nuclearcraft:fission_reactor_casing"],[0,0,3,"nuclearcraft:fission_reactor_casing"],[1,0,3,"nuclearcraft:fission_reactor_casing"],[2,0,3,"nuclearcraft:fission_reactor_casing"],[3,0,3,"nuclearcraft:fission_reactor_casing"],[4,0,3,"nuclearcraft:fission_reactor_casing"],[0,0,4,"nuclearcraft:fission_reactor_casing"],[1,0,4,"nuclearcraft:fission_reactor_casing"],[2,0,4,"nuclearcraft:fission_reactor_casing"],[3,0,4,"nuclearcraft:fission_reactor_casing"],[4,0,4,"nuclearcraft:fission_reactor_casing"],[0,1,0,"nuclearcraft:fission_reactor_casing"],[1,1,0,"nuclearcraft:irradiator"],[2,1,0,"nuclearcraft:irradiator"],[3,1,0,"nuclearcraft:irradiator"],[4,1,0,"nuclearcraft:fission_reactor_casing"],[0,1,1,"nuclearcraft:fission_reactor_casing"],[4,1,1,"nuclearcraft:fission_reactor_casing"],[0,1,2,"nuclearcraft:fission_reactor_casing"],[4,1,2,"nuclearcraft:fission_reactor_casing"],[0,1,3,"nuclearcraft:fission_reactor_casing"],[4,1,3,"nuclearcraft:fission_reactor_casing"],[0,1,4,"nuclearcraft:fission_reactor_casing"],[1,1,4,"nuclearcraft:fission_reactor_casing"],[2,1,4,"nuclearcraft:fission_reactor_casing"],[3,1,4,"nuclearcraft:fission_reactor_casing"],[4,1,4,"nuclearcraft:fission_reactor_casing"],[0,2,0,"nuclearcraft:fission_reactor_casing"],[1,2,0,"nuclearcraft:irradiator"],[2,2,0,"nuclearcraft:fission_reactor_casing"],[3,2,0,"nuclearcraft:irradiator"],[4,2,0,"nuclearcraft:fission_reactor_casing"],[0,2,1,"nuclearcraft:fission_reactor_casing"],[4,2,1,"nuclearcraft:fission_reactor_casing"],[0,2,2,"nuclearcraft:fission_reactor_casing"],[4,2,2,"nuclearcraft:fission_reactor_casing"],[0,2,3,"nuclearcraft:fission_reactor_casing"],[4,2,3,"nuclearcraft:fission_reactor_casing"],[0,2,4,"nuclearcraft:fission_reactor_casing"],[1,2,4,"nuclearcraft:fission_reactor_casing"],[2,2,4,"nuclearcraft:fission_reactor_casing"],[3,2,4,"nuclearcraft:fission_reactor_casing"],[4,2,4,"nuclearcraft:fission_reactor_casing"],[0,3,0,"nuclearcraft:fission_reactor_casing"],[1,3,0,"nuclearcraft:irradiator"],[2,3,0,"nuclearcraft:fission_reactor_controller"],[3,3,0,"nuclearcraft:irradiator"],[4,3,0,"nuclearcraft:fission_reactor_casing"],[0,3,1,"nuclearcraft:fission_reactor_casing"],[4,3,1,"nuclearcraft:fission_reactor_casing"],[0,3,2,"nuclearcraft:fission_reactor_casing"],[4,3,2,"nuclearcraft:fission_reactor_casing"],[0,3,3,"nuclearcraft:fission_reactor_casing"],[4,3,3,"nuclearcraft:fission_reactor_casing"],[0,3,4,"nuclearcraft:fission_reactor_casing"],[1,3,4,"nuclearcraft:fission_reactor_port"],[2,3,4,"nuclearcraft:fission_reactor_port"],[3,3,4,"nuclearcraft:fission_reactor_casing"],[4,3,4,"nuclearcraft:fission_reactor_casing"],[0,4,0,"nuclearcraft:fission_reactor_casing"],[1,4,0,"nuclearcraft:irradiator"],[2,4,0,"nuclearcraft:irradiator"],[3,4,0,"nuclearcraft:irradiator"],[4,4,0,"nuclearcraft:fission_reactor_casing"],[0,4,1,"nuclearcraft:fission_reactor_casing"],[4,4,1,"nuclearcraft:fission_reactor_casing"],[0,4,2,"nuclearcraft:fission_reactor_casing"],[4,4,2,"nuclearcraft:fission_reactor_casing"],[0,4,3,"nuclearcraft:fission_reactor_casing"],[4,4,3,"nuclearcraft:fission_reactor_casing"],[0,4,4,"nuclearcraft:fission_reactor_casing"],[1,4,4,"nuclearcraft:fission_reactor_casing"],[2,4,4,"nuclearcraft:fission_reactor_casing"],[3,4,4,"nuclearcraft:fission_reactor_casing"],[4,4,4,"nuclearcraft:fission_reactor_casing"],[0,5,0,"nuclearcraft:fission_reactor_casing"],[1,5,0,"nuclearcraft:fission_reactor_casing"],[2,5,0,"nuclearcraft:fission_reactor_casing"],[3,5,0,"nuclearcraft:fission_reactor_casing"],[4,5,0,"nuclearcraft:fission_reactor_casing"],[0,5,1,"nuclearcraft:fission_reactor_casing"],[4,5,1,"nuclearcraft:fission_reactor_casing"],[0,5,2,"nuclearcraft:fission_reactor_casing"],[4,5,2,"nuclearcraft:fission_reactor_casing"],[0,5,3,"nuclearcraft:fission_reactor_casing"],[4,5,3,"nuclearcraft:fission_reactor_casing"],[0,5,4,"nuclearcraft:fission_reactor_casing"],[1,5,4,"nuclearcraft:fission_reactor_casing"],[2,5,4,"nuclearcraft:fission_reactor_casing"],[3,5,4,"nuclearcraft:fission_reactor_casing"],[4,5,4,"nuclearcraft:fission_reactor_casing"],[0,6,0,"nuclearcraft:fission_reactor_casing"],[1,6,0,"nuclearcraft:fission_reactor_casing"],[2,6,0,"nuclearcraft:fission_reactor_casing"],[3,6,0,"nuclearcraft:fission_reactor_casing"],[4,6,0,"nuclearcraft:fission_reactor_casing"],[0,6,1,"nuclearcraft:fission_reactor_casing"],[1,6,1,"nuclearcraft:fission_reactor_casing"],[2,6,1,"nuclearcraft:fission_reactor_casing"],[3,6,1,"nuclearcraft:fission_reactor_casing"],[4,6,1,"nuclearcraft:fission_reactor_casing"],[0,6,2,"nuclearcraft:fission_reactor_casing"],[1,6,2,"nuclearcraft:fission_reactor_casing"],[2,6,2,"nuclearcraft:fission_reactor_casing"],[3,6,2,"nuclearcraft:fission_reactor_casing"],[4,6,2,"nuclearcraft:fission_reactor_casing"],[0,6,3,"nuclearcraft:fission_reactor_casing"],[1,6,3,"nuclearcraft:fission_reactor_casing"],[2,6,3,"nuclearcraft:fission_reactor_casing"],[3,6,3,"nuclearcraft:fission_reactor_casing"],[4,6,3,"nuclearcraft:fission_reactor_casing"],[0,6,4,"nuclearcraft:fission_reactor_casing"],[1,6,4,"nuclearcraft:fission_reactor_casing"],[2,6,4,"nuclearcraft:fission_reactor_casing"],[3,6,4,"nuclearcraft:fission_reactor_casing"],[4,6,4,"nuclearcraft:fission_reactor_casing"]],"irradiators":10}],"fixtures":[{"name":"6×6×6","dims":[4,4,4],"grid":["boron","F","M","I","I","M","quartz","boron","end_stone","I","redstone","liquid_helium","enderium","boron","I","boron","quartz","M","liquid_helium","M","M","arsenic","redstone","liquid_helium","I","M","F","boron","boron","quartz","M","quartz","boron","I","M","F","F","M","I","M","M","arsenic","M","I","I","M","F","boron","I","boron","quartz","boron","M","arsenic","boron","quartz","F","M","I","boron","boron","quartz","boron","enderium"],"expected":{"lines":17,"cooling":4155,"heat":3954.9999999999995},"origin":"Designer z gry"},{"name":"7×7×7","dims":[5,5,5],"grid":["I","boron","fluorite","gold","redstone","cryotheum","I","prismarine","water","F","F","lapis","I","platinum","lapis","redstone","villiaumite","platinum","redstone","liquid_helium","enderium","end_stone","boron","liquid_helium","enderium","M","quartz","boron","fluorite","gold","F","M","I","I","water","M","I","M","M","platinum","I","I","M","F","emerald","boron","boron","quartz","aluminum","lapis","F","cryotheum","I","prismarine","fluorite","M","F","M","I","prismarine","I","M","F","M","I","M","I","M","M","M","quartz","boron","I","M","F","M","I","boron","water","M","I","M","F","M","I","cryotheum","F","M","I","lapis","F","M","I","I","platinum","boron","I","boron","quartz","boron","I","boron","quartz","boron","I",".","I","M","arsenic","M","liquid_helium","cryotheum","I","lapis","F","redstone","F","redstone","liquid_helium","lapis","liquid_helium","lapis","liquid_helium","boron","enderium"],"expected":{"lines":34,"cooling":8315,"heat":8110.000000000001},"origin":"wcześniejszy schemat kontrolny"}]}</script><script>'use strict';
+const DB=JSON.parse(document.getElementById('gameData').textContent), SINKS=DB.sinks, FUEL=DB.fuels, PRESETS=DB.presets;
+const $=q=>document.getElementById(q), DIR=[[1,0,0],[-1,0,0],[0,1,0],[0,-1,0],[0,0,1],[0,0,-1]];
+const nm={'.':'Powietrze',F:'Solid Fuel Cell',M:'Graphite Moderator',I:'Irradiation Chamber',R:'Reactor Casing',G:'Reactor Glass',C:'Reactor Controller',P:'Reactor Port',A:'Irradiator'};
+for(const t of Object.keys(SINKS))nm[t]=t.replaceAll('_',' ').replace(/(^| )\w/g,x=>x.toUpperCase())+' Heat Sink';
+const passive=Object.keys(SINKS).filter(t=>SINKS[t][0]>0&&!t.startsWith('active_'));
+const activeTypes=Object.keys(SINKS).filter(t=>t.startsWith('active_')&&SINKS[t][0]>0);
+const shortcuts={F:'F',M:'M',I:'I','.':'·',R:'█',G:'▧',C:'C',P:'P',A:'A',...Object.fromEntries(passive.map(n=>[n,n.split('_').map(x=>x.slice(0,2)).join('').slice(0,4).toUpperCase()]))};
+const fmt=n=>Number(n).toLocaleString('pl-PL',{maximumFractionDigits:1});
+const num=(id,fallback)=>{let x=Number($(id).value);return Number.isFinite(x)?x:fallback};
+const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
+const key=p=>p.join(','), vec=(x,y,z)=>[x,y,z];
+function idx(x,y,z,w,d){return y*w*d+z*w+x}
+const codeToId=t=>t==='F'?'nuclearcraft:fission_reactor_solid_fuel_cell':t==='M'?'nuclearcraft:graphite_block':t==='I'?'nuclearcraft:fission_reactor_irradiation_chamber':t==='R'?'nuclearcraft:fission_reactor_casing':t==='G'?'nuclearcraft:fission_reactor_glass':t==='C'?'nuclearcraft:fission_reactor_controller':t==='P'?'nuclearcraft:fission_reactor_port':t==='A'?'nuclearcraft:irradiator':t==='.'?'minecraft:air':`nuclearcraft:${t}_heat_sink`;
+const state={dims:[3,5,3],g:Array(45).fill('.'),wall:{},brush:'F',layer:0,whole:false,locks:{},trial:8,opt:null,last:null,selected:'',bestScore:-Infinity};
+function info(msg,cls=''){const e=$('status');e.textContent=msg;e.className='status '+cls}
+function wallsForDims(dims,irr){const [iw,ih,id]=dims,[w,h,d]=dims.map(x=>x+2),wall={};
+ for(let y=0;y<h;y++)for(let z=0;z<d;z++)for(let x=0;x<w;x++)if(x===0||y===0||z===0||x===w-1||y===h-1||z===d-1)wall[key([x,y,z])]='R';
+ const controller=[Math.floor(w/2),Math.floor(h/2),0],ports=[[Math.floor(w/2),Math.floor(h/2),d-1],[1,Math.floor(h/2),d-1]];
+ wall[key(controller)]='C';for(const p of ports)wall[key(p)]='P';
+ const candidates=[];
+ for(let y=1;y<h-1;y++)for(let z=0;z<d;z++)for(let x=0;x<w;x++)if(wall[key([x,y,z])]==='R'&&((x>0&&x<w-1&&(z===0||z===d-1))||(z>0&&z<d-1&&(x===0||x===w-1))))candidates.push([x,y,z]);
+ for(let z=1;z<d-1;z++)for(let x=1;x<w-1;x++)for(const y of [0,h-1])if(wall[key([x,y,z])]==='R')candidates.push([x,y,z]);
+ for(const p of candidates.slice(0,Math.max(0,irr)))wall[key(p)]='A';return wall;
+}
+function machineSlots(dims){return Object.values(wallsForDims(dims,9999)).filter(x=>x==='A').length}
+function getParams(){const fuel=FUEL[num('fuel',3)]||FUEL[3];return {heat:num('fuelHeat',300),power:num('fuelPower',960),rate:num('fuelRate',108.4),moderation:num('moderation',0)/100,machines:clamp(num('machineCount',8),0,250),reserve:num('reserve',100),maxFuel:num('maxFuel',5),goal:$('goal').value,safe:$('keepSafe').checked,allowCore:$('allowEditCore').checked,allowActive:$('allowActive').checked,autoMachines:$('autoMachines').checked,safeAtFull:$('safeAtFull').checked,deterministic:$('deterministic').checked,fuel:fuel[0],recipeBaseTicks:clamp(num('recipeBaseTicks',2000),1,10000000),recipeOutputCount:clamp(num('recipeOutputCount',1),1,64)}}
+function neighbor(i,w,h,d){let z=Math.floor(i/w)%d,y=Math.floor(i/(w*d)),x=i%w;return DIR.map(([dx,dy,dz])=>{let a=x+dx,b=y+dy,c=z+dz;return a>=0&&b>=0&&c>=0&&a<w&&b<h&&c<d?idx(a,b,c,w,d):-1})}
+function parseRule(s){const match=s.match(/([><=^\-])(\d+)$/);return {op:match?match[1]:'>',n:match?+match[2]:1,types:(match?s.slice(0,match.index):s).split('|'),casing:s.includes('casing')}}
+const RULES={};for(const [k,v] of Object.entries(SINKS))RULES[k]=v[1].map(parseRule);
+const GEOM_CACHE=new Map();
+function geometry(w,h,d){let id=w+','+h+','+d;if(GEOM_CACHE.has(id))return GEOM_CACHE.get(id);const N=w*h*d,coords=Array.from({length:N},(_,i)=>[i%w,Math.floor(i/(w*d)),Math.floor(i/w)%d]),nb=coords.map((_,i)=>neighbor(i,w,h,d));let triads=orientedTriads(w,h,d);let data={coords,nb,triads};GEOM_CACHE.set(id,data);return data}
+function simulation(g,w,h,d,p){const N=g.length,{coords,nb}=geometry(w,h,d);const fs=[],ms=[],ics=[],sinks=[];
+ for(let i=0;i<N;i++){let t=g[i];if(t==='F')fs.push(i);else if(t==='M')ms.push(i);else if(t==='I')ics.push(i);else if(SINKS[t]&&SINKS[t][0]>0)sinks.push(i)}
+ const fuelSet=new Set(fs),modSet=new Set(ms),activeM=new Set(ms.filter(i=>nb[i].some(j=>fuelSet.has(j))));
+ const direct=new Set();for(let i of [...fs,...activeM]){direct.add(i);for(let j of nb[i])if(j>=0)direct.add(j)}
+ let lines=0,badI=[],linePerI={},iBase=0;for(let i of ics){let n=0;let [x,y,z]=coords[i];for(let [dx,dy,dz] of DIR){let ax=x+dx,ay=y+dy,az=z+dz,bx=x+2*dx,by=y+2*dy,bz=z+2*dz;if(bx<0||bx>=w||by<0||by>=h||bz<0||bz>=d)continue;let mid=idx(ax,ay,az,w,d),end=idx(bx,by,bz,w,d);if(activeM.has(mid)&&fuelSet.has(end))n++}linePerI[i]=n;lines+=n;if(!n)badI.push(i)}
+ let heatMult=0,energyMult=0,mh=0,me=0;for(let f of fs){let [x,y,z]=coords[f],extra=0;for(const [dx,dy,dz] of DIR){for(let dist=1;dist<=4;dist++){let ax=x+dx*dist,ay=y+dy*dist,az=z+dz*dist;if(ax<0||ay<0||az<0||ax>=w||ay>=h||az>=d)break;const t=g[idx(ax,ay,az,w,d)];if(t==='F'){extra++;break}if(t==='M'){let bx=x+dx*(dist+1),by=y+dy*(dist+1),bz=z+dz*(dist+1);if(bx>=0&&by>=0&&bz>=0&&bx<w&&by<h&&bz<d&&g[idx(bx,by,bz,w,d)]==='F'){extra++;break}}else break}}
+  heatMult+=(extra+1)*(extra+2)/2;energyMult+=(extra+1);let adj=nb[f].filter(i=>activeM.has(i)).length;mh+=adj*(extra+1)/3;me+=adj*(extra+1)/6;}
+ const valid=new Set(),second=new Set();
+ function outer(i,v){let [x,y,z]=coords[i],d0=DIR[v];let a=x+d0[0],b=y+d0[1],c=z+d0[2];return a<0||b<0||c<0||a>=w||b>=h||c>=d}
+ function attached(j){if(j<0)return false;return nb[j].some(n=>fuelSet.has(n)||direct.has(n)||(second.has(n)&&g[n]!=='.'))}
+ function mt(i,v,t){let j=nb[i][v];if(t==='#nuclearcraft:fission_reactor_casing')return outer(i,v);if(j<0)return false;let cur=g[j];if(t==='#nuclearcraft:moderators')return activeM.has(j)&&attached(j);if(t==='fission_reactor_solid_fuel_cell')return cur==='F'&&attached(j);if(t==='fission_reactor_irradiation_chamber')return cur==='I'&&attached(j);if(t.endsWith('_heat_sink')){let name=t.slice(0,-10);return valid.has(j)&&(cur===name||cur==='active_'+name)&&attached(j)}return false}
+ function matches(i,v,types){return types.some(t=>mt(i,v,t))}
+ function ruleOK(i,r){if(r.op==='^'){const out=DIR.map((_,v)=>matches(i,v,r.types));return [[0,2,4],[0,2,5],[0,3,4],[0,3,5],[1,2,4],[1,2,5],[1,3,4],[1,3,5]].some(arr=>arr.every(n=>out[n]))}if(r.op==='-'){return [[0,1],[2,3],[4,5]].some(([a,b])=>matches(i,a,r.types)&&matches(i,b,r.types))}let count=DIR.reduce((n,_,v)=>n+(matches(i,v,r.types)?1:0),0);return r.op==='>'?count>=r.n:r.op==='<'?count<r.n:r.op==='='?count===r.n:false}
+ function check(i){const t=g[i];return (RULES[t]||[]).every(r=>ruleOK(i,r))}
+ // Valid blocks are added only after their prerequisites are valid. Dependent cycles cannot activate themselves.
+ for(let pass=0;pass<N+1;pass++){let added=0;for(let i of sinks){if(valid.has(i))continue;if(check(i)){valid.add(i);second.add(i);nb[i].filter(n=>n>=0).forEach(n=>second.add(n));added++}}if(!added)break}
+ // Revalidate to avoid incorrect exact/at-most neighboring checks.
+ for(let pass=0;pass<Math.min(N,25);pass++){second.clear();for(const i of valid){second.add(i);for(const j of nb[i])if(j>=0)second.add(j)}let toRemove=sinks.filter(i=>valid.has(i)&&!check(i));if(!toRemove.length)break;for(const i of toRemove)valid.delete(i)}
+ const badSinks=sinks.filter(i=>!valid.has(i)),badMods=ms.filter(i=>!activeM.has(i));let cooling=[...valid].reduce((n,i)=>n+SINKS[g[i]][0],0);
+ const baseHeat=p.heat*(heatMult+Math.max(.1,p.moderation)*mh),radiHeat=lines*15*p.machines,heat=baseHeat+radiHeat,net=heat-cooling;
+ const speed=lines*p.rate/10,recipeTicks=speed>0?Math.max(1,Math.ceil(p.recipeBaseTicks/speed)):Infinity,perMinute=Number.isFinite(recipeTicks)?1200*p.machines*p.recipeOutputCount/recipeTicks:0;
+ const ratio=cooling>0?heat/Math.max(1,cooling):heat;const mult=(ratio>0?Math.max(0,Math.round((Math.log10(ratio)/(1+Math.exp(Math.min(600,ratio)))+1)*100)/100):0);
+ const energy=p.power*(energyMult+me*p.moderation)*mult;
+ const coolantBy={};for(let i of valid){let t=g[i];if(t.startsWith('active_'))coolantBy[t]=(coolantBy[t]||0)+10}
+ const counts={};for(let t of g)if(t!=='.')counts[t]=(counts[t]||0)+1;
+ return {lines,perMinute,recipeTicks,heat,baseHeat,cooling,net,radiHeat,badI,badSinks,badMods,valid,activeM,linePerI,fuelCells:fs.length,mods:ms.length,chambers:ics.length,sinks:sinks.length,counts,energy,heatMult,modHeat:mh,validCount:valid.size,coolantBy,excess:cooling-heat,limit:p.machines};
+}
+function updateEditor(){const [w,h,d]=state.dims;const sy=state.whole?h+2:h;state.layer=clamp(state.layer,0,sy-1);const y=state.layer;
+ $('layerTitle').textContent=`Warstwa ${y+1} / ${sy} ${state.whole?'(cały reaktor)':'(wnętrze)'}`;$('prev').disabled=y===0;$('next').disabled=y===sy-1;
+ const g=$('editorGrid');g.style.setProperty('--cols',state.whole?w+2:w);g.innerHTML='';let desc='';const bz=state.whole?d+2:d,bx=state.whole?w+2:w;
+ for(let z=0;z<bz;z++)for(let x=0;x<bx;x++){
+  const wall=state.whole&&(x===0||z===0||y===0||x===w+1||z===d+1||y===h+1);
+  const i=wall?-1:idx(state.whole?x-1:x,state.whole?y-1:y,state.whole?z-1:z,w,d);
+  let t=wall?(state.wall[key([x,y,z])]||'R'):state.g[i];
+  let invalid=!wall&&state.last&&(state.last.badI.includes(i)||state.last.badSinks.includes(i));
+  const className=t==='F'||t==='M'||t==='I'?t:t==='.'?'air':wall?(t==='A'?'machine':t==='P'?'port':t==='C'?'controller':'shell'):(t.length>7?'sinkalt':'sink');
+  const b=document.createElement('button');b.className=`cell ${className} ${invalid?'invalid':''} ${state.selected===`${x},${y},${z},${+state.whole}`?'selectedblock':''} ${bx>8?'slim':''}`;
+  b.innerHTML=`<span class="symbol">${shortcuts[t]||t.slice(0,2).toUpperCase()}</span><span class="cname">${t==='.'?'':t==='F'?'Fuel':t==='M'?'Grafit':t==='I'?'Chamber':wall?nm[t]:t.replaceAll('_',' ')}</span>`;
+  b.title=`${nm[t]||t} | X${x+1} Y${y+1} Z${z+1}`+(SINKS[t]?`\n${SINKS[t][0]} H/t\nWarunki: ${SINKS[t][1].join(' oraz ')}`:'');
+  b.onclick=()=>{if(state.opt)return;state.selected=`${x},${y},${z},${+state.whole}`;if(wall){if(!['R','G','A','P','C'].includes(state.brush)){setDesc('Na ścianie możesz malować Casing, Glass, Irradiator, Port albo Controller.');return}if(!['R','G'].includes(state.brush)){const [W,H,D]=state.dims.map(n=>n+2),boundary=[x===0||x===W-1,y===0||y===H-1,z===0||z===D-1].filter(Boolean).length;if(boundary!==1){setDesc('Kontroler, port i Irradiator muszą znajdować się na płaskiej części ściany, nie na krawędzi ani w narożniku.');return}}rememberEdit();if(state.brush==='C')for(let k in state.wall)if(state.wall[k]==='C')state.wall[k]='R';state.wall[key([x,y,z])]=state.brush;$('machineCount').value=Object.values(state.wall).filter(v=>v==='A').length;state.trial=num('machineCount',0)}else{if(['R','G','A','P','C'].includes(state.brush)){setDesc('Te bloki umieść na ścianie, przełączając na „Cały reaktor”.');return}{rememberEdit();const [W,H,D]=state.dims;const xs=$('symX').checked?[x,W-1-x]:[x],ys=$('symY').checked?[y,H-1-y]:[y],zs=$('symZ').checked?[z,D-1-z]:[z];for(const a of xs)for(const b of ys)for(const c of zs)state.g[idx(a,b,c,W,D)]=state.brush}}updateAll();setDesc(`${nm[state.brush]||state.brush}: X=${x+1}, Y=${y+1}, Z=${z+1}`)};g.appendChild(b)
+ }
+}
+function setDesc(t){$('selectedDesc').textContent=t}
+function updateMetrics(){let p=getParams(),r=simulation(state.g,...state.dims,p);state.last=r;const n=Object.values(state.wall).filter(v=>v==='A').length;
+ const $t=(id,val)=>{$(id).textContent=val};$t('metricLines',fmt(r.lines));$t('metricProduct',fmt(r.perMinute));$t('metricNet',fmt(r.net)+' H/t');$t('metricHeat',fmt(r.heat)+' H/t');$t('metricCool',fmt(r.cooling)+' H/t');$t('metricCells',`${r.fuelCells} / ${r.chambers}`);$t('metricTicks',Number.isFinite(r.recipeTicks)?r.recipeTicks+' t':'—');$t('metricFe',fmt(r.energy));$t('metricCapacity',r.lines?Math.max(0,Math.floor((r.cooling-r.baseHeat)/(15*r.lines)))-p.machines:'—');
+ $('metricNet').className='num '+(r.net<=0?'good':'bad');let valid=r.badI.length===0&&r.badSinks.length===0;let safety=r.net<=-p.reserve;
+ let box=$('validationTag');box.textContent=valid?(safety?'Układ poprawny · stabilny':r.net<=0?'Układ poprawny · mały zapas':'Ryzyko przegrzania'):`Błędne bloki: ${r.badI.length+r.badSinks.length}`;box.style.color=valid&&r.net<=0?'#aff1d1':'#ffb0aa';
+ $('heatratio').className='meter'+(r.net>0?' danger':'');$('heatratioFill').style.width=(r.cooling?Math.min(100,r.heat/r.cooling*100):100)+'%';
+ $('statExplain').textContent=`${r.lines} linii × ${fmt(p.rate)} irradiation → mnożnik ×${fmt(r.lines*p.rate/10)}. ${p.machines} maszyn → +${fmt(r.radiHeat)} H/t. Moderation ${fmt(p.moderation*100)}%. W obudowie: ${n} Irradiatorów.`;
+ let issues=[];if(r.badI.length)issues.push(`Nieaktywne Irradiation Chambers: ${r.badI.length}`);if(r.badSinks.length)issues.push(`Nieaktywne Heat Sinki: ${r.badSinks.length}`);if(r.badMods.length)issues.push(`Moderatory bez połączenia z Fuel Cell: ${r.badMods.length} (nie zwiększają statystyk)`);if(Object.keys(r.coolantBy).length)issues.push(`Aktywne chłodnice wymagają: ${Object.entries(r.coolantBy).map(([k,v])=>k+': '+v+' mB/t').join(', ')}. Bez płynów Cooling będzie niższe.`);if(p.machines!==n)issues.push(`Na ścianach jest ${n} maszyn, a symulacja zakłada ${p.machines}. Możesz skorygować obudowę albo liczbę maszyn.`);const fullModerationNet=p.heat*(r.heatMult+r.modHeat)+r.radiHeat-r.cooling;
+ if(p.moderation<.999&&fullModerationNet>0)issues.push(`Uwaga: przy przywróceniu 100% moderacji Net Heat wyniesie +${fmt(fullModerationNet)} H/t! Zabezpiecz poziom redstone.`);
+ if(!issues.length)issues.push('Brak nieaktywnych komór i chłodnic. Parametry pozostają prognozą do potwierdzenia w grze.');$('problemList').textContent=issues.join(' • ');
+ const values={...r.counts};for(let t of Object.values(state.wall))values[t]=(values[t]||0)+1;const mat=$('materials');mat.innerHTML=Object.entries(values).sort((a,b)=>{let rank=t=>['F','M','I','A','C','P','R'].indexOf(t);return ((rank(a[0])<0?99:rank(a[0]))-(rank(b[0])<0?99:rank(b[0])))||a[0].localeCompare(b[0])}).map(([code,cnt])=>`<div class="material"><span>${nm[code]||code}</span><b class="value">${fmt(cnt)}</b></div>`).join('');$('materialsTotal').textContent=`Razem ${Object.values(values).reduce((a,b)=>a+b,0)} bloków; pustych we wnętrzu: ${state.g.filter(t=>t==='.').length}.`;
+ $('details').innerHTML=`Fuel Cells: ${r.fuelCells}<br>Moderatory: ${r.mods} (${r.activeM.size} aktywnych)<br>Heat cell multiplier: ×${fmt(r.heatMult)}<br>Heat z moderatorów: ${fmt(r.modHeat*p.heat*Math.max(.1,p.moderation))} H/t<br>Heat bez Irradiatorów: ${fmt(r.baseHeat)} H/t<br>Heat od maszyn: ${fmt(r.radiHeat)} H/t<br>Aktywne chłodnice: ${r.validCount}/${r.sinks}<br>FE/t: wynik modelowy, nie pomiar z gry`;
+ $('trialCountLabel').textContent=state.trial;const tHeat=r.baseHeat+15*r.lines*state.trial,tNet=tHeat-r.cooling;$('trialResult').innerHTML=`${state.trial} maszyn: <b class="${tNet<=0?'good':'bad'}">Net ${fmt(tNet)} H/t</b>, produkcja modelowa ${fmt(Number.isFinite(r.recipeTicks)?1200*state.trial*p.recipeOutputCount/r.recipeTicks:0)}/min.`;
+ return r
+}
+function updateAll(){updateMetrics();updateEditor();if(typeof updateOperatingTable==='function')updateOperatingTable()}
+function setGrid(dims,arr,irr,wall=null){state.dims=dims.slice();state.g=arr.slice();state.wall=wall?{...wall}:wallsForDims(dims,irr);state.whole=false;state.layer=0;state.trial=irr;for(const [id,v] of [['dimX',dims[0]+2],['dimY',dims[1]+2],['dimZ',dims[2]+2],['machineCount',irr]])$(id).value=v;$('trialCount').max=Math.max(30,irr+12);$('trialCount').value=irr;updateAll()}
+function initInputs(){for(let i=0;i<FUEL.length;i++){let f=FUEL[i],opt=document.createElement('option');opt.value=i;opt.textContent=f[0]+' • '+f[3]+' H/t';if(f[0]==='HEU-235')opt.selected=true;$('fuel').appendChild(opt)}
+ for(let t of [...passive,...activeTypes]){let row=document.createElement('tr');row.innerHTML=`<td>${nm[t]}</td><td>${SINKS[t][0]}</td><td><input type="number" min="0" max="10000" value="${t.startsWith('active_')?0:999}" data-limit="${t}" aria-label="Limit ${t}"></td>`;$('coolers').append(row)}
+ for(let t of ['.','F','M','I',...passive,...activeTypes,'R','G','A','P','C']){let btn=document.createElement('button');btn.textContent=(shortcuts[t]||'')+' '+(nm[t]||t);btn.dataset.brush=t;if(t==='F')btn.classList.add('pick');btn.onclick=()=>{if(t.startsWith('active_')&&!$('allowActive').checked){info('Włącz aktywne chłodnice, zanim je umieścisz.','warn');return}state.brush=t;document.querySelectorAll('[data-brush]').forEach(e=>e.classList.toggle('pick',e.dataset.brush===t))};$('palette').append(btn)}
+ PRESETS.forEach((pre,i)=>{let b=document.createElement('button');b.className='btn small';b.textContent=pre.name+' · '+pre.desc;b.onclick=()=>loadPreset(i);$('presets').append(b)});
+ $('fuel').onchange=()=>{let f=FUEL[num('fuel',3)];$('fuelHeat').value=f[3];$('fuelPower').value=f[2];$('fuelRate').value=f[0]==='HEU-235'?'108.4':'0';updateAll()};
+ for(let id of ['fuelHeat','fuelPower','fuelRate','moderation','machineCount','reserve','maxFuel'])$(id).addEventListener('input',()=>{if(id==='moderation')$('modLabel').textContent=fmt(num('moderation',0))+'%';if(id==='machineCount'){let n=clamp(num(id,8),0,machineSlots(state.dims));state.wall=wallsForDims(state.dims,n);state.trial=n;$('trialCount').value=n;$('trialCount').max=Math.max(30,n+10)}updateAll()});
+ for(const id of ['autoMachines','safeAtFull'])$(id).addEventListener('change',updateAll);
+ $('trialCount').addEventListener('input',()=>{state.trial=num('trialCount',0);updateMetrics()});
+ $('resize').onclick=()=>{let dims=['dimX','dimY','dimZ'].map(id=>clamp(num(id,5),3,12)-2);if(dims.reduce((a,b)=>a*b,1)>400){info('Maks. 400 bloków wnętrza w tej wersji, aby przeglądarka nie zawieszała się.','warn');return}rememberEdit();setGrid(dims,Array(dims.reduce((a,b)=>a*b,1)).fill('.'),num('machineCount',8));info('Nowy pusty reaktor. Wybierz pędzel albo uruchom generator.')};
+ $('prev').onclick=()=>{state.layer=Math.max(0,state.layer-1);updateEditor()};$('next').onclick=()=>{state.layer=Math.min(state.whole?state.dims[1]+1:state.dims[1]-1,state.layer+1);updateEditor()};$('tabInterior').onclick=()=>{state.whole=false;state.layer=clamp(state.layer-1,0,state.dims[1]-1);$('tabInterior').className='active';$('tabWhole').className='';updateEditor()};$('tabWhole').onclick=()=>{state.whole=true;state.layer=clamp(state.layer+1,0,state.dims[1]+1);$('tabInterior').className='';$('tabWhole').className='active';updateEditor()};
+ $('clear').onclick=()=>{if(!confirm('Wyczyścić całe wnętrze?'))return;rememberEdit();state.g.fill('.');updateAll()};$('preset').onclick=()=>loadPreset(0);
+ $('resetLimits').onclick=()=>{document.querySelectorAll('[data-limit]').forEach(e=>e.value=e.dataset.limit.startsWith('active_')?0:999);updateAll()};$('allowActive').onchange=()=>{document.querySelectorAll('[data-brush]').forEach(e=>e.classList.toggle('unavailable',e.dataset.brush.startsWith('active_')&&!$('allowActive').checked));updateAll()};$('allowActive').onchange();document.querySelectorAll('[data-limit]').forEach(e=>e.addEventListener('change',updateAll));
+ $('exportBG').onclick=exportBG; $('saveJSON').onclick=saveJSON;$('saveNBT').onclick=saveNBT;$('savePack').onclick=savePack;$('saveTXT').onclick=saveTXT;$('print').onclick=()=>window.print();$('loadJSON').onclick=()=>{$('dialog').classList.add('visible')};$('closeDialog').onclick=$('cancelImport').onclick=()=>{$('dialog').classList.remove('visible')};$('importFile').onchange=async()=>{let f=$('importFile').files[0];if(!f)return;try{if(f.name.toLowerCase().endsWith('.nbt')){let p=await v3ImportMBToolNBT(await f.arrayBuffer());$('importText').value=JSON.stringify(p,null,2);info('Odczytano MBTool NBT. Kliknij Wczytaj, aby otworzyć projekt.')}else $('importText').value=await f.text()}catch(e){info('Błąd importu NBT: '+e.message,'error')}};$('loadImport').onclick=()=>{try{let v=JSON.parse($('importText').value);rememberEdit();let savedArchive=v.version==='3.0'&&Array.isArray(v.variants)?v:null;if(v.version==='3.0'&&v.settings)v=v.settings;if(v.statePosArrayList)v=importBG(v);if(!Array.isArray(v.dims)||!Array.isArray(v.grid)||v.grid.length!==v.dims.reduce((a,b)=>a*b,1))throw Error('Nieprawidłowe dimensions/grid');for(let t of v.grid)if(!(t==='F'||t==='M'||t==='I'||t==='.'||SINKS[t]))throw Error('Nieznany blok: '+t);setGrid(v.dims,v.grid,v.irradiators??7,v.wall);if(v.fuel){let i=FUEL.findIndex(f=>f[0]===v.fuel);if(i>=0)$('fuel').value=i}for(let [field,id] of [['fuelHeat','fuelHeat'],['fuelPower','fuelPower'],['rate','fuelRate'],['moderation','moderation'],['reserve','reserve'],['recipeBaseTicks','recipeBaseTicks'],['recipeOutputCount','recipeOutputCount']])if(v[field]!==undefined)$(id).value=v[field];if(v.maxFuel!==undefined)$('maxFuel').value=v.maxFuel;$('dialog').classList.remove('visible');updateAll();if(savedArchive){V3.archive=[];let p=getParams();for(let item of savedArchive.variants){if(!Array.isArray(item.grid)||item.grid.length!==state.g.length)continue;let candidate={g:item.grid,s:statsForSearch(item.grid,state.dims,p)};v3ArchiveAdd(candidate,p)}v3ArchiveDisplay()}info('Projekt został wczytany.')}catch(e){alert('Nie udało się wczytać JSON: '+e.message)}};
+ $('run').onclick=runOptimizer;$('pause').onclick=togglePause;$('stop').onclick=stopOptimizer;$('applyBest').onclick=()=>applyStored(state.bestSafe);$('applyNear').onclick=()=>applyStored(state.bestNear);$('heatFix').onclick=heatFix;
+ loadPreset(1)
+}
+function loadPreset(i){const pre=PRESETS[i];if(!pre)return;if(typeof RELEASE!=='undefined'&&window.__rsReady)rememberEdit();const wall=Object.fromEntries(pre.wall.map(([x,y,z,block])=>[key([x,y,z]),block.endsWith(':irradiator')?'A':block.endsWith(':fission_reactor_controller')?'C':block.endsWith(':fission_reactor_port')?'P':'R']));setGrid(pre.dims,pre.grid,pre.irradiators,wall);$('modLabel').textContent=fmt(num('moderation',0))+'%';info('Wczytano '+pre.name+'. Możesz edytować warstwy lub kliknąć Run.')}
+function makeProject(){let p=getParams();return {format:'PI-Neoteric-Reactor-Studio-v1',dims:state.dims.slice(),grid:state.g.slice(),wall:state.wall,irradiators:p.machines,fuel:p.fuel,fuelHeat:p.heat,fuelPower:p.power,rate:p.rate,moderation:p.moderation*100,reserve:p.reserve,maxFuel:p.maxFuel,recipeBaseTicks:p.recipeBaseTicks,recipeOutputCount:p.recipeOutputCount,source:'Project Infinity 0.1 / NuclearCraft Neoteric 1.20.1'}}
+function bytes(text){return new TextEncoder().encode(text)}
+function dl(name,data,type='application/octet-stream'){const blob=data instanceof Blob?data:new Blob([data],{type});const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),10000)}
+function filename(){return `PI_Neoteric_${state.dims.map(x=>x+2).join('x')}_${state.last.lines}linii`}
+function saveJSON(){dl(filename()+'.json',JSON.stringify(makeProject(),null,2),'application/json')}
+function saveTXT(){let p=getParams(),r=state.last,s=`PROJECT INFINITY 0.1 — NuclearCraft Neoteric\nWymiary zewnętrzne: ${state.dims.map(x=>x+2).join('x')} | HEU-235: ${p.fuel}\nHeat ${r.heat.toFixed(1)} | Cooling ${r.cooling} | Net ${r.net.toFixed(1)} H/t\nLinie: ${r.lines}; maszyn: ${p.machines}; Neutronium/min ${r.perMinute.toFixed(1)}\n\n`;let [w,h,d]=state.dims;for(let y=0;y<h;y++){s+=`Warstwa ${y+1} od dolu:\n`;for(let z=0;z<d;z++){for(let x=0;x<w;x++)s+=(shortcuts[state.g[idx(x,y,z,w,d)]]||'·').padEnd(5);s+='\n'}s+='\n'}s+='Bloki: \n'+Object.entries(r.counts).map(([k,v])=>nm[k]+': '+v).join('\n');dl(filename()+'.txt',s,'text/plain')}
+// Vanilla Minecraft structure NBT, TAG_Compound root; gzip exactly as MBTool NbtIo.readCompressed expects.
+class NBTWriter {constructor(){this.a=[]}u8(v){this.a.push(v&255)}u16(v){this.u8(v>>>8);this.u8(v)}i32(v){this.u8(v>>>24);this.u8(v>>>16);this.u8(v>>>8);this.u8(v)}str(v){let a=bytes(v);this.u16(a.length);for(let c of a)this.u8(c)}tag(t,n,v){this.u8(t);this.str(n);this.payload(t,v)}payload(t,v){if(t===3)this.i32(v);else if(t===8)this.str(v);else if(t===9){this.u8(v[0]);this.i32(v[1].length);for(let x of v[1])this.payload(v[0],x)}else if(t===10){for(let [n,x] of Object.entries(v))this.tag(x[0],n,x[1]);this.u8(0)}else throw Error('Unsupported NBT '+t)}toBytes(){return Uint8Array.from(this.a)}}
+const I=v=>[3,v],S=v=>[8,v],L=(type,values)=>[9,[type,values]],C=o=>[10,o];
+function nbtStructure(){const [w,h,d]=state.dims, W=w+2,H=h+2,D=d+2;const palette=[],cache=new Map(),blocks=[];
+ function push(x,y,z,t){if(t==='.')return;const name=codeToId(t);let props=null;if(t==='C'||t==='P'||t==='A'){let f=z===0?'north':z===D-1?'south':x===0?'west':x===W-1?'east':'north';props={facing:S(f)};if(t==='C'||t==='A')props.powered=S('false');}const k=name+'|'+JSON.stringify(props);if(!cache.has(k)){cache.set(k,palette.length);palette.push(props?{Name:S(name),Properties:C(props)}:{Name:S(name)})}blocks.push({pos:L(3,[x,y,z]),state:I(cache.get(k))})}
+ for(let y=0;y<H;y++)for(let z=0;z<D;z++)for(let x=0;x<W;x++){let t=(x===0||y===0||z===0||x===W-1||y===H-1||z===D-1)?(state.wall[key([x,y,z])]||'R'):state.g[idx(x-1,y-1,z-1,w,d)];push(x,y,z,t)}
+ let writer=new NBTWriter();writer.u8(10);writer.str('');writer.payload(10,{DataVersion:I(3465),size:L(3,[W,H,D]),palette:L(10,palette),blocks:L(10,blocks),entities:L(10,[]),author:S('Project Infinity Neoteric Reactor Studio')});return {nbt:writer.toBytes(),blockCount:blocks.length}}
+async function gzip(data){if(typeof CompressionStream==='undefined')throw Error('Twoja przeglądarka nie obsługuje CompressionStream (gzip). Otwórz plik w nowym Chrome lub Edge.');const stream=new Blob([data]).stream().pipeThrough(new CompressionStream('gzip'));return new Uint8Array(await new Response(stream).arrayBuffer())}
+function CRC32(buf){let crc=0xffffffff;for(let b of buf){crc^=b;for(let j=0;j<8;j++)crc=(crc>>>1)^(-(crc&1)&0xedb88320)}return(crc^0xffffffff)>>>0}
+function makeZip(entries){const all=[],central=[];let offset=0;for(let [path,data] of entries){let name=bytes(path),b=data instanceof Uint8Array?data:bytes(data),crc=CRC32(b);let h=new Uint8Array(30+name.length),v=new DataView(h.buffer);v.setUint32(0,0x04034b50,true);v.setUint16(4,20,true);v.setUint16(6,0,true);v.setUint16(8,0,true);v.setUint32(14,crc,true);v.setUint32(18,b.length,true);v.setUint32(22,b.length,true);v.setUint16(26,name.length,true);h.set(name,30);all.push(h,b);
+ let c=new Uint8Array(46+name.length),cv=new DataView(c.buffer);cv.setUint32(0,0x02014b50,true);cv.setUint16(4,20,true);cv.setUint16(6,20,true);cv.setUint32(16,crc,true);cv.setUint32(20,b.length,true);cv.setUint32(24,b.length,true);cv.setUint16(28,name.length,true);cv.setUint32(42,offset,true);c.set(name,46);central.push(c);offset+=h.length+b.length}
+ let centerLen=central.reduce((a,x)=>a+x.length,0),end=new Uint8Array(22),dv=new DataView(end.buffer);dv.setUint32(0,0x06054b50,true);dv.setUint16(8,central.length,true);dv.setUint16(10,central.length,true);dv.setUint32(12,centerLen,true);dv.setUint32(16,offset,true);return new Blob([...all,...central,end],{type:'application/zip'})}
+function validateBeforeExport(){
+ const p=getParams(),r=simulation(state.g,...state.dims,p),n=Object.values(state.wall).filter(x=>x==='A').length;
+ const errors=[];
+ if(r.fuelCells<1)errors.push('brak Fuel Cells');
+ if(r.badI.length)errors.push(`${r.badI.length} nieaktywnych Irradiation Chambers`);
+ if(r.badSinks.length)errors.push(`${r.badSinks.length} nieaktywnych chłodnic`);
+ if(r.net>0)errors.push(`Net Heat +${fmt(r.net)} H/t`);
+ if(p.safeAtFull&&p.moderation<.999&&p.heat*(r.heatMult+r.modHeat)+r.radiHeat>r.cooling)errors.push('projekt nie jest stabilny przy 100% moderacji, chociaż wybrano taki wymóg');
+ if(p.machines!==n)errors.push(`na ścianie ${n} Irradiatorów, a w obliczeniach ${p.machines}`);
+ if(Object.keys(r.coolantBy).length&&!$('coolantVerified').checked)errors.push('wymagane potwierdzenie płynnego chłodziwa');
+ if(Object.keys(r.coolantBy).length&&!$('coolantVerified').checked)errors.push('aktywne chłodnice wymagają potwierdzenia stałego dopływu chłodziwa');
+ if(Object.values(state.wall).filter(x=>x==='P').length<1)errors.push('brak Reactor Port');
+ const audit=releaseCheck();for(let e of audit.fatal)if(!errors.includes(e))errors.push(e);
+ const real=Object.values(state.wall).filter(x=>x==='C').length;
+ if(real!==1)errors.push('w obudowie musi być dokładnie jeden kontroler');
+ if(errors.length){info('Niebezpieczny projekt: '+errors.join('; '),'warn');if(!$('unsafeExport').checked)throw Error(errors.join('; ')+'. Zaznacz świadome zezwolenie w sekcji eksportu, jeżeli chcesz projekt testowy.')}
+ return true
+}
+async function saveNBT(){try{validateBeforeExport();let {nbt,blockCount}=nbtStructure(),compressed=await gzip(nbt);dl(filename()+'.nbt',compressed);info(`Wyeksportowano strukturę MBTool: ${blockCount} bloków, ${compressed.length} B gzip.`)}catch(e){info('Nie udało się zapisać NBT: '+e.message,'error')}}
+async function savePack(){try{validateBeforeExport();let {nbt,blockCount}=nbtStructure(),compressed=await gzip(nbt),stem='pi_reactor_'+state.dims.map(x=>x+2).join('x')+'_'+state.last.lines+'lines';let txt='Project Infinity NuclearCraft: Neoteric 1.20.1 · MBTool\n'+`Struktura: ${stem}, ${blockCount} bloków.\nZainstaluj ZIP w saves/NazwaSwiata/datapacks, wpisz /reload, w MBTool znajdź ${stem}.\nUwaga: przed budową sprawdź walidację w Designerze, ustaw moderację i paliwo.\n`;let zip=makeZip([['pack.mcmeta',JSON.stringify({pack:{pack_format:15,description:'Project Infinity · Reactor Studio MBTool'}})],['data/mbtool/mbtool_structures/'+stem+'.nbt',compressed],['README_PL.txt',txt]]);dl(filename()+'_MBTool_Datapack.zip',zip,'application/zip');info(`Gotowy datapack MBTool: ${blockCount} bloków, /reload w świecie Minecraft 1.20.1.`)}catch(e){info('Nie udało się zbudować ZIP: '+e.message,'error')}}
+// v2: search ranks reactor output at real whole-tick recipe speeds; keeps separate safe/near solutions.
+let rngSeed=0x92ab35dd;
+function rand(){rngSeed^=rngSeed<<13;rngSeed^=rngSeed>>>17;rngSeed^=rngSeed<<5;return (rngSeed>>>0)/4294967296}
+function pick(a){return a[(rand()*a.length)|0]}
+function randomInt(a,b){return a+Math.floor(rand()*(b-a+1))}
+function shuffle(arr){let a=arr.slice();for(let i=a.length-1;i>0;i--){let j=(rand()*(i+1))|0;[a[i],a[j]]=[a[j],a[i]]}return a}
+function limitFor(t){let e=document.querySelector(`[data-limit="${t}"]`);return e?clamp(Number(e.value)||0,0,10000):999}
+function orientedTriads(w,h,d){let o=[];for(let y=0;y<h;y++)for(let z=0;z<d;z++)for(let x=0;x<w;x++)for(const [dx,dy,dz] of DIR){let bx=x+2*dx,by=y+2*dy,bz=z+2*dz,ax=x+dx,ay=y+dy,az=z+dz;if(bx>=0&&by>=0&&bz>=0&&bx<w&&by<h&&bz<d)o.push([idx(x,y,z,w,d),idx(ax,ay,az,w,d),idx(bx,by,bz,w,d)])}return o}
+function statsForSearch(g,dims,p){let r=simulation(g,...dims,{...p,machines:0});
+ const slots=machineSlots(dims),limit=Math.min(slots,p.machines);
+ const reserve=Math.max(0,p.reserve),perMachine=15*r.lines;
+ let machines=limit;
+ if(p.autoMachines){
+  let budget=r.cooling-r.baseHeat-reserve;
+  if(p.safeAtFull)budget=Math.min(budget,r.cooling-p.heat*(r.heatMult+r.modHeat)-reserve);
+  machines=r.lines>0?Math.max(0,Math.min(limit,Math.floor((budget+1e-7)/perMachine))):0;
+ }
+ r.machines=machines;r.radiHeat=machines*perMachine;r.heat=r.baseHeat+r.radiHeat;r.net=r.heat-r.cooling;r.excess=-r.net;
+ r.perMinute=Number.isFinite(r.recipeTicks)?1200*machines*p.recipeOutputCount/r.recipeTicks:0;
+ r.fullHeat=p.heat*(r.heatMult+r.modHeat)+r.radiHeat;
+ r.fullNet=r.fullHeat-r.cooling;
+ r.invalidCount=r.badI.length+r.badSinks.length;
+ const counts={};for(const t of g)counts[t]=(counts[t]||0)+1;
+ r.limitsOK=r.fuelCells>0&&r.fuelCells<=p.maxFuel&&Object.entries(counts).every(([t,v])=>v<=limitFor(t));
+ r.layoutOK=r.invalidCount===0&&r.limitsOK;
+ r.safe=r.layoutOK&&r.lines>0&&r.machines>0&&r.net<=-reserve+1e-7&&(!p.safeAtFull||r.fullNet<=-reserve+1e-7);
+ return r
+}
+function merit(s,p){if(!s.limitsOK||s.fuelCells<1)return -1e7-s.invalidCount*1000;
+ const over=Math.max(0,s.net+p.reserve,p.safeAtFull?s.fullNet+p.reserve:0),bad=s.invalidCount;
+ let target=0;
+ if(p.goal==='neutronium')target=s.perMinute*65;
+ else if(p.goal==='lines')target=s.lines*150;
+ else if(p.goal==='energy')target=s.energy/6;
+ else if(p.goal==='cooling')target=s.excess;
+ else if(p.goal==='efficiency')target=s.perMinute*65-s.fuelCells*300;
+ let soft=target - (Math.pow(over,0.95)*36) - (bad*1400) - 1.1*s.fuelCells -.05*s.sinks -.5*s.badMods.length;
+ if(s.safe)soft+=Math.min(200,Math.max(0,-s.net-p.reserve)*0.065);
+ return soft
+}
+function safeRank(s,p){if(!s.safe)return -Infinity;return merit(s,p)}
+const NONCORE=t=>!['F','M','I'].includes(t);
+function coreOnly(grid){return grid.map(t=>NONCORE(t)?'.':t)}
+function removeDangling(core,dims){const [w,h,d]=dims,geo=geometry(w,h,d),g=core;
+ for(let n=0;n<2;n++)for(let i=0;i<g.length;i++)if(g[i]==='M'&&!geo.nb[i].some(j=>j>=0&&g[j]==='F'))g[i]='.';
+ for(let i=0;i<g.length;i++)if(g[i]==='I'){
+  const [x,y,z]=geo.coords[i];let ok=false;
+  for(const [dx,dy,dz] of DIR){const ax=x+dx,ay=y+dy,az=z+dz,bx=x+2*dx,by=y+2*dy,bz=z+2*dz;if(bx>=0&&by>=0&&bz>=0&&bx<w&&by<h&&bz<d&&g[idx(ax,ay,az,w,d)]==='M'&&g[idx(bx,by,bz,w,d)]==='F')ok=true}
+  if(!ok)g[i]='.';
+ }
+ return g
+}
+function randomCore(dims,p){let [w,h,d]=dims,triads=shuffle(geometry(w,h,d).triads);let g=Array(w*h*d).fill('.');let target=randomInt(1,Math.max(1,Math.min(p.maxFuel,Math.ceil(g.length/5),7)));
+ for(let it=0;it<90 && g.filter(t=>t==='F').length<target;it++){
+  const tr=pick(triads);if(!tr)break;const [u,v,t]=tr; if(!NONCORE(g[u])&&g[u]!=='F'||!NONCORE(g[v])&&g[v]!=='M'||!NONCORE(g[t])&&g[t]!=='I')continue;
+  if(g[u]!=='F'&&g.filter(t=>t==='F').length>=p.maxFuel)continue;
+  if(rand()<.4&&g[t]==='.')g[t]='I';else g[t]='I';g[v]='M';g[u]='F';
+ }
+ if(!g.includes('F')){let t=pick(triads);if(t){g[t[0]]='F';g[t[1]]='M';g[t[2]]='I'}}return g
+}
+function mutateCore(parent,dims,p,energy=1){const core=coreOnly(parent),[w,h,d]=dims,triads=geometry(w,h,d).triads;let g=core.slice();if(!p.allowCore)return g;
+ const nOps=energy>1?randomInt(2,6):randomInt(1,3);
+ for(let t=0;t<nOps;t++){
+  const mode=rand();
+  if(mode<.24){ // delete or move an existing source or chamber
+   let existing=[];for(let i=0;i<g.length;i++)if(['F','M','I'].includes(g[i]))existing.push(i);
+   if(existing.length){let a=pick(existing);g[a]='.'}
+  } else if(mode<.85){ // add proper triad, reusing existing moderator and cells
+   let trial=shuffle(triads).slice(0,Math.min(90,triads.length)).filter(([f,m,c])=>(g[f]==='F'||g[f]==='.')&&(g[m]==='M'||g[m]==='.')&&(g[c]==='I'||g[c]==='.')&&(g[f]==='F'||g.filter(x=>x==='F').length<p.maxFuel));
+   if(trial.length){let weighted=trial.map(a=>({a,b:(g[a[0]]==='F'?4:0)+(g[a[1]]==='M'?5:0)+(g[a[2]]==='I'?5:0)+rand()*7})).sort((a,b)=>b.b-a.b);const [f,m,c]=pick(weighted.slice(0,Math.min(7,weighted.length))).a;g[f]='F';g[m]='M';g[c]='I'}
+  } else { // exchange blocks: explore different connectivity
+   const a=randomInt(0,g.length-1),b=randomInt(0,g.length-1);[g[a],g[b]]=[g[b],g[a]]
+  }
+ }
+ while(g.filter(t=>t==='F').length>p.maxFuel){let fi=[];for(let i=0;i<g.length;i++)if(g[i]==='F')fi.push(i);g[pick(fi)]='.'}
+ removeDangling(g,dims);
+ if(!g.includes('F'))return randomCore(dims,p);
+ return g
+}
+// Cooling construction uses game-valid placement rules, not an estimated heat sum.
+function buildCooling(core,dims,p,style=0,parent=null){let [w,h,d]=dims,free=shuffle(Array.from({length:core.length},(_,i)=>i).filter(i=>core[i]==='.'));
+ let options=[...passive,...(p.allowActive?activeTypes:[])].filter(t=>limitFor(t)>0);
+ options.sort((a,b)=>SINKS[b][0]-SINKS[a][0]);
+ let base=parent&&parent.length===core.length?parent.map((t,i)=>core[i]==='.'&&SINKS[t]&&options.includes(t)?t:core[i]):core.slice();
+ let g=base.slice(),cnt={};for(const t of g)cnt[t]=(cnt[t]||0)+1;
+ let r=statsForSearch(g,dims,p);
+ // Dependent coolers (e.g. aluminum) only activate after their required neighbors exist.
+ for(let round=0;round<2;round++){
+  if(round===0)free=shuffle(free);
+  for(const i of free){let old=g[i];if(old!=='.'&&rand()>.25)continue;
+   let viable=[];const sampled=style%3===0?options:shuffle(options).slice(0,Math.min(options.length,style%3===1?15:9));
+   for(const t of sampled){if(t===old||(cnt[t]||0)>=limitFor(t))continue;g[i]=t;const s=simulation(g,w,h,d,{...p,machines:0});if(s.valid.has(i)){
+    const gain=s.cooling-(r.cooling||0);if(gain>0)viable.push([t,gain])
+   }}
+   g[i]=old;
+   if(viable.length){viable.sort((a,b)=>b[1]-a[1]);let selected=rand()<.16?pick(viable.slice(0,Math.min(4,viable.length))):viable[0];if(old!=='.')cnt[old]--;g[i]=selected[0];cnt[selected[0]]=(cnt[selected[0]]||0)+1;r=statsForSearch(g,dims,p)}
+  }
+ }
+ // Remove blocks that cannot cool. Exact and upper-bound placement rules can invalidate a neighbor.
+ for(let step=0;step<Math.min(g.length,12);step++){let errors=r.badSinks;if(!errors.length)break;for(let i of errors){cnt[g[i]]--;g[i]='.'}r=statsForSearch(g,dims,p)}
+ return {g,s:r}
+}
+function localCoolerSearch(seed,dims,p,steps=20){let best=seed.slice(),last=statsForSearch(best,dims,p),[w,h,d]=dims,opts=[...passive,...(p.allowActive?activeTypes:[])].filter(t=>limitFor(t)>0);
+ let bestScore=merit(last,p);
+ for(let q=0;q<steps;q++){
+  let i=randomInt(0,best.length-1);if(['F','M','I'].includes(best[i]))continue;
+  let t=pick([...opts,'.']);if(t===best[i])continue;
+  if(best.filter(x=>x===t).length>=limitFor(t))continue;
+  let g=best.slice();g[i]=t;let s=statsForSearch(g,dims,p);let score=merit(s,p); // keep local improvements, including escape from invalid layouts
+  if(score>bestScore+0.0001){best=g;bestScore=score;last=s}
+ }
+ return {g:best,s:last}
+}
+function candidateFrom(parent,dims,p,iteration){let mode=iteration%13;
+ let core;
+ if(!parent||mode===0||mode===7)core=randomCore(dims,p);
+ else if(mode===1||mode===4||mode===10)core=coreOnly(parent);
+ else core=mutateCore(parent,dims,p,mode===3?2:1);
+ const reuse=(mode===1||mode===4||mode===10)?parent:(parent&&rand()<.6?parent:null);
+ let trial=buildCooling(core,dims,p,iteration,reuse);
+ if(mode===1||mode===5||mode===10)trial=localCoolerSearch(trial.g,dims,p,24);
+ return trial
+}
+function rememberCandidate(obj,p){if(!obj)return;
+ const copy=()=>({g:obj.g.slice(),s:obj.s,score:merit(obj.s,p)});
+ if(obj.s.safe){if(!state.bestSafe||safeRank(obj.s,p)>safeRank(state.bestSafe.s,p)){state.bestSafe=copy();return 'safe'}}
+ else if(obj.s.layoutOK&&obj.s.lines>0){if(!state.bestNear||merit(obj.s,p)>merit(state.bestNear.s,p)){state.bestNear=copy();return 'near'}}
+ return null
+}
+function showBest(){let good=state.bestSafe,near=state.bestNear;
+ $('bestSummary').innerHTML=`<span class="good">Stabilny:</span> ${good?`${good.s.lines} linii · ${good.s.machines} maszyn · <b>${fmt(good.s.perMinute)}/min</b> · Net ${fmt(good.s.net)} H/t`:'jeszcze brak'}<br><span class="warntext">Alternatywa / za gorący:</span> ${near?`${near.s.lines} linii · ${near.s.machines} maszyn · ${fmt(near.s.perMinute)}/min · Net ${fmt(near.s.net)} H/t`:'brak'}`;
+ $('applyBest').disabled=!good;$('applyNear').disabled=!near;
+}
+function applyStored(obj){if(!obj||state.opt)return;rememberEdit();state.g=obj.g.slice();let p=getParams();if(p.autoMachines){$('autoMachines').checked=false;$('machineCount').value=obj.s.machines;state.wall=wallsForDims(state.dims,obj.s.machines);state.trial=obj.s.machines;$('trialCount').value=obj.s.machines;}updateAll();info(`Wczytano: ${obj.s.lines} linii · ${obj.s.machines} Irradiatorów · ${fmt(obj.s.perMinute)}/min · Net ${fmt(obj.s.net)} H/t. Przed budową sprawdź w grze.`)}
+const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+async function runOptimizer(){if(state.opt)return;let p=getParams(),dims=state.dims.slice(),size=dims.reduce((a,b)=>a*b,1);
+ if(size>220){info('Optymalizator przeszukuje na raz wnętrza do 220 bloków. Dla większych użyj edytora i ręcznej walidacji.','warn');return}
+ if(!p.rate&&p.goal==='neutronium'){info('Podaj irradiation danego paliwa (np. HEU-235 108,4).','warn');return}
+ if(p.machines>machineSlots(dims)){info(`Zmieści się maksymalnie ${machineSlots(dims)} Irradiatorów.`, 'warn');return}
+ const total=clamp(num('iterations',400),1,8000);state.bestSafe=null;state.bestNear=null;state.opt={paused:false,stop:false};
+ rngSeed=p.deterministic?(0x9ae2301^size^p.maxFuel^p.machines^p.heat):((Date.now()^size)>>>0);
+ const seed={g:state.g.slice(),s:statsForSearch(state.g,dims,p)};rememberCandidate(seed,p);
+ for(const pre of PRESETS){if(pre.grid.length===size&&pre.dims.every((x,i)=>x===dims[i]))rememberCandidate({g:pre.grid.slice(),s:statsForSearch(pre.grid,dims,p)},p)}
+ let elite=[seed],bestScore=-Infinity,lastUpdate=0;
+ $('run').disabled=true;$('pause').disabled=false;$('stop').disabled=false;$('progressBar').style.width='0%';showBest();info('Przeszukiwanie rdzeni, chłodnic i liczby pracujących maszyn…');
+ let it=0;
+ try{
+  for(;it<total;it++){
+   if(state.opt.stop)break;
+   while(state.opt.paused&&!state.opt.stop)await sleep(90);
+   if(state.opt.stop)break;
+   let parent;
+   if(rand()<.5&&state.bestSafe)parent=state.bestSafe.g;
+   else if(rand()<.3&&state.bestNear)parent=state.bestNear.g;
+   else parent=pick(elite).g;
+   const found=candidateFrom(parent,dims,p,it),key=rememberCandidate(found,p);
+   let curr=merit(found.s,p);
+   if(found.s.layoutOK&&curr>bestScore-3500){elite.push({g:found.g.slice(),s:found.s,score:curr});elite.sort((a,b)=>merit(b.s,p)-merit(a.s,p));elite=elite.slice(0,9);bestScore=Math.max(bestScore,curr)}
+   if(key==='safe'){
+    lastUpdate=it;state.g=found.g.slice();const m=found.s.machines;if(p.autoMachines){state.wall=wallsForDims(dims,m)}updateAll();showBest();
+   }
+   if(it%3===0){$('progressBar').style.width=(it/total*100).toFixed(1)+'%';$('attempts').textContent=`Próby: ${it+1} / ${total} · stabilnych najlepszych: ${state.bestSafe?fmt(state.bestSafe.s.perMinute)+'/min':'brak'} · bez poprawy od ${it-lastUpdate} prób`;showBest();await sleep(0)}
+  }
+  $('progressBar').style.width=(it/total*100).toFixed(1)+'%';showBest();
+  if(state.bestSafe){let result=(!p.safe&&state.bestNear&&merit(state.bestNear.s,p)>merit(state.bestSafe.s,p))?state.bestNear:state.bestSafe;applyStoredFromOptimizer(result,p);info(`Zakończono ${it} prób. ${result.s.safe?'Stabilny układ':'UWAGA: projekt niestabilny'}: ${result.s.lines} linii, ${result.s.machines} Irradiatorów, ${fmt(result.s.perMinute)} Neutronium/min, Net ${fmt(result.s.net)} H/t. Nie jest to dowód globalnego optimum.`,result.s.safe?'':'warn')}
+  else info(`Wykonano ${it} prób. Nie znaleziono stabilnego układu: sprawdź liczbę maszyn, zapas chłodzenia i dostępne Heat Sinki. Możesz zastosować alternatywę, ale nie uruchamiaj jej bez poprawienia chłodzenia.`,'warn');
+ }catch(e){console.error(e);info('Błąd optymalizatora: '+e.message,'error')}
+ finally{state.opt=null;$('run').disabled=false;$('pause').disabled=true;$('stop').disabled=true;showBest()}
+}
+function applyStoredFromOptimizer(obj,p){state.g=obj.g.slice();if(p.autoMachines){$('autoMachines').checked=false;$('machineCount').value=obj.s.machines;state.wall=wallsForDims(state.dims,obj.s.machines);state.trial=obj.s.machines;$('trialCount').value=obj.s.machines}updateAll()}
+function togglePause(){if(!state.opt)return;state.opt.paused=!state.opt.paused;for(const worker of V4_WORKERS)worker.postMessage({type:'pause',value:state.opt.paused});$('pause').textContent=state.opt.paused?'▶ Continue':'⏸ Pause';info(state.opt.paused?'Wstrzymano. Możesz edytować projekt lub zatrzymać.':'Wznowiono przeszukiwanie.')}
+function stopOptimizer(){if(state.opt)state.opt.stop=true;for(const worker of V4_WORKERS)worker.postMessage({type:'stop'})}
+function heatFix(){if(state.opt){info('Zatrzymaj optimizer przed naprawą chłodzenia.','warn');return}let dims=state.dims,p=getParams(),now=statsForSearch(state.g,dims,p),best=null,options=[...passive,...(p.allowActive?activeTypes:[]),'.'];
+ for(let i=0;i<state.g.length;i++){
+  if(['F','M','I'].includes(state.g[i]))continue;
+  for(const t of options){if(t===state.g[i]||state.g.filter(x=>x===t).length>=limitFor(t))continue;
+   let g=state.g.slice();g[i]=t;let r=statsForSearch(g,dims,p);
+   if(!r.layoutOK||r.lines!==now.lines)continue;
+   let val=r.cooling-now.cooling;if(val>0&&(!best||val>best.val))best={g,r,val,old:state.g[i],newer:t,i}
+  }
+ }
+ if(best){state.g=best.g;updateAll();info(`Naprawa: ${nm[best.old]||best.old} → ${nm[best.newer]||best.newer}, zwiększono chłodzenie o ${fmt(best.val)} H/t; linie bez zmian.`)}
+ else info('Nie znalazłem pojedynczej zmiany chłodnicy, która zwiększałaby chłodzenie bez utraty linii. Użyj Run, aby przebudować układ.','warn')
+}
+function blockFromId(name){if(name==='minecraft:air')return '.';const short={'fission_reactor_solid_fuel_cell':'F','graphite_block':'M','fission_reactor_irradiation_chamber':'I','fission_reactor_casing':'R','fission_reactor_glass':'G','fission_reactor_controller':'C','fission_reactor_port':'P','irradiator':'A'};
+ const last=name.split(':').pop();if(short[last])return short[last];if(last.endsWith('_heat_sink')){let n=last.slice(0,-10);if(SINKS[n])return n}return null}
+function importBG(v){const text=v.statePosArrayList;if(typeof text!=='string')throw Error('Brak statePosArrayList');
+ let palText=text.match(/blockstatemap:\s*\[(.*?)\],\s*endpos:/s);if(!palText)throw Error('Niepoprawna paleta BG2');
+ const pal=[...palText[1].matchAll(/\{Name:\s*"([^"]+)"(?:,\s*Properties:\s*\{[^}]*\})?\}/g)].map(m=>blockFromId(m[1]));
+ const states=text.match(/statelist:\s*\[I;([^\]]+)\]/);const start=text.match(/startpos:\s*\{X:(-?\d+),Y:(-?\d+),Z:(-?\d+)\}/),end=text.match(/endpos:\s*\{X:(-?\d+),Y:(-?\d+),Z:(-?\d+)\}/);
+ if(!states||!start||!end||!pal.length)throw Error('Niepełne dane pozycji BG2');
+ const a=start.slice(1).map(Number),b=end.slice(1).map(Number),widths=a.map((x,i)=>Math.abs(b[i]-x)+1),[W,H,D]=widths;
+ if(W<3||H<3||D<3||W*H*D>5000)throw Error('Rozmiar struktury poza zakresem');
+ const list=states[1].split(',').map(x=>Number(x.trim()));if(list.length!==W*H*D)throw Error('Liczba bloków różni się od wymiarów ('+list.length+' vs '+W*H*D+')');
+ const g=Array((W-2)*(H-2)*(D-2)).fill('.'),wall={};let machines=0;
+ for(let y=0;y<H;y++)for(let z=0;z<D;z++)for(let x=0;x<W;x++){
+  const id=list[y*W*D+z*W+x],t=pal[id];if(t===null||t===undefined)throw Error('Nieznany blok BG2 w pozycji '+id);
+  const isWall=x===0||y===0||z===0||x===W-1||y===H-1||z===D-1;
+  if(isWall){let typ=['R','G','C','P','A'].includes(t)?t:'R';wall[key([x,y,z])]=typ;if(typ==='A')machines++}
+  else g[idx(x-1,y-1,z-1,W-2,D-2)]=t;
+ }
+ return {dims:[W-2,H-2,D-2],grid:g,wall,irradiators:machines,fuel:'HEU-235',format:'Imported-Building-Gadgets-2'}
+}
+function exportBG(){let [w,h,d]=state.dims,W=w+2,H=h+2,D=d+2,states=[],palette=[],map=new Map(),required={};
+ for(let y=0;y<H;y++)for(let z=0;z<D;z++)for(let x=0;x<W;x++){
+  let t=(x===0||y===0||z===0||x===W-1||y===H-1||z===D-1)?state.wall[key([x,y,z])]||'R':state.g[idx(x-1,y-1,z-1,w,d)];
+  let name=codeToId(t),f=(z===0?'north':z===D-1?'south':x===0?'west':x===W-1?'east':'north');
+  let block=`{Name:"${name}"${['A','C','P'].includes(t)?`,Properties:{facing:"${f}"${t!=='P'?',powered:"false"':''}}`:''}}`;
+  if(!map.has(block)){map.set(block,palette.length);palette.push(block)}states.push(map.get(block));
+  if(t!=='.')required[name]=(required[name]||0)+1;
+ }
+ const snbt=`{blockstatemap:[${palette.join(',')}],endpos:{X:${W-1},Y:${H-1},Z:${D-1}},startpos:{X:0,Y:0,Z:0},statelist:[I;${states.join(',')}]}`;
+ dl(filename()+'_BuildingGadgets2.json',JSON.stringify({name:'PI Neoteric '+state.last.lines+' lines',statePosArrayList:snbt,requiredItems:required},null,2),'application/json');info('Zapisano JSON Building Gadgets 2. Import do Template Manager przetestuj w kopii świata, ponieważ orientacja może różnić się między wersjami.')
+}
+
+// Reactor Studio 4.1 • multiobjective memetic search with archive and repeatable validation.
+// The physics evaluator is the same independent implementation as the hand editor.
+const V3={version:'3.0', archive:[], seen:new Set(), coreSeen:new Set(), generation:0,
+  novel:0, failures:0, searched:0, coolingCache:new Map(), lastSaved:null};
+const V3_LIMIT=24;
+function v3Fingerprint(g){return canonicalGrid(g,state.dims)}
+
+// Deduplicate physically equivalent horizontal transformations; preserve the vertical axis.
+
+// Canonical equivalence under allowed horizontal dihedral symmetries.  Y remains vertical.
+// Do not swap X/Z for a non-square interior; preserve orientation restrictions.
+function canonicalGrid(g,dims){
+ const [w,h,d]=dims;
+ const transforms=[];
+ for(let reflect=0;reflect<2;reflect++)for(let rot=0;rot<(w===d?4:2);rot++)transforms.push([reflect,rot]);
+ let winner=null;
+ for(const [reflect,rot] of transforms){
+  const a=Array(g.length);
+  for(let y=0;y<h;y++)for(let z=0;z<d;z++)for(let x=0;x<w;x++){
+   let u=reflect?w-1-x:x,v=z;
+   if(w===d){for(let q=0;q<rot;q++){const old=u;u=d-1-v;v=old}}
+   else if(rot===1){u=w-1-u;v=d-1-v}
+   a[idx(u,y,v,w,d)]=g[idx(x,y,z,w,d)];
+  }
+  const hash=a.join('|');
+  if(winner===null||hash<winner)winner=hash;
+ }
+ return winner;
+}
+
+
+function v3Eligible(s,p){return s.safe && s.invalidCount===0 && s.badMods.length===0 && s.limitsOK;}
+function v3Metrics(s){return {rate:s.perMinute, margin:-s.net, fuel:s.fuelCells, cells:s.lines, machines:s.machines}}
+function v3Dominates(a,b,p){
+ const primary=s=>p.goal==='lines'?s.lines:p.goal==='energy'?s.energy:p.goal==='cooling'?s.excess:p.goal==='efficiency'?(s.perMinute/Math.max(1,s.fuelCells)):s.perMinute;
+ const x=primary(a.s),y=primary(b.s);return x>=y-1e-6&&a.s.excess>=b.s.excess-1e-6&&a.s.fuelCells<=b.s.fuelCells&&(x>y+1e-6||a.s.excess>b.s.excess+1e-6||a.s.fuelCells<b.s.fuelCells)
+}
+function v3SearchValue(s,p){
+ const over=Math.max(0,s.net+p.reserve,p.safeAtFull?s.fullNet+p.reserve:0),bad=s.invalidCount;
+ let val;
+ // Reward smooth improvement towards the next whole-tick speed threshold.
+ const continuousRate=(s.lines*p.rate/10)*(1200/Math.max(1,p.recipeBaseTicks))*s.machines;
+ if(p.goal==='neutronium')val=150*s.perMinute+Math.min(continuousRate, s.perMinute*1.22)*4;
+ else if(p.goal==='lines')val=360*s.lines+10*s.perMinute;
+ else if(p.goal==='energy')val=s.energy/4;
+ else if(p.goal==='cooling')val=s.excess*3 + s.perMinute*8;
+ else val=150*s.perMinute-800*s.fuelCells;
+ // A gradually decreasing soft penalty helps navigate from infeasible to stable cores.
+ return val - (Math.pow(over,0.88)*100)-(bad*4100)-Math.max(0,s.fuelCells-p.maxFuel)*20000-
+   (s.badMods?.length||0)*100- s.fuelCells*3 - s.sinks*.1 + (s.safe?400:0);
+}
+
+function v4ArchiveCrowding(arr,p){
+ const n=arr.length;if(n<=2)return arr.map(()=>Infinity);
+ const distance=Array(n).fill(0);
+ const dimensions=[a=>a.s.perMinute,a=>-a.s.fuelCells,a=>-a.s.net];
+ for(const value of dimensions){
+  const sorted=arr.map((a,i)=>({v:value(a),i})).sort((a,b)=>a.v-b.v);
+  const span=sorted[n-1].v-sorted[0].v;
+  distance[sorted[0].i]=Infinity;distance[sorted[n-1].i]=Infinity;
+  if(span>1e-9)for(let k=1;k<n-1;k++)distance[sorted[k].i]+=(sorted[k+1].v-sorted[k-1].v)/span;
+ }
+ return distance;
+}
+
+function v3ArchiveAdd(c,p){
+ if(!v3Eligible(c.s,p))return false;
+ const k=v3Fingerprint(c.g);
+ if(V3.archive.some(a=>a.hash===k))return false;
+ const obj={g:c.g.slice(),s:c.s,hash:k,score:v3SearchValue(c.s,p)};
+ if(V3.archive.some(a=>v3Dominates(a,obj,p)))return false;
+ V3.archive=V3.archive.filter(a=>!v3Dominates(obj,a,p));V3.archive.push(obj);
+ V3.archive.sort((a,b)=>b.score-a.score);
+ if(V3.archive.length>V3_LIMIT){const c=v4ArchiveCrowding(V3.archive,p);const keep=V3.archive.map((a,i)=>({...a,_crowd:c[i]})).sort((a,b)=>b._crowd-a._crowd||b.score-a.score).slice(0,V3_LIMIT);V3.archive=keep.map(({_crowd,...a})=>a);V3.archive.sort((a,b)=>b.score-a.score);if(!V3.archive.includes(obj))return false}
+ return true
+}
+function v3ArchiveDisplay(){
+ const body=$('v3Archive');if(!body)return;
+ if(!V3.archive.length){body.innerHTML='<div class="hint">Uruchom optymalizator, aby zobaczyć alternatywy (wydajność / chłodzenie / paliwo).</div>';return}
+ body.innerHTML=V3.archive.slice(0,12).map((a,i)=>`<button class="v3result" data-archive="${i}" title="Wczytaj wariant ${i+1}">
+ <strong>#${i+1} · ${fmt(a.s.perMinute)}/min</strong><span>${a.s.lines} linii · ${a.s.machines} Irr. · ${a.s.fuelCells} ogniw · Net ${fmt(a.s.net)} H/t</span></button>`).join('');
+ body.querySelectorAll('[data-archive]').forEach(b=>b.onclick=()=>{if(state.opt)return;let a=V3.archive[+b.dataset.archive];if(a)applyStored(a)});
+}
+function v3CoreCrossover(a,b,dims,p){
+ if(!a||!b)return randomCore(dims,p);
+ const [w,h,d]=dims,ga=coreOnly(a),gb=coreOnly(b),cut=randomInt(0,h-1),axis=randomInt(0,2),out=ga.slice(),coords=geometry(w,h,d).coords;
+ for(let i=0;i<out.length;i++)if(coords[i][axis]>=cut)out[i]=gb[i];
+ let surplus=out.filter(t=>t==='F').length-p.maxFuel;
+ while(surplus-->0){const fi=[];out.forEach((t,i)=>{if(t==='F')fi.push(i)});out[pick(fi)]='.'}
+ removeDangling(out,dims);
+ return out.includes('F')?out:randomCore(dims,p)
+}
+function v3CoreTune(a,dims,p){
+ let g=coreOnly(a);const triads=geometry(...dims).triads;
+ const attempts=randomInt(1,3),coreIndices=[];
+ for(let q=0;q<attempts;q++){
+  const action=rand();
+  if(action<.63){ // lay or share an exact F-M-I beam
+   const fuelNum=g.reduce((n,t)=>n+(t==='F'),0);
+   let potentials=[];
+   for(let k=0;k<Math.min(200,triads.length);k++){
+    let tr=pick(triads),[f,m,c]=tr;
+    if(!(['.','F'].includes(g[f])&&['.','M'].includes(g[m])&&['.','I'].includes(g[c])))continue;
+    if(g[f]==='.'&&fuelNum>=p.maxFuel)continue;
+    // Favor two-way sharing and avoid extra Fuel Cells when equivalent.
+    const score=(g[f]==='F'?6:0)+(g[m]==='M'?7:0)+(g[c]==='I'?9:0)+rand()*6;
+    potentials.push({tr,score});
+   }
+   potentials.sort((x,y)=>y.score-x.score);
+   if(potentials.length){let [f,m,c]=pick(potentials.slice(0,Math.min(7,potentials.length))).tr;g[f]='F';g[m]='M';g[c]='I'}
+  }else if(action<.83){
+   const list=[];g.forEach((t,i)=>{if(t!=='F'&&t!=='.')list.push(i)});if(list.length)g[pick(list)]='.';
+  }else{
+   const list=[];g.forEach((t,i)=>{if(t==='F'||t==='M'||t==='I')list.push(i)});
+   if(list.length){let i=pick(list),j=randomInt(0,g.length-1);[g[i],g[j]]=[g[j],g[i]]}
+  }
+ }
+ while(g.filter(t=>t==='F').length>p.maxFuel){let i=[];g.forEach((t,j)=>{if(t==='F')i.push(j)});g[pick(i)]='.'}
+ removeDangling(g,dims);
+ return g.includes('F')?g:randomCore(dims,p);
+}
+function v3TrialScore(obj,p){return v3SearchValue(obj.s,p)}
+function v3CoolingRefine(seed,dims,p,iterations=22){
+ const options=[...passive,...(p.allowActive?activeTypes:[]),'.'].filter(t=>t==='.'||limitFor(t)>0);
+ let g=seed.slice(),s=statsForSearch(g,dims,p),value=v3SearchValue(s,p);
+ const positions=g.map((t,i)=>!['F','M','I'].includes(t)?i:-1).filter(i=>i>=0);
+ let best={g:g.slice(),s},bestScore=value;
+ const tabu=new Map(), tenure=7;
+ const ranked=options.filter(t=>t!=='.').sort((a,b)=>SINKS[b][0]-SINKS[a][0]);
+ for(let step=0;step<iterations&&positions.length;step++){
+  const at=pick(positions),old=g[at];
+  const next=step%4===0?pick(ranked.slice(0,Math.min(10,ranked.length))):pick(options);
+  if(next===old||g.filter(t=>t===next).length>=limitFor(next))continue;
+  g[at]=next;let cand=statsForSearch(g,dims,p),score=v3SearchValue(cand,p);
+  const reverse=at+'|'+next+'|'+old;
+  const forbidden=(tabu.get(at+'|'+old+'|'+next)||-1)>step;
+  if((forbidden&&score<=bestScore)||cand.badSinks.length>1){g[at]=old;continue}
+  const temp=Math.max(5,500*(1-step/iterations));
+  if(score>=value||rand()<Math.exp(clamp((score-value)/temp,-45,0))){
+   value=score;s=cand;tabu.set(reverse,step+tenure);
+   if(score>bestScore&&cand.invalidCount===0){bestScore=score;best={g:g.slice(),s:cand}}
+  }else g[at]=old;
+ }
+ return best;
+}
+function v3SmartCandidate(parent,dims,p,iteration,elite){
+ let core;
+ const roll=rand();
+ if(!p.allowCore){core=coreOnly(parent||state.g);let trial=buildCooling(core,dims,p,iteration%13,parent);return {g:trial.g.slice(),s:statsForSearch(trial.g,dims,p)};}
+ if(!parent||roll<.13)core=randomCore(dims,p);
+ else if(roll<.30&&elite.length>1)core=v3CoreCrossover(parent,pick(elite).g,dims,p);
+ else if(roll<.67)core=v3CoreTune(parent,dims,p);
+ else if(roll<.88)core=mutateCore(parent,dims,p,roll<.78?1:2);
+ else core=coreOnly(parent);
+ const ch=core.join('/');
+ // Mix cold starts, warm starts, and two distinct randomized cooling layouts.
+ let useParent=parent&&rand()<.51?parent:null;
+ let result=buildCooling(core,dims,p,iteration%13,useParent);
+ let best={g:result.g.slice(),s:statsForSearch(result.g,dims,p)},bs=v3TrialScore(best,p);
+ if(rand()<.52){
+  let alt=buildCooling(core,dims,p,(iteration*7+3)%13,rand()<.5?null:useParent);
+  let r=statsForSearch(alt.g,dims,p),v=v3TrialScore({s:r},p);
+  if(v>bs){best={g:alt.g.slice(),s:r};bs=v}
+ }
+ if(iteration%3===0||rand()<.4){let r=v3CoolingRefine(best.g,dims,p,iteration%9===0?36:16);if(v3TrialScore(r,p)>bs)best=r}
+ return best
+}
+function v3UpdateCounters(done,total,start,unique,improve){
+ $('progressBar').style.width=(100*done/total).toFixed(2)+'%';
+ const elapsed=(performance.now()-start)/1000;
+ $('attempts').textContent=`Próby: ${done}/${total} · różne układy: ${unique} · ${elapsed.toFixed(1)} s · bez poprawy: ${done-improve}`;
+ showBest();v3ArchiveDisplay();
+}
+async function runOptimizerV3(){
+ if(state.opt)return;
+ const p=getParams(),dims=state.dims.slice(),size=dims.reduce((a,b)=>a*b,1);
+ if(size>220){info('Optymalizator obsługuje wnętrza do 220 pól; większe projekty edytuj ręcznie.','warn');return}
+ if(p.goal==='neutronium'&&!(p.rate>0)){info('Ustaw parametr irradiation wybranego paliwa.','warn');return}
+ if(p.machines>machineSlots(dims)){info(`Liczba maszyn przekracza liczbę miejsc na ścianach (${machineSlots(dims)}).`,'warn');return}
+ const total=clamp(num('iterations',400),1,100000);
+ state.bestSafe=null;state.bestNear=null;V3.archive=[];V3.seen.clear();V3.coreSeen.clear();V3.searched=0;V3.novel=0;
+ rememberEdit();state.opt={paused:false,stop:false};
+ rngSeed=p.deterministic?((0x38fc291d^size^(p.machines*811)^Math.round(p.heat)^p.maxFuel)>>>0):((Date.now()^Math.floor(Math.random()*0xffffff))>>>0);
+ const seed={g:state.g.slice(),s:statsForSearch(state.g,dims,p)};
+ rememberCandidate(seed,p);v3ArchiveAdd(seed,p);
+ for(let pre of PRESETS)if(pre.dims.join(',')===dims.join(',')){
+  const c={g:pre.grid.slice(),s:statsForSearch(pre.grid,dims,p)};
+  rememberCandidate(c,p);v3ArchiveAdd(c,p);
+ }
+ let elite=[seed],working=seed,temperature=1000,lastImprove=0,unique=0;
+ $('run').disabled=true;$('pause').disabled=false;$('stop').disabled=false;releaseLock(true);
+ info('Optymalizacja: losowe starty, krzyżowanie rdzeni, mutacje triad, naprawa i wyżarzanie chłodnic…');
+ const start=performance.now(),startGrid=state.g.slice();let done=0;
+ try{
+  for(let it=0;it<total;it++){
+   if(state.opt.stop)break;
+   while(state.opt.paused&&!state.opt.stop)await sleep(80);
+   if(state.opt.stop)break;
+   let parent;
+   if(it%37===0&&state.bestSafe)parent=state.bestSafe.g;
+   else if(it%17===0)parent=working.g;
+   else if(rand()<.48&&elite.length>0)parent=pick(elite.slice(0,Math.min(8,elite.length))).g;
+   else if(rand()<.25&&state.bestNear)parent=state.bestNear.g;
+   else parent=state.g;
+   let cand=v3SmartCandidate(parent,dims,p,it,elite),finger=v3Fingerprint(cand.g);
+   if(V3.seen.has(finger)&&it%7!==0){done++;continue}
+   unique++;V3.seen.add(finger);
+   if(V3.seen.size>10000){const a=[...V3.seen];V3.seen=new Set(a.slice(-5000))}
+   const result=rememberCandidate(cand,p),better=v3ArchiveAdd(cand,p);
+   if(result==='safe'||better)lastImprove=it;
+   const score=v3TrialScore(cand,p),base=v3TrialScore(working,p);
+   const accept=score>=base||rand()<Math.exp(clamp((score-base)/Math.max(12,temperature),-30,0));
+   if(accept)working=cand;
+   if((it+1)%47===0&&state.bestSafe)working={g:state.bestSafe.g.slice(),s:state.bestSafe.s};
+   if(cand.s.invalidCount===0&&cand.s.limitsOK&&cand.s.lines>0){
+    elite.push({g:cand.g.slice(),s:cand.s,score});elite.sort((a,b)=>v3TrialScore(b,p)-v3TrialScore(a,p));
+    let kept=new Set();elite=elite.filter(a=>{let k=v3Fingerprint(coreOnly(a.g));if(kept.has(k))return false;kept.add(k);return true}).slice(0,12);
+   }
+   temperature=Math.max(18,1200*(1-it/total));done=it+1;
+   if(it%2===0){
+    if(it%8===0)v3UpdateCounters(done,total,start,unique,lastImprove);
+    await sleep(0);
+   }
+  }
+  v3UpdateCounters(done,total,start,unique,lastImprove);
+  if(state.bestSafe){
+   const top=V3.archive[0]||state.bestSafe;
+   // Preserve the best stable option instead of the last visited candidate.
+   state.g=top.g.slice();
+   if(p.autoMachines){$('autoMachines').checked=false;$('machineCount').value=top.s.machines;state.wall=wallsForDims(dims,top.s.machines);state.trial=top.s.machines;$('trialCount').value=top.s.machines}
+   updateAll();info(`Najlepszy znaleziony: ${top.s.lines} linii, ${top.s.machines} maszyn, ${fmt(top.s.perMinute)}/min, Net ${fmt(top.s.net)} H/t. ${unique} odmiennych układów. Weryfikacja w grze nadal wymagana.`);
+  }else info(`Nie znaleziono projektu spełniającego wszystkie ograniczenia w ${done} próbach. Sprawdź limit maszyn, chłodzenia i liczbę Fuel Cells.`, 'warn');
+ }catch(e){console.error(e);info('Błąd wyszukiwania: '+e.message,'error')}
+ finally{state.opt=null;releaseLock(false);$('run').disabled=false;$('pause').disabled=true;$('stop').disabled=true;v3ArchiveDisplay();updateAll()}
+}
+function v3Benchmark(){
+ let p=getParams(),s=statsForSearch(state.g,state.dims,p);
+ const lineBudget=s.lines?`${s.lines} linii × ${fmt(p.rate)} / 10 = ${fmt(s.lines*p.rate/10)}× szybkości`: 'Brak linii';
+ const b=$('v3Diagnostics');if(!b)return;
+ b.innerHTML=`<b>Kontrola modelu</b><br>${lineBudget}<br>Chłodnice: ${s.validCount}/${s.sinks} poprawnych · komory nieaktywne: ${s.badI.length} · chłodnice nieaktywne: ${s.badSinks.length}<br>Bilans dla ${s.machines} maszyn: Net ${fmt(s.net)} H/t, przy 100% moderacji: ${fmt(s.fullNet)} H/t.<br>Gdy zmienisz paliwo lub czas receptury, uruchom wyszukiwanie ponownie.`;
+}
+// Dedicated fixed-core cooling optimization: unlike Run this preserves F/M/I precisely.
+async function v3OptimizeCooling(){
+ if(state.opt)return;
+ const p=getParams(),dims=state.dims.slice(),original=state.g.slice(),baseline=statsForSearch(original,dims,p);
+ if(!baseline.fuelCells||!baseline.lines){info('Aby optymalizować chłodzenie, zbuduj najpierw rdzeń Fuel–Moderator–Chamber.','warn');return}
+ const core=coreOnly(original),attemptCount=Math.min(450,Math.max(45,Math.floor(num('iterations',400)/2)));
+ let best={g:original.slice(),s:baseline};let cooling=baseline.invalidCount===0?baseline.cooling:0;let repaired=baseline.invalidCount===0;
+ rememberEdit();state.opt={paused:false,stop:false};$('run').disabled=true;$('coolPro').disabled=true;$('pause').disabled=false;$('stop').disabled=false;releaseLock(true);
+ let completed=0;
+ const start=performance.now();
+ try{
+  for(let n=0;n<attemptCount;n++){
+   if(state.opt.stop)break;
+   while(state.opt.paused&&!state.opt.stop)await sleep(80);
+   const base=(n%7===0?null:best.g),trial=buildCooling(core,dims,p,n,base);
+   const refined=n%4===0?v3CoolingRefine(trial.g,dims,p,40):{g:trial.g,s:statsForSearch(trial.g,dims,p)};
+   for(const candidate of [trial,refined]){
+    const r=candidate.s;
+    if(r.lines===baseline.lines&&r.fuelCells===baseline.fuelCells&&r.invalidCount===0&&r.limitsOK&&r.cooling>cooling){
+     best={g:candidate.g.slice(),s:r};cooling=r.cooling;repaired=true;
+    }
+   }
+   completed=n+1;
+   if(n%3===0){
+    $('progressBar').style.width=(100*(n+1)/attemptCount).toFixed(1)+'%';
+    $('attempts').textContent=`Chłodnice: ${completed}/${attemptCount} · najlepsze Cooling ${fmt(cooling)} H/t · Δ ${fmt(cooling-baseline.cooling)} H/t`;
+    await sleep(0);
+   }
+  }
+  if((baseline.invalidCount>0&&repaired)||(cooling>baseline.cooling)){
+   state.g=best.g.slice();updateAll();
+   info(`Naprawiono/ulepszono chłodnice. Zmiana: ${fmt(cooling-baseline.cooling)} H/t (do ${fmt(cooling)} H/t); ${baseline.lines} linii i rdzeń Fuel/Moderator/Chamber niezmienione. Test w Designerze wymagany.`);
+  }else info(`Sprawdzono ${completed} wariantów chłodzenia. Nie znaleziono poprawnej konfiguracji lepszej od ${fmt(baseline.cooling)} H/t. To nie jest dowód maksimum.`);
+ }catch(e){console.error(e);info('Błąd optymalizatora chłodzenia: '+e.message,'error')}
+ finally{state.opt=null;releaseLock(false);$('run').disabled=false;$('coolPro').disabled=false;$('pause').disabled=true;$('stop').disabled=true;updateAll()}
+}
+
+// Import of gzipped vanilla Structure NBT used by MBTool, not arbitrary block-entity NBT.
+class V3NBTReader {
+ constructor(buffer){this.u=new Uint8Array(buffer);this.dv=new DataView(this.u.buffer,this.u.byteOffset,this.u.byteLength);this.p=0}
+ need(n){if(this.p+n>this.u.length)throw Error('NBT ucięty lub uszkodzony')}
+ byte(){this.need(1);return this.dv.getInt8(this.p++)}
+ u8(){this.need(1);return this.dv.getUint8(this.p++)}
+ short(){this.need(2);let v=this.dv.getInt16(this.p,false);this.p+=2;return v}
+ u16(){this.need(2);let v=this.dv.getUint16(this.p,false);this.p+=2;return v}
+ int(){this.need(4);let v=this.dv.getInt32(this.p,false);this.p+=4;return v}
+ int64(){let hi=this.int(),lo=this.int();return (BigInt(hi)<<32n)|BigInt(lo>>>0)}
+ str(){const n=this.u16();this.need(n);let v=new TextDecoder().decode(this.u.slice(this.p,this.p+n));this.p+=n;return v}
+ payload(t,depth=0){if(depth>32)throw Error('Za duże zagnieżdżenie NBT');switch(t){
+ case 1:return this.byte();case 2:return this.short();case 3:return this.int();case 4:return this.int64();
+ case 5:{this.need(4);let v=this.dv.getFloat32(this.p,false);this.p+=4;return v}
+ case 6:{this.need(8);let v=this.dv.getFloat64(this.p,false);this.p+=8;return v}
+ case 7:{let n=this.int();if(n<0||n>5000000)throw Error('Nieprawidłowa tablica NBT');this.need(n);let r=this.u.slice(this.p,this.p+n);this.p+=n;return r}
+ case 8:return this.str();
+ case 9:{let z=this.u8(),n=this.int();if(n<0||n>250000)throw Error('Zbyt długa lista NBT');const a=[];for(let i=0;i<n;i++)a.push(this.payload(z,depth+1));return a}
+ case 10:{const o={};for(let n=0;n<250000;n++){let id=this.u8();if(id===0)return o;const name=this.str();o[name]=this.payload(id,depth+1)}throw Error('Zbyt długi compound NBT')}
+ case 11:{let n=this.int();if(n<0||n>250000)throw Error('Za duża int-array');return Array.from({length:n},()=>this.int())}
+ case 12:{let n=this.int();if(n<0||n>250000)throw Error('Za duża long-array');return Array.from({length:n},()=>this.int64())}
+ default:throw Error('Nieobsługiwany typ NBT '+t)
+ }}
+ read(){const t=this.u8();if(t!==10)throw Error('Oczekiwano NBT typu Structure (TAG_Compound)');this.str();return this.payload(t)}
+}
+async function v3ImportMBToolNBT(bytes){
+ let u=new Uint8Array(bytes);
+ if(u.length<8)throw Error('Pusty plik NBT');
+ if(u[0]===0x1f&&u[1]===0x8b){
+  if(typeof DecompressionStream==='undefined')throw Error('Ta przeglądarka nie obsługuje DecompressionStream (gzip)');
+  u=new Uint8Array(await new Response(new Blob([u]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer());
+ }
+ let nbt=new V3NBTReader(u).read();const size=nbt.size;
+ if(!Array.isArray(size)||size.length!==3)throw Error('NBT nie jest strukturą Minecrafta (brak size)');
+ const [W,H,D]=size.map(Number);if([W,H,D].some(x=>x<3||x>34)||W*H*D>8000)throw Error('Nieobsługiwane wymiary: '+size.join('×'));
+ if(!Array.isArray(nbt.palette)||!Array.isArray(nbt.blocks))throw Error('NBT nie zawiera palette/blocks');
+ const palette=nbt.palette.map(x=>blockFromId(x.Name));const dims=[W-2,H-2,D-2];
+ let grid=Array(dims[0]*dims[1]*dims[2]).fill('.'),wall=wallsForDims(dims,0),unrecognized=new Set(),count=0;
+ for(let b of nbt.blocks){
+  const pos=b.pos;if(!Array.isArray(pos)||pos.length!==3)continue;
+  let [x,y,z]=pos.map(Number);if(x<0||y<0||z<0||x>=W||y>=H||z>=D)continue;
+  let id=nbt.palette[b.state]?.Name||'',t=palette[b.state];
+  if(t===null||t===undefined){unrecognized.add(id);continue}
+  let border=x===0||y===0||z===0||x===W-1||y===H-1||z===D-1;
+  if(border){if(['R','G','C','P','A'].includes(t))wall[key([x,y,z])]=t}
+  else grid[idx(x-1,y-1,z-1,dims[0],dims[2])]=t;
+  count++;
+ }
+ if(unrecognized.size)throw Error('Nieznane bloki: '+[...unrecognized].slice(0,6).join(', '));
+ const machines=Object.values(wall).filter(t=>t==='A').length;
+ return {dims,grid,wall,irradiators:machines,format:'MBTool-Structure-NBT-1.20.1'};
+}
+
+// Explicit comparison with Designer (which models 100% moderation and 1 Irradiator's heat).
+function v3CompareGame(){
+ const p=getParams(),s=simulation(state.g,...state.dims,p);
+ const predictedHeat=p.heat*(s.heatMult+s.modHeat)+15*s.lines;
+ const refs=[['Designer Heat/t',predictedHeat,'refHeat'],['Designer Cooling/t',s.cooling,'refCooling'],['Designer Irradiation',s.lines,'refLines']];
+ let differences=[],confirmed=0;
+ for(const [label,calculated,inputId] of refs){let raw=$(inputId).value.trim();if(raw==='')continue;const given=Number(raw.replace(',','.'));if(!Number.isFinite(given))continue;confirmed++;
+  const delta=calculated-given,diff=Math.abs(delta),tolerance=inputId==='refLines'?0:0.11;
+  differences.push(`${label}: model ${fmt(calculated)} / gra ${fmt(given)} · Δ ${fmt(delta)} ${diff<=tolerance?'✓':'⚠'}`)
+ }
+ const div=$('calibrationResult');if(!confirmed){div.textContent='Wpisz wartości z Designera, aby porównać je z modelem.';return}
+ const allOkay=differences.every(x=>x.endsWith('✓'));
+ div.className='v3diagnostics '+(allOkay?'good':'bad');div.textContent=differences.join('   •   ') +
+  (allOkay?' · Wyniki zgodne z Designerem dla podanych statystyk.':' · Rozbieżność: sprawdź paliwo, chłodnice, warstwy i wersję moda. Nie zakładaj, że eksport jest bezpieczny.');
+}
+
+function initV3(){
+ $('compareGame').onclick=v3CompareGame;
+ $('coolPro').onclick=v3OptimizeCooling;
+ $('run').onclick=runOptimizerV4;
+ const box=$('v3Archive');if(box)v3ArchiveDisplay();
+ $('iterations').innerHTML+='<option value="15000">15 000 • bardzo głębokie</option><option value="30000">30 000 • eksperymentalne</option>';
+ $('testModel').onclick=v3Benchmark;
+ $('saveSnapshot').onclick=()=>{try{const p=getParams();const snap={version:'3.0',settings:makeProject(),variants:V3.archive.map(a=>({grid:a.g,stats:{lines:a.s.lines,heat:a.s.heat,cooling:a.s.cooling,net:a.s.net,irradiators:a.s.machines,perMinute:a.s.perMinute}}))};dl(`reactor_studio_3_archive_${Date.now()}.json`,JSON.stringify(snap,null,2),'application/json');info('Zapisano archiwum wariantów do JSON.')}catch(e){info('Błąd: '+e.message,'error')}};
+ for(let id of ['recipeBaseTicks','recipeOutputCount'])$(id).addEventListener('input',()=>{updateAll();v3Benchmark()});
+ v3Benchmark();
+}
+
+
+// Real background optimization: multiple independent memetic searches across dedicated Web Workers.
+// Main thread performs a second validation of each reported candidate before accepting it.
+let V4_WORKERS=[];
+function runOptimizerV4(){
+ if(!$('parallelSearch').checked||!('Worker' in window)||location.protocol==='file:'){
+  if($('parallelSearch').checked&&location.protocol==='file:')$('workerInfo').textContent='Tryb lokalny file:// — optymalizacja zgodna z 4.0. Wielowątkowość uruchomi się po wejściu przez GitHub Pages / localhost.';
+  return runOptimizerV3();
+ }
+ return runOptimizerWorkers();
+}
+async function runOptimizerWorkers(){
+ if(state.opt)return;
+ const p=getParams(),dims=state.dims.slice(),N=dims.reduce((a,b)=>a*b,1);
+ if(N>220||p.machines>machineSlots(dims)||p.goal==='neutronium'&&!(p.rate>0)){info('Nieprawidłowy rozmiar, limit Irradiatorów lub paliwo.','warn');return}
+ const total=clamp(num('iterations',400),1,100000),workersN=Math.min(total,clamp(num('workerCount',2),1,4));
+ const limits={};document.querySelectorAll('[data-limit]').forEach(e=>limits[e.dataset.limit]=limitFor(e.dataset.limit));
+ state.bestSafe=null;state.bestNear=null;V3.archive=[];V3.seen.clear();V3.coreSeen.clear();
+ rememberEdit();state.opt={paused:false,stop:false};
+ $('run').disabled=true;$('pause').disabled=false;$('stop').disabled=false;releaseLock(true);
+ const lastDone=Array(workersN).fill(0),lastUnique=Array(workersN).fill(0),finished=new Set();
+ let failure=null,renderAt=0;
+ const update=()=>{
+  const n=lastDone.reduce((a,b)=>a+b,0),unique=lastUnique.reduce((a,b)=>a+b,0);
+  $('progressBar').style.width=(100*n/total).toFixed(2)+'%';
+  $('attempts').textContent=`Web Workers: ${workersN} · ${n}/${total} prób · unikalne lokalnie: ${unique} · ${V3.archive.length} wariantów Pareto`;
+  showBest();v3ArchiveDisplay();
+ };
+ info(`Przeszukiwanie równoległe: ${workersN} wątki. Możesz wstrzymać lub zatrzymać.`);
+ const seedBase=p.deterministic?(0x91a5634a^N^p.maxFuel^p.machines)>>>0:(Date.now()>>>0);
+ try{
+  await new Promise(resolve=>{
+   function onFinish(){if(finished.size===workersN)resolve()}
+   for(let k=0;k<workersN;k++){
+    const w=new Worker('./optimizer.worker.js');V4_WORKERS.push(w);
+    w.onmessage=event=>{
+     const m=event.data||{};
+     if(m.type==='candidate'&&Array.isArray(m.grid)&&m.grid.length===N){
+      const key=v3Fingerprint(m.grid);
+      if(!V3.seen.has(key)){
+       V3.seen.add(key);
+       const obj={g:m.grid.slice(),s:statsForSearch(m.grid,dims,p)};
+       rememberCandidate(obj,p);v3ArchiveAdd(obj,p);
+      }
+     }
+     if(m.type==='progress'||m.type==='done'){
+      lastDone[k]=m.done||0;lastUnique[k]=m.unique||0;
+      if(performance.now()-renderAt>350){renderAt=performance.now();update()}
+     }
+     if(m.type==='error'){failure=m.message||'Błąd Web Workera';finished.add(k);onFinish()}
+     if(m.type==='done'){finished.add(k);onFinish()}
+    };
+    w.onerror=event=>{failure=String(event.message||'Nie można uruchomić Web Workera');finished.add(k);onFinish()};
+    const count=Math.floor(total/workersN)+(k<total%workersN?1:0);
+    w.postMessage({type:'start',index:k,dims,p,seed:state.g.slice(),iterations:count,rng:(seedBase+Math.imul(k+1,2654435761))>>>0,limits});
+   }
+  });
+  update();
+  if(state.bestSafe){const best=V3.archive[0]||state.bestSafe;state.g=best.g.slice();if(p.autoMachines){$('autoMachines').checked=false;$('machineCount').value=best.s.machines;state.wall=wallsForDims(dims,best.s.machines);state.trial=best.s.machines;$('trialCount').value=best.s.machines}updateAll();info(`Zakończono równoległe wyszukiwanie. ${best.s.lines} linii, ${best.s.machines} Irradiatorów, ${fmt(best.s.perMinute)}/min, Net ${fmt(best.s.net)} H/t. Projekt wymaga testu w grze.`)}
+  else info('Nie znaleziono poprawnej konstrukcji w zadanym limicie. Zmień ograniczenia lub zwiększ liczbę prób.','warn');
+  if(failure)info('Błąd jednego z workerów: '+failure+'; wyniki mogą być niepełne.','warn');
+ }catch(e){console.error(e);info('Błąd równoległej optymalizacji: '+e.message,'error')}
+ finally{for(const w of V4_WORKERS)w.terminate();V4_WORKERS=[];state.opt=null;releaseLock(false);$('run').disabled=false;$('pause').disabled=true;$('stop').disabled=true;$('pause').textContent='⏸ Pause';v3ArchiveDisplay();updateAll()}
+}
+
+// Release tools: undo/redo, persisted project, operating-point safety table.
+const RELEASE={version:'4.0',undo:[],redo:[],locking:new Map()};
+function snapshotForHistory(){return {dims:state.dims.slice(),grid:state.g.slice(),wall:{...state.wall},machines:num('machineCount',0)}}
+function rememberEdit(){if(state.opt)return;RELEASE.undo.push(snapshotForHistory());if(RELEASE.undo.length>45)RELEASE.undo.shift();RELEASE.redo=[];releaseHistoryUI()}
+function releaseHistoryUI(){if(!$('undoEdit'))return;$('undoEdit').disabled=!RELEASE.undo.length;$('redoEdit').disabled=!RELEASE.redo.length}
+function restoreHistory(s){setGrid(s.dims,s.grid,s.machines,s.wall);releaseHistoryUI();updateOperatingTable()}
+function stepHistory(direction){if(state.opt)return;const list=direction==='undo'?RELEASE.undo:RELEASE.redo,dest=direction==='undo'?RELEASE.redo:RELEASE.undo;if(!list.length)return;dest.push(snapshotForHistory());restoreHistory(list.pop());info('Przywrócono poprzedni stan projektu.');}
+function releaseStore(){try{localStorage.setItem('projectInfinityReactorStudioFinal',JSON.stringify(makeProject()));info('Projekt zapisany w pamięci tej przeglądarki. Eksport JSON nadal jest zalecany jako kopia.')}catch(e){info('Zapis lokalny jest niedostępny w tej przeglądarce: '+e.message,'warn')}}
+function releaseRestore(){try{const saved=localStorage.getItem('projectInfinityReactorStudioFinal');if(!saved){info('Nie znaleziono lokalnie zapisanego projektu.','warn');return}const p=JSON.parse(saved);if(!Array.isArray(p.grid)||!Array.isArray(p.dims)||p.grid.length!==p.dims.reduce((a,b)=>a*b,1))throw Error('Uszkodzony lokalny projekt');rememberEdit();setGrid(p.dims,p.grid,p.irradiators,p.wall);if(p.fuel){let j=FUEL.findIndex(f=>f[0]===p.fuel);if(j>=0)$('fuel').value=j}for(let [source,id] of [['fuelHeat','fuelHeat'],['fuelPower','fuelPower'],['rate','fuelRate'],['moderation','moderation'],['reserve','reserve'],['maxFuel','maxFuel'],['recipeBaseTicks','recipeBaseTicks'],['recipeOutputCount','recipeOutputCount']])if(p[source]!==undefined)$(id).value=p[source];updateAll();info('Załadowano zapisany projekt.')}catch(e){info('Nie można odczytać zapisu lokalnego: '+e.message,'error')}}
+function releaseLock(busy){document.querySelectorAll('button,input,select,textarea').forEach(el=>{if(['run','pause','stop','coolPro'].includes(el.id))return;if(busy){RELEASE.locking.set(el,el.disabled);el.disabled=true}else if(RELEASE.locking.has(el)){el.disabled=RELEASE.locking.get(el);RELEASE.locking.delete(el)}});document.body.classList.toggle('optimizerBusy',busy)}
+function releaseCheck(){let p=getParams(),r=simulation(state.g,...state.dims,p),walls=Object.values(state.wall),physical=walls.filter(t=>t==='A').length;const fatal=[];const warning=[];
+ if(r.fuelCells<1)fatal.push('Nie ma Fuel Cell');if(r.lines<1)fatal.push('Brak czynnej Irradiation Line');
+ if(r.badI.length)fatal.push(`${r.badI.length} nieaktywnych Irradiation Chambers`);if(r.badSinks.length)fatal.push(`${r.badSinks.length} nieaktywnych chłodnic`);
+ if(walls.filter(t=>t==='C').length!==1)fatal.push('Wymagany dokładnie jeden kontroler');
+ const [IW,IH,ID]=state.dims,[W,H,D]=state.dims.map(x=>x+2);let invalidWall=0;
+ for(let y=0;y<H;y++)for(let z=0;z<D;z++)for(let x=0;x<W;x++)if(x===0||y===0||z===0||x===W-1||y===H-1||z===D-1){
+   const b=state.wall[key([x,y,z])]||'R',corners=[x===0||x===W-1,y===0||y===H-1,z===0||z===D-1].filter(Boolean).length;
+   if(!['R','G','P','A','C'].includes(b)||(corners>1&&['P','A','C'].includes(b)))invalidWall++;
+ }if(invalidWall)fatal.push(`${invalidWall} niedozwolonych bloków w krawędziach/obudowie`);if(walls.filter(t=>t==='P').length<1)fatal.push('Brak Reactor Port');
+ if(p.machines!==physical)fatal.push(`Liczba maszyn w obudowie (${physical}) różni się od symulacji (${p.machines})`);
+ if(r.net>0)fatal.push(`Przegrzewanie przy bieżącej moderacji: +${fmt(r.net)} H/t`);
+ if(r.net>-p.reserve)warning.push(`Zapas mniejszy od ustawionego minimum ${fmt(p.reserve)} H/t`);
+ let maxHeat=p.heat*(r.heatMult+r.modHeat)+r.radiHeat;if(p.moderation<.999&&maxHeat>r.cooling)warning.push(`Po powrocie moderacji do 100% powstanie +${fmt(maxHeat-r.cooling)} H/t`);
+ if(Object.keys(r.coolantBy).length){let fluids=Object.entries(r.coolantBy).map(([k,v])=>`${k}: ${v} mB/t`).join(', ');if(!$('coolantVerified').checked)fatal.push('Aktywne chłodnice wymagają potwierdzenia dostawy płynu ('+fluids+')');else warning.push('Konieczny ciągły dopływ '+fluids)}
+ return {fatal,warning,r,p,physical}
+}
+function updateOperatingTable(){if(!$('operationRows'))return;let {fatal,warning,r,p}=releaseCheck(),limit=Math.min(machineSlots(state.dims),Math.max(10,p.machines+4)),bestM=0,bestVal=-1;
+ const rows=[];for(let n=0;n<=Math.min(50,limit);n++){const heat=r.baseHeat+15*r.lines*n,net=heat-r.cooling,output=Number.isFinite(r.recipeTicks)?1200*n*p.recipeOutputCount/r.recipeTicks:0;const pass=net<=-p.reserve;if(pass&&output>bestVal){bestM=n;bestVal=output}rows.push(`<tr class="${n===p.machines?'chosen':''}"><td>${n}</td><td>${fmt(heat)}</td><td class="${net<=0?'good':'bad'}">${fmt(net)}</td><td>${fmt(output)}</td><td>${pass?'✓':'—'}</td></tr>`)}
+ $('operationRows').innerHTML=rows.join('');$('maxSafeCount').textContent=`Przy tych blokach i rezerwie ${fmt(p.reserve)} H/t: ${bestM} maszyn, ${fmt(Math.max(0,bestVal))} szt./min`;
+ const badge=$('readiness');badge.className='readiness '+(fatal.length?'notready':warning.length?'caution':'ready');badge.textContent=fatal.length?`Niegotowy do budowy · ${fatal.length} problemów`:warning.length?'Wymaga ostrożności':'Gotowy obliczeniowo';
+ $('readinessNotes').textContent=fatal.concat(warning).join(' · ')||'Brak wykrytych błędów w symulacji. Przed użyciem paliwa potwierdź wartości w grze.';
+}
+function releaseCSV(){const {r,p}=releaseCheck();let lines=['Irradiatory;Heat H/t;Cooling H/t;Net Heat H/t;Neutronium szt/min'];for(let n=0;n<=Math.min(150,machineSlots(state.dims));n++){const heat=r.baseHeat+15*r.lines*n,net=heat-r.cooling,rate=Number.isFinite(r.recipeTicks)?1200*n*p.recipeOutputCount/r.recipeTicks:0;lines.push([n,heat,r.cooling,net,rate].map(v=>String(v).replace('.',',')).join(';'))}dl('PI_Reactor_Operating_Points.csv','\ufeff'+lines.join('\r\n'),'text/csv;charset=utf-8');info('Zapisano tabelę obciążenia jako CSV.')}
+
+function releaseRegression(){
+ const out=[];for(const c of DB.fixtures||[]){let p={...getParams(),heat:300,power:960,rate:108.4,moderation:1,machines:1};let r=simulation(c.grid,...c.dims,p);
+ let okay=r.lines===c.expected.lines&&Math.abs(r.cooling-c.expected.cooling)<0.1&&Math.abs(r.heat-c.expected.heat)<0.2&&r.badI.length===0&&r.badSinks.length===0;
+ out.push({name:c.name,lines:r.lines,cooling:r.cooling,heat:r.heat,okay,origin:c.origin});}
+ let ok=out.every(x=>x.okay);$('regressionResult').innerHTML=out.map(t=>`<div class="testRow ${t.okay?'good':'bad'}">${t.okay?'✓':'✗'} ${t.name} — ${t.lines} linii, ${fmt(t.heat)} H/t, ${fmt(t.cooling)} Cooling/t · ${t.origin}</div>`).join('')+`<p class="hint">${ok?'Kontrola wzorców zaliczona.':'Wykryto rozbieżność!'} To nie jest potwierdzenie wszystkich wariantów w grze.</p>`;
+ return {ok,results:out}
+}
+
+function releaseInit(){
+ $('regressionTest').onclick=releaseRegression;releaseRegression();
+ $('undoEdit').onclick=()=>stepHistory('undo');$('redoEdit').onclick=()=>stepHistory('redo');$('saveLocal').onclick=releaseStore;$('restoreLocal').onclick=releaseRestore;
+ $('exportOperating').onclick=releaseCSV;
+ document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&['z','y'].includes(e.key.toLowerCase())&&!(e.target instanceof HTMLInputElement||e.target instanceof HTMLTextAreaElement)){e.preventDefault();stepHistory(e.key.toLowerCase()==='z'?'undo':'redo')}});
+ for(const id of ['reserve','machineCount','fuelHeat','fuelRate','moderation','recipeBaseTicks','recipeOutputCount','fuel'])$(id).addEventListener('input',()=>queueMicrotask(updateOperatingTable));
+ $('coolantVerified').addEventListener('change',updateOperatingTable);
+ releaseHistoryUI();updateOperatingTable();
+}
+
+initInputs();initV3();releaseInit();window.__rsReady=true;
+</script></body></html>
