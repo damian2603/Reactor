@@ -340,7 +340,8 @@ function rememberCandidate(obj,p){if(!obj)return;
  return null
 }
 function showBest(){let good=state.bestSafe,near=state.bestNear;
- $('bestSummary').innerHTML=`<span class="good">Stabilny:</span> ${good?`${good.s.lines} linii · ${good.s.machines} maszyn · <b>${fmt(good.s.perMinute)}/min</b> · Net ${fmt(good.s.net)} H/t`:'jeszcze brak'}<br><span class="warntext">Alternatywa / za gorący:</span> ${near?`${near.s.lines} linii · ${near.s.machines} maszyn · ${fmt(near.s.perMinute)}/min · Net ${fmt(near.s.net)} H/t`:'brak'}`;
+ const describe=c=>!c?'brak':getParams().goal==='lines'?`<b>${c.s.lines} linii</b> · ${c.s.machines} Irradiatorów · ${fmt(c.s.perMinute)}/min · Net ${fmt(c.s.net)} H/t`:`${c.s.lines} linii · ${c.s.machines} Irradiatorów · <b>${fmt(c.s.perMinute)}/min</b> · Net ${fmt(c.s.net)} H/t`;
+ $('bestSummary').innerHTML=`<span class="good">Stabilny:</span> ${good?describe(good):'jeszcze brak'}<br><span class="warntext">Alternatywa / za gorący:</span> ${describe(near)}`;
  $('applyBest').disabled=!good;$('applyNear').disabled=!near;
 }
 function applyStored(obj){if(!obj||state.opt)return;rememberEdit();state.g=obj.g.slice();let p=getParams();if(p.autoMachines){$('autoMachines').checked=false;$('machineCount').value=obj.s.machines;state.wall=wallsForDims(state.dims,obj.s.machines);state.trial=obj.s.machines;$('trialCount').value=obj.s.machines;}updateAll();info(`Wczytano: ${obj.s.lines} linii · ${obj.s.machines} Irradiatorów · ${fmt(obj.s.perMinute)}/min · Net ${fmt(obj.s.net)} H/t. Przed budową sprawdź w grze.`)}
@@ -516,7 +517,7 @@ function v3ArchiveDisplay(){
  const body=$('v3Archive');if(!body)return;
  if(!V3.archive.length){body.innerHTML='<div class="hint">Uruchom optymalizator, aby zobaczyć alternatywy (wydajność / chłodzenie / paliwo).</div>';return}
  body.innerHTML=V3.archive.slice(0,12).map((a,i)=>`<button class="v3result" data-archive="${i}" title="Wczytaj wariant ${i+1}">
- <strong>#${i+1} · ${fmt(a.s.perMinute)}/min</strong><span>${a.s.lines} linii · ${a.s.machines} Irr. · ${a.s.fuelCells} ogniw · Net ${fmt(a.s.net)} H/t</span></button>`).join('');
+ <strong>#${i+1} · ${getParams().goal==='lines'?`${a.s.lines} linii`:`${fmt(a.s.perMinute)}/min`}</strong><span>${a.s.lines} linii · ${a.s.machines} Irr. · ${a.s.fuelCells} ogniw · Net ${fmt(a.s.net)} H/t</span></button>`).join('');
  body.querySelectorAll('[data-archive]').forEach(b=>b.onclick=()=>{if(state.opt)return;let a=V3.archive[+b.dataset.archive];if(a)applyStored(a)});
 }
 function v3CoreCrossover(a,b,dims,p){
@@ -841,7 +842,7 @@ async function runOptimizerWorkers(){
   await new Promise(resolve=>{
    function onFinish(){if(finished.size===workersN)resolve()}
    for(let k=0;k<workersN;k++){
-    const w=new Worker('./optimizer.worker.js?v=20261023-v4.4');V4_WORKERS.push(w);
+    const w=new Worker('./optimizer.worker.js?v=20261023-v4.4.1');V4_WORKERS.push(w);
     w.onmessage=event=>{
      const m=event.data||{};
      if(m.type==='candidate'&&Array.isArray(m.grid)&&m.grid.length===N){
