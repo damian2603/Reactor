@@ -208,4 +208,51 @@ do
   assert(t.snaBroken==1,"missing canSeeSun reading must mark SNA telemetry broken")
   data.sna.canSeeSun=original
 end
+-- CC:Tweaked monitor UI: +/- 1 MFE/t, touch hitboxes and no repeated
+-- whole-screen clears after the first render.
+do
+  colors={black=1,white=2,cyan=3,lightBlue=4,gray=5,blue=6,
+    red=7,lime=8,yellow=9,orange=10,aqua=11,lightGray=12}
+  local ctl=newController()
+  local dev={width=80,height=39,scale=1,clears=0,writes=0}
+  dev.getSize=function() return dev.width,dev.height end
+  dev.setTextScale=function(s) dev.scale=s end
+  dev.getTextScale=function() return dev.scale end
+  dev.setCursorPos=function() end
+  dev.setTextColor=function() end
+  dev.setBackgroundColor=function() end
+  dev.write=function() dev.writes=dev.writes+1 end
+  dev.clear=function() dev.clears=dev.clears+1 end
+  local buttons,ok=ctl.drawMonitor(dev,sample())
+  assert(ok,"initial SCADA monitor render failed")
+  assert(dev.clears==1,"monitor should clear once when initialised")
+  local minus,plus=nil,nil
+  for _,b in ipairs(buttons) do
+    if b.id=="fluxminus" then minus=b end
+    if b.id=="fluxplus" then plus=b end
+  end
+  assert(minus and plus,"two Flux +/-1M touch buttons must be visible")
+  assert(minus.y==dev.height-4 and plus.y==dev.height-4)
+  assert(minus.last<plus.x and plus.last<=dev.width)
+  local initialWrites=dev.writes
+  ctl.drawMonitor(dev,sample())
+  assert(dev.clears==1,"monitor must NOT clear every telemetry refresh")
+  assert(dev.writes-initialWrites<initialWrites,
+    "unchanged monitor text should be skipped")
+  assert(ctl.getFluxReference()==16000000)
+  ctl.command("fluxplus")
+  assert(ctl.getFluxReference()==17000000,"+1M FE/t must persist")
+  ctl.command("fluxplus")
+  assert(ctl.getFluxReference()==18000000,"repeat tap adds another 1M")
+  ctl.command("fluxminus")
+  assert(ctl.getFluxReference()==17000000,"-1M FE/t must subtract")
+  assert(ctl.getInfo():find("SET FLUX POINT MANUALLY",1,true),
+    "touch updates reference only; Flux Point adjustment is manual")
+  local clearBefore=dev.clears
+  ctl.drawMonitor(dev,sample())
+  assert(dev.clears==clearBefore,"changing FE reference must not flash screen")
+  ctl.command("page3")
+  ctl.drawMonitor(dev,sample())
+  assert(dev.clears==clearBefore+1,"page change requires one clean redraw")
+end
 print("controller headless scenarios: OK")
