@@ -19,4 +19,33 @@ assert(m.feedback(-0.001,2000,20,10,0.5,390)>0)
 assert(m.feedback(0,2000,20,10,0.5,390)==0)
 -- Bound correction to 10% so an unstable derivative cannot spike demand.
 eq(m.feedback(-10,2000,20,10,0.5,390),39,"feedback bounded")
+-- Screenshot follow-up: 525 mB/t requires 21 MFE/t at Mekanism defaults.
+eq(m.feForBurn(525,2.5,10,1000000),21000000,"FE for 525 burn")
+eq(m.feForAntimatter(0.0525,1000,1000000,2.5),21000000,
+   "FE for 0.0525 antimatter")
+do
+  local f=m.assessFE({
+    limitFE=20000000,neededFE=21000000,usedFE=19800000,
+    poloniumFill=0.12,poloniumTrend=0.0002,
+    outputFill=0.1,energyFill=0
+  })
+  assert(f.state=="FE_LIMIT_LIKELY","FE bottleneck from growing Polonium")
+  eq(f.shortfallFE,1000000,"shortfall 1M")
+  eq(f.trialFE,23000000,"target with 5 percent headroom")
+  assert(f.confirmedDeliveryFE==false,"reference is NOT energy throughput meter")
+end
+do
+  local f=m.assessFE({
+    limitFE=20000000,neededFE=10000000,usedFE=9000000,
+    poloniumFill=0.004,poloniumTrend=0,energyFill=0
+  })
+  assert(f.state=="REFERENCE_HEADROOM","capacity above demand is not wasted FE")
+end
+do
+  local f=m.assessFE({
+    limitFE=20000000,neededFE=16000000,usedFE=12000000,
+    poloniumFill=0.40,poloniumTrend=0.0003,energyFill=0
+  })
+  assert(f.state=="SPS_INPUT_BACKLOG","warn about delivery despite adequate set limit")
+end
 print("optimizer math tests: OK")
