@@ -1119,6 +1119,11 @@ local function btn(dev,y,x,label,id)
   dev.setTextColor(colors.white);dev.write(s)
   buttons[#buttons+1]={y=y,x=x,last=x+#s-1,id=id}
 end
+-- Keep unchanged monitor rows intact instead of blanking the screen every
+-- telemetry update. A full clear is only necessary for a new layout/page.
+local monitorLayout=nil
+local monitorPaintCache={}
+local monitorDrawCalls=0
 local function scadaDraw(dev,isMonitor)
   local w,h=dev.getSize()
   if h<19 or w<38 then return false end
@@ -1129,7 +1134,16 @@ local function scadaDraw(dev,isMonitor)
     dev.setBackgroundColor(bg or colors.black)
     dev.setTextColor(fg or colors.white)
     local s=tostring(label):sub(1,w)
+    local fgColor=fg or colors.white
+    local bgColor=bg or colors.black
+    local prior=isMonitor and monitorPaintCache[y] or nil
+    if prior and prior.text==s and prior.fg==fgColor and prior.bg==bgColor then
+      return
+    end
     dev.write(s..string.rep(" ",math.max(0,w-#s)))
+    if isMonitor then
+      monitorPaintCache[y]={text=s,fg=fgColor,bg=bgColor}
+    end
   end
   local function bar(y,label,frac,color)
     if not N(frac) then paint(y,label.." --");return end
@@ -1167,14 +1181,17 @@ local function scadaDraw(dev,isMonitor)
         local peak=0
         for _,v in ipairs(rateHistory) do peak=math.max(peak,v.rate or 0) end
         peak=math.max(peak,0.00001)
+        local heights={}
         for x=1,graphWidth do
           local v=rateHistory[#rateHistory-graphWidth+x].rate or 0
-          local level=math.floor(v/peak*gh+0.5)
-          for yy=0,level-1 do
-            dev.setCursorPos(x,21+gh-1-yy)
-            dev.setTextColor(colors.lime)
-            dev.write("|")
+          heights[x]=math.floor(v/peak*gh+0.5)
+        end
+        for y=1,gh do
+          local glyphs={}
+          for x=1,graphWidth do
+            glyphs[x]=(heights[x]>=gh-y+1) and "|" or " "
           end
+          paint(20+y,table.concat(glyphs),colors.lime)
         end
       end
     end
@@ -1246,6 +1263,11 @@ local function scadaDraw(dev,isMonitor)
         buttons[#buttons+1]={x=x,last=x+#txt-1,y=yNav,id="page"..i}
       end
     end
+    -- Always visible on every monitor page; these update ONLY the stored
+    -- Flux Point FE/t reference, not the Flux Point machine itself.
+    paint(h-4,"FLUX REF "..fmt(c.fluxLimitFE).." FE/t",colors.lightBlue)
+    btn(dev,h-4,w-11,"-1M","fluxminus")
+    btn(dev,h-4,w-5,"+1M","fluxplus")
     local actions={{"MAN","manual"},{"FE","fe"},{"AUTO SPS","sps"},
       {"SCRAM","scram"},{"START","start"}}
     local ax=1
@@ -1268,9 +1290,28 @@ end
 local function render(dev,isMonitor)
   if not dev then return false end
   local ok,err=pcall(function()
-    if dev.setTextScale then dev.setTextScale(0.5) end
+    local scaleChanged=false
+    if isMonitor and dev.setTextScale then
+      local currentScale=dev.getTextScale and dev.getTextScale() or nil
+      if currentScale~=0.5 then
+        dev.setTextScale(0.5)
+        scaleChanged=true
+      end
+    end
     local w,h=dev.getSize()
-    dev.setBackgroundColor(colors.black);dev.setTextColor(colors.white);dev.clear()
+    local redraw=not isMonitor or scaleChanged or not monitorLayout or
+      monitorLayout.name~=names.monitor or
+      monitorLayout.width~=w or monitorLayout.height~=h or
+      monitorLayout.page~=uiPage
+    if redraw then
+      dev.setBackgroundColor(colors.black)
+      dev.setTextColor(colors.white)
+      dev.clear()
+      if isMonitor then
+        monitorPaintCache={}
+        monitorLayout={name=names.monitor,width=w,height=h,page=uiPage}
+      end
+    end
     if scadaDraw(dev,isMonitor) then return end
     row(dev,1,"PROJECT INFINITY / MEKANISM | "..mode..
         (latched and " | ALARM LATCHED" or (current.on and " | ACTIVE" or " | OFF")),latched and colors.red or colors.cyan)
@@ -1318,6 +1359,7 @@ local function render(dev,isMonitor)
     row(dev,h,"Keys: +/- B burn C cap T FE target% M manual F FE P SPS S SCRAM R start Q quit",colors.lightGray)
   end)
   if not ok then
+    if isMonitor then monitorLayout=nil;monitorPaintCache={} end
     info="Display error: "..tostring(err)
     return false
   end
@@ -1475,9 +1517,14 @@ local function inputLoop()
       for _,v in ipairs(buttons) do
         if d==v.y and b>=v.x and b<=v.last then command(v.id);break end
       end
-    elseif ev=="peripheral" or ev=="peripheral_detach" then discover()
+    elseif ev=="peripheral" or ev=="peripheral_detach" then
+      discover()
+      monitorLayout=nil
+      monitorPaintCache={}
     end
-    display()
+    -- A single loop owns the display. Drawing from both inputLoop and
+    -- monitorLoop caused interleaved output and visible flickering.
+    -- Touch feedback is rendered by the next monitorLoop pass.
   end
 end
 -- Independent fast reactor protection loop, inspired by cc-mek-scada RPS.
