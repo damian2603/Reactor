@@ -307,6 +307,18 @@ local function read()
       t.spRate/t.fissionAntimatterPotential or nil
   -- This is the equivalent SPS FE spent on observed processing;
   -- it is NOT a direct measurement of incoming FE at the SPS coils.
+  t.imEnergy=N(pc(im,"getEnergyFilledPercentage"))
+  t.imIn=N(pc(im,"getLastInput"));t.imOut=N(pc(im,"getLastOutput"))
+  t.imInFE=t.imIn and t.imIn/JOULES_PER_FE
+  t.imOutFE=t.imOut and t.imOut/JOULES_PER_FE
+  if previous then
+    local dt=t.ts-previous.ts
+    if dt>0.2 and dt<15 then
+      for _,field in ipairs({"coolant","waste","heated","steam","energy","spInput"}) do
+        if t[field] and previous[field] then t[field.."Delta"]=(t[field]-previous[field])/dt end
+      end
+    end
+  end
   t.spsDiagnosis="DATA INCOMPLETE"
   if t.spOutput and t.spOutput>=c.spsOutputWarn then
     t.spsDiagnosis="EMPTY ANTIMATTER OUTPUT"
@@ -332,18 +344,6 @@ local function read()
     t.spsDiagnosis="TURBINE STEAM FLOW LIMIT"
   else
     t.spsDiagnosis="SPS RUNNING / BALANCED"
-  end
-  t.imEnergy=N(pc(im,"getEnergyFilledPercentage"))
-  t.imIn=N(pc(im,"getLastInput"));t.imOut=N(pc(im,"getLastOutput"))
-  t.imInFE=t.imIn and t.imIn/JOULES_PER_FE
-  t.imOutFE=t.imOut and t.imOut/JOULES_PER_FE
-  if previous then
-    local dt=t.ts-previous.ts
-    if dt>0.2 and dt<15 then
-      for _,field in ipairs({"coolant","waste","heated","steam","energy","spInput"}) do
-        if t[field] and previous[field] then t[field.."Delta"]=(t[field]-previous[field])/dt end
-      end
-    end
   end
   previous=t
   return t
