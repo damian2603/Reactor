@@ -268,4 +268,44 @@ do
     custom.coolantWarn==0.91 and not custom.legacyControllerMigrated,
     "do not silently change custom tuning")
 end
+-- Operator verified sustainable closed water circuit at burn 552.06.
+-- Even if Fissile Fuel production/SPS allow more, avoid needlessly
+-- consuming makeup water. This is independent of turbine steam SCRAM.
+do
+  local cfg=core.defaults({userCap=575,fluxFE=22000000})
+  assert(cfg.waterLoopEnabled==1 and cfg.waterLoopCap==552.06)
+  local c=core.new(cfg)
+  local stable=base()
+  stable.ts=5000; stable.burn=552.06; stable.actual=552.06
+  stable.temperature=373.15+stable.actual*2000000/stable.heatCapacity
+  stable.turbineSteam=0.99999728 -- hypothetical 258,943,296 / 258,944,000
+  stable.amRate=0.055
+  assert(core.safety(stable,nil,cfg),
+    'turbine nearly full is not by itself a reactor damage condition')
+  c:observe(stable)
+  local atBalance=c:decide(stable)
+  close(atBalance.cap,552.06,0.001,'calibrated water-return upper bound')
+  close(atBalance.target,552.06,0.001,'stable water loop should hold burn')
+  close(atBalance.caps.RECIRCULATED_WATER,552.06,0.001,
+    'show actual tested water cap separately')
+  local above=base()
+  above.ts=5002;above.burn=566;above.actual=566
+  above.temperature=373.15+566*2000000/above.heatCapacity
+  c:observe(above)
+  local down=c:decide(above)
+  assert(down.target<566 and down.target>552,
+    'reduce gracefully to observed max, not emergency SCRAM')
+  assert(down.cap<=552.061)
+end
+do
+  local cfg=core.defaults({userCap=575,waterLoopEnabled=0,fluxFE=22000000})
+  local c=core.new(cfg)
+  local t=base();t.burn=555;t.actual=555
+  t.temperature=373.15+t.actual*2000000/t.heatCapacity
+  c:observe(t)
+  local d=c:decide(t)
+  assert(d.cap>552.06,
+    'operator may explicitly disable site-specific water-return cap')
+  assert(d.caps.RECIRCULATED_WATER==nil)
+end
 print('antimatter v1 controller model regressions: OK')
