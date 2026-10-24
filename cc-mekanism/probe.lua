@@ -19,7 +19,9 @@ local selected={
   "getCoils","getBlades","getCondensers","getVents","getDispersers",
   "getFuelCapacity","getCoolantCapacity","getWasteCapacity","getSteamCapacity",
   "getInputCapacity","getOutputCapacity","getMaxProduction",
-  "getLastInput","getLastOutput","getBoilCapacity"
+  "getLastInput","getLastOutput","getBoilCapacity",
+  "getStored","getStoredGas","getStoredChemical","getCapacity",
+  "getTankCapacity","getFilledPercentage"
 }
 local names=peripheral.getNames()
 table.sort(names)
