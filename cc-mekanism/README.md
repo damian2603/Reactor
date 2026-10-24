@@ -2,7 +2,7 @@
 
 Standalone ComputerCraft / CC:Tweaked controller for **Mekanism Fission Reactor + Industrial Turbine + SPS**, developed for Minecraft 1.20.1 / Project Infinity 0.1. The separate NuclearCraft optimizer in this repository is untouched.
 
-**Status: v2.0 experimental.** Tested against inspected Mekanism API source, **not yet validated in an actual running Project Infinity world**. Do not rely on this program as your only reactor safety mechanism.
+**Status: v2.1 experimental (autodetection of multiblock sizes).** Tested against inspected Mekanism API source, **not yet validated in an actual running Project Infinity world**. Do not rely on this program as your only reactor safety mechanism.
 
 ## Install in ComputerCraft
 
@@ -60,7 +60,22 @@ Do **not** replace the file with only those three fields; instead edit their val
 - **Q** — exit with SCRAM attempt.
 - With Advanced Monitor, buttons near its bottom offer +/- , cap +/-, modes, SCRAM, START.
 
-The program starts in **MANUAL** after every reboot. The initial AUTO cap is **1.0 mB/t**, and the automatic ramp adds only 0.1 mB/t every 15 seconds. You must deliberately raise this cap after controlled tests. The limit of this code is for AUTO; in MANUAL you can set up to the reactor's own maximum.
+The program starts in **MANUAL** after every reboot. The AUTO cap initially follows the detected machine maximum, but the ramp is slow (0.5% of reactor max per 15 seconds, minimum 0.1 mB/t). You may set an explicit cap for cautious first tests, and must validate operation before allowing high burn rates. The limit of this code is for AUTO; in MANUAL you can set up to the reactor's own maximum.
+
+### Automatic machine sizing (v2.1)
+
+On every sample, the controller retrieves geometry and operating limits directly from Mekanism:
+
+- **Fission Reactor:** `getLength/getWidth/getHeight`, `getFuelAssemblies`, `getBoilEfficiency`, `getMaxBurnRate`, and capacities of fuel/waste/coolant tanks.
+- **Industrial Turbine:** size, blades, coils, vents, condensers, `getMaxFlowRate`, `getMaxWaterOutput`, steam buffer, and production ceiling.
+- **SPS:** size, coil count, Polonium and Antimatter buffer capacities, `getProcessRate`.
+- **Optional boiler:** rated boil capacity, steam/hot-coolant/water fill. The program does not equate sodium heating directly to steam output.
+
+**No dimensions have to be entered manually.** The default AUTO burn ceiling is now **0 = follow detected physical limits**; the AUTO ramp step is proportional to the detected reactor capacity (default 0.5% every 15 seconds, minimum 0.1 mB/t). As the turbine flow and the real steam produced per burn unit become measurable, the controller can automatically derive a lower ceiling to avoid flooding the turbine. The emergency temperatures/fill percentages remain independent safety limits.
+
+To impose your own additional cap, press **C** and enter a value >0; enter **0** to return to detected maximum. The cap +/- monitor buttons adjust by 5% of the detected max reactor rate. If updating from v2.0, the old **default 1.0 mB/t cap is not carried over**; a previous custom cap above 1.0 is migrated.
+
+This is **adaptive, but not omniscient**: there is no Mekanism peripheral that exposes an entire pipe network's true safe throughput. For example, Polonium production may be bottlenecked by Solar Neutron Activators or chemical tanks. The controller detects symptoms via Nuclear Waste and SPS buffers, then throttles. Keep the independent reactor safety logic connected.
 
 The program **never silently changes turbine dumping mode**. Inspect your water return loop and turbine vent/dump mode manually.
 
