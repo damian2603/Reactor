@@ -2210,6 +2210,7 @@ if rawget(_G,"CC_MEKANISM_TEST")==true then
     end,
     safety=safety,
     read=read,
+    logOnce=history,
     command=command,
     getFluxReference=function() return c.fluxLimitFE end,
     getInfo=function() return info end,
