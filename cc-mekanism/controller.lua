@@ -4,7 +4,7 @@
 -- fail-safe alarm philosophy. Not a copy of upstream code.
 -- IMPORTANT: independent Fission Logic Adapters are still required.
 local ROOT = "/cc-mekanism"
-local CONF, CSV = ROOT.."/settings", ROOT.."/history_v4_fe.csv"
+local CONF, CSV = ROOT.."/settings", ROOT.."/history_v4_stable.csv"
 if not fs.exists(ROOT) then fs.makeDir(ROOT) end
 local optimizerMath=dofile(ROOT.."/optimizer_math.lua")
 local defaults = {
@@ -35,7 +35,16 @@ local defaults = {
   spsSteamFlowFraction=0.96, -- used only if spsTurbineFlowHardCap=true
   spsTurbineFlowHardCap=false, -- SPS prioritizes antimatter; turbine FE is secondary
   spsSteamEarlyWarn=0.50, -- fraction where rising steam buffer prevents further ramp
-  spsSteamGrowthWarn=0.0004, -- rising steam fill per second at high occupancy
+  spsSteamGrowthWarn=0.0004, -- legacy parameter; superseded below
+  spsPressureTrendSeconds=16, -- smooth turbine steam fill observations
+  spsPressureHoldLevel=0.78, -- hold ramp only on sustained rising steam
+  spsPressureTrimLevel=0.88, -- gently trim when steam buffer is high
+  spsPressureCriticalLevel=0.93, -- quicker trim near RPS SCRAM level
+  spsPressureGrowthWarn=0.0007, -- per-second sustained rising fill
+  spsPressureGrowthFast=0.005, -- require forecast overflow for early hold
+  spsPressureTrimSeconds=28, -- non-emergency throttle spacing
+  spsPressureTrimFraction=0.045, -- small, measured non-emergency cut
+  spsRampSteadySeconds=12, -- minimum time between SPS ramp increases
   spsDumpCoolantWarn=0.997, -- dumping excess vents steam: guard coolant reserve
   spsDumpCoolantTrip=0.98, -- stop early if water makeup cannot sustain dumping
   spsDumpCoolantDropWarn=0.0002,
@@ -242,6 +251,7 @@ local lastAlarmText=""
 local spsEMA=nil
 local spsWindow={}
 local spsInputWindow={}
+local steamPressureWindow={}
 local spsBaseline=nil
 local fuelWindow={}
 local fuelCap=nil
@@ -457,6 +467,22 @@ local function read()
   t.imIn=N(pc(im,"getLastInput"));t.imOut=N(pc(im,"getLastOutput"))
   t.imInFE=t.imIn and t.imIn/JOULES_PER_FE
   t.imOutFE=t.imOut and t.imOut/JOULES_PER_FE
+  -- Smoothed pressure trend: never react to a one-tick blip at 64% steam.
+  if t.steam~=nil then
+    steamPressureWindow[#steamPressureWindow+1]={ts=t.ts,value=t.steam}
+    while #steamPressureWindow>1 and
+        t.ts-steamPressureWindow[1].ts>c.spsPressureTrendSeconds do
+      table.remove(steamPressureWindow,1)
+    end
+    local origin=steamPressureWindow[1]
+    local elapsed=t.ts-origin.ts
+    if elapsed>=c.spsPressureTrendSeconds*0.6 then
+      t.steamTrend=(t.steam-origin.value)/elapsed
+      t.steamTrendWindow=elapsed
+    end
+  else
+    steamPressureWindow={}
+  end
   if previous then
     local dt=t.ts-previous.ts
     if dt>0.2 and dt<15 then
@@ -998,58 +1024,87 @@ local function autoSPS(t)
   local upStep=math.max(0.1,math.min(
     math.max(1,t.maxBurn*c.spsRampMaxFraction),
     math.max(2,t.burn*0.25)))
-  local downStep=math.max(upStep*2,t.burn*0.15)
+  -- Normal demand trims should converge smoothly, not lurch by 15%.
+  local downStep=math.max(2,t.burn*0.06)
   local target=t.burn
   local reason="HOLD: SPS DEMAND BALANCED"
   local urgent=t.burn>cap+0.009
-
+  local pressure=optimizerMath.spsPressure({
+    steam=t.steam,slope=t.steamTrend,
+    holdLevel=c.spsPressureHoldLevel,
+    trimLevel=c.spsPressureTrimLevel,
+    criticalLevel=c.spsPressureCriticalLevel,
+    trendWarn=c.spsPressureGrowthWarn,
+    trendFast=c.spsPressureGrowthFast
+  })
+  t.steamPressureState=pressure.state
+  t.steamPressureReason=pressure.reason
+  local thermal=nil
+  local thermalUrgent=false
+  if t.temp>=c.tempWarn then
+    thermal="REACTOR TEMPERATURE "..n(t.temp,0).." K"
+    thermalUrgent=t.temp>=(c.tempTrip-50)
+  elseif t.coolant<c.coolantWarn then
+    thermal="LOW COOLANT "..p(t.coolant)
+    thermalUrgent=t.coolant<c.coolantTrip+0.05
+  elseif t.dumpExcess and t.coolantDelta and
+      t.coolantDelta< -c.spsDumpCoolantDropWarn and
+      t.coolant<c.spsDumpCoolantWarn then
+    thermal="COOLANT FALLING WHILE DUMPING STEAM"
+    thermalUrgent=t.coolant<c.spsDumpCoolantTrip+0.01
+  elseif t.heated>=c.heatedWarn then
+    thermal="REACTOR HEATED COOLANT "..p(t.heated)
+  elseif t.waste>=c.wasteWarn then
+    thermal="NUCLEAR WASTE BUFFER "..p(t.waste)
+  elseif t.bSteam and t.bSteam>=c.steamWarn then
+    thermal="BOILER STEAM "..p(t.bSteam)
+  elseif t.bHot and t.bHot>=c.heatedWarn then
+    thermal="BOILER HOT COOLANT "..p(t.bHot)
+  elseif t.snaMaxOutputFill>=0.94 then
+    thermal="SNA POLONIUM OUTPUT FULL"
+  elseif pressure.state=="TRIM" or pressure.state=="TRIM_FAST" then
+    thermal=pressure.reason.." "..p(t.steam)
+    thermalUrgent=pressure.state=="TRIM_FAST"
+  end
+  t.protectionCause=thermal or
+      (pressure.state=="HOLD" and pressure.reason or "NONE")
   if urgent then
     target=cap
-    reason="CAP: SOLAR / FUEL / FE / COOLING"
-  elseif t.temp>=c.tempWarn or t.coolant<c.coolantWarn or
-      (t.dumpExcess and t.coolantDelta and
-       t.coolantDelta < -c.spsDumpCoolantDropWarn and
-       t.coolant<c.spsDumpCoolantWarn) or
-      (t.steam and t.steam>c.spsSteamEarlyWarn and
-       t.steamDelta and t.steamDelta>c.spsSteamGrowthWarn) or
-      (t.heated and t.heated>c.spsSteamEarlyWarn and
-       t.heatedDelta and t.heatedDelta>c.spsSteamGrowthWarn) or
-      t.heated>=c.heatedWarn or t.waste>=c.wasteWarn or
-      t.bSteam and t.bSteam>=c.steamWarn or
-      t.bHot and t.bHot>=c.heatedWarn or
-      t.steam and t.steam>=c.feSteamThrottle or
-      t.snaMaxOutputFill>=0.94 then
-    if elapsed>=12 then
-      target=math.max(0.01,t.burn-downStep)
-      reason="THROTTLE: THERMAL / WASTE / FLOW"
+    reason="CAP: "..capReason
+  elseif thermal then
+    local minPause=thermalUrgent and 12 or c.spsPressureTrimSeconds
+    local trim=math.max(2,t.burn*
+      (thermalUrgent and 0.10 or c.spsPressureTrimFraction))
+    if elapsed>=minPause then
+      target=math.max(0.01,t.burn-trim)
+      reason="THROTTLE: "..thermal
     else
-      reason="HOLD: PROTECTION COOLDOWN"
+      reason="HOLD: "..thermal.." (NEXT TRIM "..n(minPause-elapsed,0).."s)"
     end
+  elseif pressure.state=="HOLD" then
+    -- Turbine tank rising at 78%+? Pause growth; do NOT destroy a healthy
+    -- antimatter production point because of temporary steam buffering.
+    reason="HOLD: "..pressure.reason.." "..p(t.steam)
   elseif tankFill and tankFill<c.fuelLimitStart and t.fuelRapidNet and
       t.fuelRapidNet<0 and elapsed>=8 then
     target=math.min(t.burn,math.max(0.01,t.burn-downStep))
     reason="THROTTLE: FISSILE FUEL FALLING"
   elseif desired<t.burn-0.009 then
-    if elapsed>=math.max(12,math.min(30,c.spsSettleSeconds)) then
+    if elapsed>=math.max(18,math.min(30,c.spsSettleSeconds)) then
       target=math.max(desired,t.burn-downStep)
       reason=spsOutputHold and "THROTTLE: ANTIMATTER BUFFER" or
         "TRIM: SPS USES LESS POLONIUM"
-    else reason="HOLD: SETTLING BEFORE TRIM" end
+    else reason="HOLD: SPS DEMAND SETTLING" end
   elseif desired>t.burn+0.009 then
-    if elapsed>=c.spsRampSeconds and
+    if elapsed>=math.max(c.spsRampSeconds,c.spsRampSteadySeconds) and
         t.coolant>=c.coolantWarn and
         not (t.coolantDelta and t.coolantDelta< -0.002) and
-        not (t.dumpExcess and t.coolantDelta and
-          t.coolantDelta< -c.spsDumpCoolantDropWarn) and
+        not (t.dumpExcess and t.coolant<c.spsDumpCoolantWarn and
+          t.coolantDelta and t.coolantDelta< -c.spsDumpCoolantDropWarn) and
         not (t.bWater and t.dumpExcess and t.bWater<0.20) and
-        not (t.steam and t.steam>c.spsSteamEarlyWarn and
-          t.steamDelta and t.steamDelta>c.spsSteamGrowthWarn) and
-        not (t.heated and t.heated>c.spsSteamEarlyWarn and
-          t.heatedDelta and t.heatedDelta>c.spsSteamGrowthWarn) and
         not (t.heatedDelta and t.heatedDelta>0.002) and
         not (tankFill and tankFill<c.fuelLimitStart) and
         not (t.fuelRapidNet and t.fuelRapidNet< -0.005) then
-      -- Without a fuel estimate, probe only after a stable observation.
       local ready=t.fuelCapFresh or
         (tankFill and tankFill>=c.fuelLimitRelease and
           t.fuelSampleSeconds and t.fuelSampleSeconds>=c.fuelRapidSeconds and
@@ -1060,7 +1115,7 @@ local function autoSPS(t)
       else
         reason="HOLD: FUEL CALIBRATION / RESERVE"
       end
-    else reason="HOLD: RAMP / COOLANT STABILIZATION" end
+    else reason="HOLD: SPS RAMP / COOLANT STABILIZATION" end
   end
   target=clamp(target,0.01,cap)
   if math.abs(target-t.burn)>=0.009 then
@@ -1162,7 +1217,9 @@ local function auto(t)
 end
 local fields={"ts","on","burn","actual","temp","damage","coolant","heated","waste",
   "fuel","steamMade","coolantType","rLength","rWidth","rHeight","assemblies","boilEfficiency",
-  "steam","steamIn","flow","maxFlow","power","energy","dump","dumpExcess",
+  "steam","steamIn","steamTrend","steamTrendWindow",
+  "steamPressureState","steamPressureReason","protectionCause",
+  "flow","maxFlow","power","energy","dump","dumpExcess",
   "waterReturnGapEstimate",
   "tLength","tWidth","tHeight",
   "blades","coils","vents","condensers","maxProduction",
@@ -1318,6 +1375,10 @@ local function scadaDraw(dev,isMonitor)
         tostring(current.spsCapReason or "WAITING FOR SPS DATA"))
     end
     paint(15,"CONTROL "..tostring(current.limit or "--"),colors.yellow)
+    paint(19,"Pressure "..tostring(current.steamPressureState or "--")..
+      " | steam "..p(current.steam).." | trend "..
+      n(current.steamTrend and current.steamTrend*100*60,3).."%/min",colors.lightBlue)
+    paint(20,"Protection: "..tostring(current.protectionCause or "NONE"),colors.yellow)
     paint(16,"Fuel estimate "..n(current.fuelCap,2).." mB/t | TPS "..n(current.tps,1))
     paint(17,"SCRAM protection: "..(latched and "LATCHED" or "ARMED"),
       latched and colors.red or colors.lime)
@@ -1352,6 +1413,9 @@ local function scadaDraw(dev,isMonitor)
       latched and colors.red or colors.lime)
     paint(8,"Fuel tank "..p(current.fuelTankFill).." net "..n(current.fuelNetPerTick,2).." mB/t")
     paint(10,"Fuel cap ~"..n(current.fuelCap,2).." mB/t | TPS "..n(current.tps,1))
+    paint(17,"Steam pressure: "..tostring(current.steamPressureState or "--")..
+      " / "..tostring(current.steamPressureReason or "--"),colors.lightBlue)
+    paint(18,"Protection: "..tostring(current.protectionCause or "NONE"),colors.yellow)
     paint(9,"Data: SPS "..tostring(names.sps or "MISSING")..
       " | SNA "..tostring(current.snaCount or 0))
     paint(11,"Recent alarms:",colors.cyan)
@@ -1367,7 +1431,7 @@ local function scadaDraw(dev,isMonitor)
     paint(8,"AM EMA "..n(current.spRateEMA,4).." | 120s "..n(current.spRate120,4))
     paint(9,"SPS diagnosis: "..tostring(current.spsDiagnosis))
     paint(11,"Control: "..info,colors.yellow)
-    paint(13,"CSV log: /cc-mekanism/history_v4_fe.csv")
+    paint(13,"CSV log: /cc-mekanism/history_v4_stable.csv")
     paint(15,"Note: 'potential' is not confirmed optimality.",colors.orange)
   end
   if isMonitor then
