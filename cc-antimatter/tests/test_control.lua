@@ -143,7 +143,7 @@ end
 -- amount=1,024,000-actualBurn exactly. Observing this SHOULD cancel
 -- the apparent fuel drift and eliminate false fuel supply estimates.
 do
-  local controlReplay=core.new(core.defaults({userCap=575,fluxFE=25000000}))
+  local controlReplay=core.new(core.defaults({userCap=575,fluxFE=25000000,waterLoopEnabled=0}))
   local burns={546,546,550,550,550,550,550,550,550,550,550,550,550,550,534,570,556,530,566,540,564,511,535,571,557,531,567,541,575,511,547,571,557,543,567,541,575,511,547,533,557,543,567,541,575,511,547,533,557,543,567,553,537,523,547,533,557,543,567,553,537,523,547,533,557,543,567,553,499,523,547,533,569,543,529,553,499,523,547,533,569,555,529,553,537,535,559,545,569,555,529,565,499,535,559,545,531,555,541,565,511,535,559,545}
   local coolant={1000,1000,1000,1000,1000,1000,1000,1000,1000,1000,1000,1000,1000,1000,1000,943,995,1000,976,1000,952,1000,1000,946,995,1000,978,1000,928,1000,1000,946,988,1000,960,1000,928,1000,1000,969,988,1000,960,1000,929,1000,1000,999,983,1000,942,999,949,1000,1000,998,982,1000,943,1000,949,1000,1000,998,983,1000,942,1000,1000,1000,1000,1000,961,1000,976,1000,1000,1000,1000,1000,962,997,1000,1000,1000,970,984,1000,946,997,1000,986,1000,1000,982,1000,972,995,1000,971,1000,1000,972,1000}
   assert(#burns==104 and #coolant==104)
@@ -180,7 +180,7 @@ do
   assert(low<40,"should not repeatedly throttle ordinary coolant oscillations")
 end
 do
-  local cfg=core.defaults({userCap=575,fluxFE=25000000})
+  local cfg=core.defaults({userCap=575,fluxFE=25000000,waterLoopEnabled=0})
   local ctl=core.new(cfg)
   local t=base()
   t.burn=555;t.actual=555;t.temperature=1012.5
@@ -213,7 +213,7 @@ end
 -- begin drifting below nominal 100%, and the optimizer must eventually
 -- recognize lower Fissile Fuel production despite the 1-tick pipeline gap.
 do
-  local cfg=core.defaults({userCap=575,fluxFE=25000000})
+  local cfg=core.defaults({userCap=575,fluxFE=25000000,waterLoopEnabled=0})
   local ctl=core.new(cfg)
   local tankCap=1024000
   local deficit=0
