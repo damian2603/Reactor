@@ -36,8 +36,8 @@ local defaults = {
   spsTurbineFlowHardCap=false, -- SPS prioritizes antimatter; turbine FE is secondary
   spsSteamEarlyWarn=0.50, -- fraction where rising steam buffer prevents further ramp
   spsSteamGrowthWarn=0.0004, -- rising steam fill per second at high occupancy
-  spsDumpCoolantWarn=0.995, -- dumping excess vents steam: guard coolant reserve
-  spsDumpCoolantTrip=0.92, -- require reliable makeup water when venting steam
+  spsDumpCoolantWarn=0.997, -- dumping excess vents steam: guard coolant reserve
+  spsDumpCoolantTrip=0.98, -- stop early if water makeup cannot sustain dumping
   spsDumpCoolantDropWarn=0.0002,
   spsRateChangeSeconds=12,
   spsRampFraction=0.01, -- fraction of actual max burn rate per step
@@ -368,6 +368,11 @@ local function read()
   t.waterOut=N(pc(u,"getMaxWaterOutput"))
   t.dump=pc(u,"getDumpingMode")
   t.dumpExcess=t.dump~=nil and tostring(t.dump):lower():find("excess",1,true)~=nil
+  if t.dumpExcess and t.steamMade and t.flow and not t.sodiumCoolant then
+    -- Heat-to-steam conversion minus condensed turbine flow. Conservative
+    -- indication of possible missing water recycling, NOT measured venting.
+    t.waterReturnGapEstimate=math.max(0,t.steamMade-t.flow)
+  end
   t.bFormed=pc(b,"isFormed")
   t.bSteam=N(pc(b,"getSteamFilledPercentage"))
   t.bHot=N(pc(b,"getHeatedCoolantFilledPercentage"))
@@ -1158,6 +1163,7 @@ end
 local fields={"ts","on","burn","actual","temp","damage","coolant","heated","waste",
   "fuel","steamMade","coolantType","rLength","rWidth","rHeight","assemblies","boilEfficiency",
   "steam","steamIn","flow","maxFlow","power","energy","dump","dumpExcess",
+  "waterReturnGapEstimate",
   "tLength","tWidth","tHeight",
   "blades","coils","vents","condensers","maxProduction",
   "powerFE","maxProductionFE","waterOut","productionFraction",
@@ -1335,6 +1341,10 @@ local function scadaDraw(dev,isMonitor)
     paint(17,"FE STATUS "..tostring(current.feState or "UNKNOWN"),colors.lime)
     paint(18,tostring(current.feAdvice or "--"),colors.lightBlue)
     paint(19,"Only reference, NOT actual Flux Point measurement.",colors.orange)
+    if current.dumpExcess then
+      paint(20,"Steam DUMP EXCESS: check makeup water / coolant!",colors.yellow)
+      paint(21,"Possible water return gap "..fmt(current.waterReturnGapEstimate).." mB/t",colors.orange)
+    end
   elseif uiPage==4 then
     title("DIAGNOSTICS / ALARMS")
     paint(6,"SPS: "..tostring(current.spsDiagnosis or "--"),colors.yellow)
