@@ -103,6 +103,16 @@ function M.assessFE(o)
   end
   return res
 end
+-- Material deficit, not sensor jitter: 0.06 mB/t at a 400 mB/t
+-- reactor is ~0.015%, and must not block an SPS ramp on a full tank.
+function M.fuelDeficit(netPerTick,actualBurn,absoluteFloor,relativeFraction)
+  local floor=num(absoluteFloor) and math.max(0,absoluteFloor) or 1
+  local fraction=num(relativeFraction) and math.max(0,relativeFraction) or 0.01
+  local threshold=math.max(floor,(num(actualBurn) and math.max(0,actualBurn) or 0)*fraction)
+  if not num(netPerTick) then return false,threshold end
+  return netPerTick < -threshold,threshold
+end
+
 -- Separate turbine backpressure from SPS production control.
 -- A small positive 1-second steam change at 50-70% tank fill is NOT
 -- a reason to cut reactor burn by 15%. Only the severe/high/sustained
