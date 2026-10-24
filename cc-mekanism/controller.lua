@@ -86,6 +86,17 @@ local schema={
 }
 local order={"reactor","turbine","sps","boiler","matrix","monitor"}
 local names,duplicates={},{}
+local function isMonitorPeripheral(name)
+  -- The device type is more reliable than assuming every peripheral
+  -- exposes a particular method list.
+  if peripheral.hasType then
+    local ok,result=pcall(peripheral.hasType,name,"monitor")
+    if ok and result then return true end
+  end
+  local ok,kind=pcall(peripheral.getType,name)
+  if ok and kind=="monitor" then return true end
+  return has(name,"getSize") and has(name,"setTextScale") and has(name,"write")
+end
 local function discover()
   local all=peripheral.getNames()
   table.sort(all)
@@ -93,8 +104,12 @@ local function discover()
     local matches={}
     for _,per in ipairs(all) do
       local valid=true
-      for _,method in ipairs(schema[kind]) do
-        if not has(per,method) then valid=false;break end
+      if kind=="monitor" then
+        valid=isMonitorPeripheral(per)
+      else
+        for _,method in ipairs(schema[kind]) do
+          if not has(per,method) then valid=false;break end
+        end
       end
       if valid then matches[#matches+1]=per end
     end
@@ -361,8 +376,8 @@ local function btn(dev,y,x,label,id)
   buttons[#buttons+1]={y=y,x=x,last=x+#s-1,id=id}
 end
 local function render(dev,isMonitor)
-  if not dev then return end
-  local ok=pcall(function()
+  if not dev then return false end
+  local ok,err=pcall(function()
     if dev.setTextScale then dev.setTextScale(0.5) end
     local w,h=dev.getSize()
     dev.setBackgroundColor(colors.black);dev.setTextColor(colors.white);dev.clear()
@@ -390,6 +405,11 @@ local function render(dev,isMonitor)
     row(dev,14,"Bottleneck: "..(current.limit or bottleneck(current)))
     row(dev,15,"Info: "..info,colors.yellow)
     row(dev,16,"Alarm: "..(alarm~="" and alarm or "none"),latched and colors.red or colors.lime)
+    if not isMonitor then
+      row(dev,17,"Monitor: "..(names.monitor or
+        (duplicates.monitor and "MULTIPLE - set monitor in settings" or
+          "NOT DETECTED - run cc-mekanism/monitor-test")))
+    end
     if isMonitor and h>=20 then
       buttons={}
       btn(dev,h-2,1,"-", "minus");btn(dev,h-2,6,"+","plus")
@@ -400,11 +420,16 @@ local function render(dev,isMonitor)
     end
     row(dev,h,"Keyboard: +/- B burn C cap M manual F FE P SPS S stop R start Q quit",colors.lightGray)
   end)
-  if not ok then info="Display error; check monitor size" end
+  if not ok then
+    info="Display error: "..tostring(err)
+    return false
+  end
+  return true
 end
 local function display()
   if names.monitor and peripheral.isPresent(names.monitor) then
-    render(peripheral.wrap(names.monitor),true)
+    local success=render(peripheral.wrap(names.monitor),true)
+    if not success then render(screen,false);return end
     screen.setBackgroundColor(colors.black);screen.setTextColor(colors.white)
     screen.clear();screen.setCursorPos(1,1)
     print("Project Infinity | "..mode.." | "..(latched and "ALARM" or "OK"))
@@ -518,9 +543,15 @@ local function inputLoop()
   end
 end
 local function monitorLoop()
+  local lastScan=0
   while active do
+    local now=os.epoch("utc")/1000
     if not names.reactor or not peripheral.isPresent(names.reactor) or
-        (c.requireTurbine and not names.turbine) then discover() end
+        (c.requireTurbine and not names.turbine) or
+        (not names.monitor and now-lastScan>=5) then
+      discover()
+      lastScan=now
+    end
     current=read()
     local good,reason=safety(current)
     if good then recentValid=recentValid+1 else recentValid=0 end
