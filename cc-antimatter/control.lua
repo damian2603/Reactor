@@ -96,6 +96,12 @@ function M.new(config)
     if valid(t.actual) then self.lastFuel={ts=now,actual=t.actual} end
     if valid(t.fuelAmount) and t.fuelAmount>=0 and valid(t.actual) then
       local fill=t.fuelCapacity and t.fuelCapacity>0 and t.fuelAmount/t.fuelCapacity or nil
+      t.fuelFill=fill
+      t.fuelMissing=t.fuelCapacity and max(0,t.fuelCapacity-t.fuelAmount) or nil
+      t.fuelNearFull=fill~=nil and fill>=0.995
+      -- A fixed near-full gap (e.g. 1,023,465/1,024,000 mB) can reflect
+      -- the tank's normal transport/tick ordering, not actual starvation.
+      -- Saturation hides spare incoming supply; treat it as a LOWER BOUND.
       addWindow(self.fuel,{ts=now,amount=t.fuelAmount,consumed=self.consumed,fill=fill},150)
       local first=findWindow(self.fuel,c.sampleMinSeconds,now)
       if first then
@@ -142,6 +148,27 @@ function M.new(config)
       end
     end
     t.fuelEstimate=self.fuelEstimate
+    local jitter=max(1,valid(t.actual) and t.actual*0.004 or 1)
+    if not valid(t.fuelAmount) or not valid(t.fuelCapacity) then
+      t.fuelStatus="TANK READ UNAVAILABLE"
+    elseif t.fuelNearFull and not valid(t.fuelNet) then
+      t.fuelStatus="NEAR FULL: WAITING FOR FUEL TREND"
+    elseif t.fuelNearFull and valid(t.fuelNet) and
+        math.abs(t.fuelNet)<=jitter then
+      -- This demonstrates current demand is being met, NOT the maximum
+      -- production of the upstream Isotopic Centrifuge line.
+      t.fuelStatus="NEAR FULL: BURN SUPPORTED, MAX UNKNOWN"
+      t.fuelSupplyFloor=valid(t.fuelProduction) and
+        max(0,t.fuelProduction) or nil
+    elseif t.fuelNearFull then
+      t.fuelStatus="NEAR FULL: TRANSIENT / CHECK TREND"
+    elseif valid(t.fuelNet) and t.fuelNet< -jitter then
+      t.fuelStatus="FUEL DRAINING: SEEKING SUSTAINABLE CAP"
+    elseif valid(self.fuelEstimate) then
+      t.fuelStatus="PRODUCTION ESTIMATED"
+    else
+      t.fuelStatus="FUEL BUFFER TREND CALIBRATING"
+    end
     -- Keep a rolling SPS rate history; do not use theoretical waste
     -- conversion as a stand-in for real Antimatter output.
     if valid(t.amRate) then
