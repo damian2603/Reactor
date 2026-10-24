@@ -1523,7 +1523,14 @@ end
 local function inputLoop()
   while active do
     local ev,a,b,d=os.pullEvent()
-    if edit then
+    if ev=="monitor_touch" and a==names.monitor then
+      -- Touch controls must work even while an edit is open on the computer.
+      edit=nil
+      buffer=""
+      for _,v in ipairs(buttons) do
+        if d==v.y and b>=v.x and b<=v.last then command(v.id);break end
+      end
+    elseif edit then
       if ev=="char" and a:match("[0-9%.]") and #buffer<15 then buffer=buffer..a
       elseif ev=="key" and a==keys.backspace then buffer=buffer:sub(1,-2)
       elseif ev=="key" and a==keys.escape then edit=nil;buffer="";info="Edit cancelled"
@@ -1535,8 +1542,8 @@ local function inputLoop()
       elseif a=="q" then active=false;return
       elseif a=="b" then edit="burn";buffer=tostring(current.burn or 0);info="Enter burn: "..buffer
       elseif a=="c" then edit="cap";buffer=tostring(c.autoBurnCeiling);info="Enter ceiling (0=automatic): "..buffer
-      elseif a=="l" then edit="flux";buffer=tostring(c.fluxLimitFE)
-        info="Enter Flux Point FE/t: "..buffer
+      elseif a=="l" then edit="flux";buffer=""
+        info="Enter NEW Flux reference FE/t (current "..fmt(c.fluxLimitFE)..")"
       elseif a=="t" then edit="target";buffer=tostring(math.floor(c.feTarget*1000+0.5)/10)
         info="Target turbine output % (20..100): "..buffer
       else
@@ -1545,10 +1552,6 @@ local function inputLoop()
         if m[a] then command(m[a]) end
       end
       if edit then info="Editing "..edit..": "..buffer.." (Enter saves, Esc cancels)" end
-    elseif ev=="monitor_touch" and a==names.monitor then
-      for _,v in ipairs(buttons) do
-        if d==v.y and b>=v.x and b<=v.last then command(v.id);break end
-      end
     elseif ev=="peripheral" or ev=="peripheral_detach" then
       discover()
       monitorLayout=nil
