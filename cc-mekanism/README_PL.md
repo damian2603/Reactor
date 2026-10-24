@@ -10,6 +10,7 @@ W konsoli komputera CC:Tweaked wpisz:
 
 Następnie:
 
+    cc-mekanism/monitor-test
     cc-mekanism/probe
     cc-mekanism/controller
 
@@ -42,3 +43,10 @@ Odczytanie rozmiarów nie oznacza, że da się matematycznie poznać pełną prz
 **W tej paczce meltdown jest włączony.** Sterownik nie jest zastępstwem dla niezależnego zabezpieczenia reaktora (Mekanism Fission Reactor Logic Adapters). Awaria CC, brak prądu, rozładowanie chunka lub przerwanie połączenia nie może być jedynym kryterium bezpieczeństwa. Tryb AUTO **nigdy sam nie uruchamia** wyłączonego reaktora.
 
 Kod był sprawdzony względem udokumentowanych metod Mekanism 1.20.1, **ale nie został jeszcze przetestowany w działającym świecie Project Infinity**.
+
+
+## Jeśli Advanced Monitor jest czarny
+
+Uruchom **cc-mekanism/monitor-test** na komputerze (najpierw wyjdź ze sterownika klawiszem Q). Test wypisze nazwy wszystkich widocznych urządzeń i wyświetli niebieskie tło z napisem **MONITOR CONNECTED!** na każdym wykrytym monitorze. Jeśli w konsoli pojawi się **NO MONITOR FOUND**, monitor nie jest widoczny w sieci — zamontuj **Wired Modem** na monitorze, połącz go kablem **Networking Cable** z modemem komputera i kliknij PPM na modemie, aby udostępnić urządzenie. Monitor dotykowy wymaga Advanced Monitor; zwykły monitor wyświetla dane bez obsługi dotyku.
+
+Jeśli widocznych jest kilka monitorów, w pliku **/cc-mekanism/settings** ustaw np. `monitor = "monitor_0"`, używając rzeczywistej nazwy z diagnostyki. Sterownik automatycznie wyszukuje pojedynczy monitor również w trakcie działania i wyświetla jawny komunikat o błędzie renderowania.
