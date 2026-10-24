@@ -1,4 +1,4 @@
--- Project Infinity / Mekanism Fission-Turbine-SPS Controller 3.0 (SPS-first antimatter optimizer)
+-- Project Infinity / Mekanism Fission-Turbine-SPS Controller 4.0 beta (SPS-first antimatter optimizer)
 -- CC:Tweaked 1.20.1. Standalone, no dependencies.
 -- Adapted from analysis of Mekanism's CC API; inspired by cc-mek-scada's
 -- fail-safe alarm philosophy. Not a copy of upstream code.
@@ -10,6 +10,11 @@ local defaults = {
   reactor="", turbine="", sps="", boiler="", matrix="", monitor="",
   fuelTank="", fluxLimitFE=16000000, fuelReserve=0.15,
   fuelMargin=0.90, fuelTrendSeconds=180,
+  fuelRapidSeconds=30, fuelEstimateInterval=25, fuelLimitStart=0.30,
+  fuelLimitRelease=0.40, fuelGraceSeconds=45,
+  spsRampSeconds=5, spsRampMaxFraction=0.02,
+  spsOutputResume=0.75, spsStopOutput=0.98,
+  fastSafetySeconds=0.2, safetyBadReads=3,
   sampleSeconds=1, logSeconds=10,
   maxAutoBurn=1.0, step=0.1, stepSeconds=15,
   autoBurnCeiling=0, -- 0=use detected reactor maximum; manual override only
@@ -82,11 +87,36 @@ local function fmt(x)
   elseif math.abs(x)>=1e3 then return n(x/1e3,1).."k" end
   return n(x,1)
 end
-local function pc(name,method,...)
+local staticCache={}
+local staticMethods={getLength=true,getWidth=true,getHeight=true,getFuelAssemblies=true,
+  getFuelCapacity=true,getWasteCapacity=true,getCoolantCapacity=true,
+  getMaxBurnRate=true,getSteamCapacity=true,getMaxFlowRate=true,
+  getMaxProduction=true,getMaxWaterOutput=true,getBlades=true,
+  getCoils=true,getVents=true,getCondensers=true,getDispersers=true,
+  getInputCapacity=true,getOutputCapacity=true,getBoilCapacity=true,getCapacity=true,
+  getTankCapacity=true}
+local telemetryCache=nil
+local function pcRaw(name,method,...)
   if not name or not peripheral.isPresent(name) then return nil end
   local ok,v=pcall(peripheral.call,name,method,...)
   if ok then return v end
   return nil
+end
+local function pc(name,method,...)
+  if telemetryCache and name then
+    local val=telemetryCache[name.."|"..method]
+    if val~=nil then return val~=false and val or nil end
+  end
+  if staticMethods[method] and name and peripheral.isPresent(name) then
+    local key=name.."|"..method
+    local now=os.epoch("utc")/1000
+    local entry=staticCache[key]
+    if entry and now-entry.ts<30 then return entry.value end
+    local value=pcRaw(name,method,...)
+    if value~=nil then staticCache[key]={ts=now,value=value} end
+    return value
+  end
+  return pcRaw(name,method,...)
 end
 local function has(name,method)
   local ok,methods=pcall(peripheral.getMethods,name)
@@ -158,6 +188,37 @@ local function discover()
   end
 end
 discover()
+-- Batched telemetry. Protection uses pcRaw() and runs independently.
+local sampleMethods={
+  reactor={"getActualBurnRate","getBoilEfficiency","getBurnRate","getCoolant","getCoolantCapacity","getCoolantFilledPercentage","getDamagePercent","getFuelAssemblies","getFuelCapacity","getFuelFilledPercentage","getHeatedCoolantFilledPercentage","getHeatingRate","getHeight","getLength","getMaxBurnRate","getStatus","getTemperature","getWasteCapacity","getWasteFilledPercentage","getWidth","isForceDisabled","isFormed"},
+  turbine={"getBlades","getCoils","getCondensers","getDispersers","getDumpingMode","getEnergyFilledPercentage","getFlowRate","getHeight","getLastSteamInputRate","getLength","getMaxFlowRate","getMaxProduction","getMaxWaterOutput","getProductionRate","getSteamCapacity","getSteamFilledPercentage","getVents","getWidth","isFormed"},
+  boiler={"getBoilCapacity","getHeatedCoolantFilledPercentage","getSteamFilledPercentage","getWaterFilledPercentage","isFormed"},
+  sps={"getCoils","getHeight","getInput","getInputCapacity","getInputFilledPercentage","getLength","getOutput","getOutputCapacity","getOutputFilledPercentage","getProcessRate","getWidth","isFormed"},
+  sna={"canSeeSun","getInput","getInputFilledPercentage","getOutput","getOutputFilledPercentage","getPeakProductionRate","getProductionRate"},
+  fuelTank={"getCapacity","getStored","getStoredChemical","getStoredGas","getTankCapacity"},
+  matrix={"getEnergyFilledPercentage","getLastInput","getLastOutput"},
+}
+local function prefetchTelemetry()
+  local jobs,cache={},{}
+  for kind,methods in pairs(sampleMethods) do
+    local devices=kind=="sna" and (names.sna or {}) or {names[kind]}
+    for _,name in ipairs(devices) do
+      if name and peripheral.isPresent(name) then
+        for _,method in ipairs(methods) do
+          if not staticMethods[method] then
+            local device,api=name,method
+            jobs[#jobs+1]=function()
+              local value=pcRaw(device,api)
+              cache[device.."|"..api]=value==nil and false or value
+            end
+          end
+        end
+      end
+    end
+  end
+  if #jobs>0 then parallel.waitForAll(table.unpack(jobs)) end
+  return cache
+end
 local mode="MANUAL" -- NEVER persist automatic operation or auto-start
 local uiPage=1
 local rateHistory={}
@@ -169,6 +230,22 @@ local spsInputWindow={}
 local spsBaseline=nil
 local fuelWindow={}
 local fuelCap=nil
+local fuelCapTimestamp=0
+local fuelLastEstimate=0
+local fuelCumulative=0
+local fuelSourceName=nil
+local fuelPrevTickSample=nil
+local fuelRateLimited=false
+local fuelUnknownSince=0
+local fastSafetyHealthy=true
+local fastSafetyLast=0
+local tpsEstimate=20
+local telemetryBadCount=0
+local stopReason=nil
+local spsOutputHold=false
+local spsNoSolarSince=nil
+local feTrial=nil
+local feTrialResult=nil
 local fuelCapTimestamp=0
 local fuelSampleBurn=nil
 local fuelSampleStart=0
@@ -218,6 +295,7 @@ local function burn(rate)
   return ok,ok and rate or tostring(err)
 end
 local function read()
+  telemetryCache=prefetchTelemetry()
   local t={ts=os.epoch("utc")/1000}
   local r,u,sp,b,im=names.reactor,names.turbine,names.sps,names.boiler,names.matrix
   t.formed=pc(r,"isFormed")
@@ -460,6 +538,7 @@ local function read()
     end
   else t.feAdvice="WAIT: COLLECTING BASELINE" end
   previous=t
+  telemetryCache=nil
   return t
 end
 local function required(t)
