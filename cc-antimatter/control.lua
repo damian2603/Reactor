@@ -25,6 +25,19 @@ local DEFAULT={
 local function defaults(o)
   local c={};for k,v in pairs(DEFAULT) do c[k]=v end
   if o then for k,v in pairs(o) do if c[k]~=nil and valid(v) then c[k]=v end end end
+  -- Older v1 saved ALL defaults whenever FE / CAP was edited on the
+  -- monitor. Without this migration its persisted +12/-38 and 95%
+  -- coolant warning would OVERRIDE the new smooth code on upgrade.
+  -- Match the *entire* legacy group so intentionally customized tuning
+  -- is left untouched; retain userCap, fluxFE, peripheral names, etc.
+  if o and o.rampStep==12 and o.downwardStep==38 and
+      o.changeIntervalSeconds==6 and o.coolantWarn==0.95 then
+    c.rampStep=1
+    c.downwardStep=2
+    c.changeIntervalSeconds=2
+    c.coolantWarn=0.88
+    c.legacyControllerMigrated=true
+  end
   c.softTemperature=bound(c.softTemperature,950,1100)
   c.scramTemperature=bound(c.scramTemperature,1050,1150)
   c.userCap=max(1,c.userCap);c.fluxFE=max(1000000,c.fluxFE)
