@@ -18,5 +18,7 @@ jobs:
         run: find cc-mekanism -type f -name '*.lua' -print -exec luac5.4 -p '{}' \;
       - name: Run optimizer math tests
         run: lua5.4 cc-mekanism/tests/test_optimizer_math.lua
+      - name: Test real Mekanism reactor heat capacity and temperature safety
+        run: lua5.4 cc-mekanism/tests/test_thermal_model.lua
       - name: Run headless controller scenario tests
         run: lua5.4 cc-mekanism/tests/test_controller_mock.lua
