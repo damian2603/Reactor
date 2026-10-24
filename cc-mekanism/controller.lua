@@ -823,18 +823,22 @@ local function read()
           ("LOWER FE: AM loss "..n(percent,2).."%")
       else feTrialResult="FE limit unchanged" end
       local path=ROOT.."/fe_trials.csv"
-      local existed=fs.exists(path)
-      local f=fs.open(path,"a")
-      if f then
-        if not existed then
-          f.writeLine("timestamp,old_limit_fe,new_limit_fe,before_am_per_tick,after_am_per_tick,change_percent")
-        end
-        f.writeLine(table.concat({
-          tostring(math.floor(t.ts)),tostring(feTrial.oldLimit),
-          tostring(feTrial.newLimit),tostring(feTrial.beforeRate),
-          tostring(t.spRate120),tostring(percent)},","))
-        f.close()
-      end
+      local logged,logError=pcall(function()
+        local existed=fs.exists(path)
+        local f=assert(fs.open(path,"a"),"FE CSV unavailable")
+        local success,err=pcall(function()
+          if not existed then
+            f.writeLine("timestamp,old_limit_fe,new_limit_fe,before_am_per_tick,after_am_per_tick,change_percent")
+          end
+          f.writeLine(table.concat({
+            tostring(math.floor(t.ts)),tostring(feTrial.oldLimit),
+            tostring(feTrial.newLimit),tostring(feTrial.beforeRate),
+            tostring(t.spRate120),tostring(percent)},","))
+        end)
+        pcall(f.close)
+        if not success then error(err) end
+      end)
+      if not logged then t.storageWarning="FE trial CSV write failed: "..tostring(logError) end
       feTrial=nil
       t.feAdvice=feTrialResult
     else t.feAdvice="FE TRIAL: WAIT FOR STABLE AM WINDOW" end
@@ -1894,7 +1898,13 @@ local function setFluxReference(raw)
   end
   feTrialResult=nil
   c.fluxLimitFE=updated
-  save()
+  local saved,err=save()
+  if not saved then
+    c.fluxLimitFE=previousLimit
+    feTrial=nil
+    info="NOT SAVED: "..tostring(err).." | free disk space"
+    return false
+  end
   info="FE ref "..fmt(updated).." FE/t saved; SET FLUX POINT MANUALLY"
   return true
 end
@@ -1944,10 +1954,16 @@ local function command(cmd)
     local step=math.max(0.1,math.floor(max*0.05*100+0.5)/100)
     local cap=c.autoBurnCeiling>0 and c.autoBurnCeiling or max
     if cmd=="capplus" then cap=cap+step else cap=cap-step end
+    local oldCap=c.autoBurnCeiling
     if cap>=max then c.autoBurnCeiling=0
     else c.autoBurnCeiling=math.max(0.1,math.floor(cap*100+0.5)/100) end
-    save()
-    info="Auto ceiling: "..(c.autoBurnCeiling==0 and "DETECTED MAX" or n(c.autoBurnCeiling,2))
+    local saved,err=save()
+    if not saved then
+      c.autoBurnCeiling=oldCap
+      info="AUTO ceiling NOT SAVED: "..tostring(err)
+    else
+      info="Auto ceiling: "..(c.autoBurnCeiling==0 and "DETECTED MAX" or n(c.autoBurnCeiling,2))
+    end
     return
   end
   if cmd=="start" then
@@ -1969,18 +1985,31 @@ local function setTyped()
   if not v or v<0 then info="Invalid number; correct input or press ESC";return false end
   if edit=="cap" then
     -- Enter 0 to restore automatic cap from detected structure.
+    local prior=c.autoBurnCeiling
     c.autoBurnCeiling=math.floor(v*100+0.5)/100
-    save();info="AUTO ceiling "..(v==0 and "DETECTED MAX" or n(v,2))
+    local saved,err=save()
+    if not saved then
+      c.autoBurnCeiling=prior
+      info="AUTO ceiling NOT SAVED: "..tostring(err)
+      return false
+    end
+    info="AUTO ceiling "..(v==0 and "DETECTED MAX" or n(v,2))
   elseif edit=="flux" then
-    setFluxReference(v)
+    return setFluxReference(v)
   elseif edit=="target" then
     if v<20 or v>100 then
       info="Target must be between 20 and 100 percent";return false
     else
+      local prior=c.feTarget
       c.feTarget=math.floor(v*10+0.5)/1000
+      local saved,err=save()
+      if not saved then
+        c.feTarget=prior
+        info="FE target NOT SAVED: "..tostring(err)
+        return false
+      end
       smoothedPowerRatio=nil
       lastChange=current.ts or 0
-      save()
       info="FE generation target "..n(v,1).."%"
     end
   elseif edit=="burn" then
