@@ -441,7 +441,7 @@ do
   local x=ctl.exerciseSPS(t)
   assert(x.mode=="SPS","steam dumping water loss throttles without auto-start")
   assert(burnRate<525,"with falling coolant while venting, burn rate decreases")
-  assert(x.limit:find("THERMAL",1,true),
-    "report thermal/flow throttling when coolant falls during dump")
+  assert(x.limit:find("COOLANT FALLING WHILE DUMPING STEAM",1,true),
+    "report exact water-loss protection cause, not generic thermal hold")
 end
 print("controller headless scenarios: OK")
