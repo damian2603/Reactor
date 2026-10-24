@@ -199,4 +199,40 @@ do
   end
   assert(sawHold and sawTrim,"low coolant needs persistence then gentle trim")
 end
+-- Once burn outruns the real fuel supply, the corrected tank MUST
+-- begin drifting below nominal 100%, and the optimizer must eventually
+-- recognize lower Fissile Fuel production despite the 1-tick pipeline gap.
+do
+  local cfg=core.defaults({userCap=575,fluxFE=25000000})
+  local ctl=core.new(cfg)
+  local tankCap=1024000
+  local deficit=0
+  local burn=560
+  local calibrated=false
+  local corrected=false
+  for i=1,105 do
+    local v=base()
+    v.ts=3000+i*2
+    v.burn=burn;v.actual=burn;v.maxBurn=1920
+    v.coolant=1;v.heated=0;v.waste=0
+    v.temperature=373.15+2e6*burn/v.heatCapacity
+    v.fuelCapacity=tankCap
+    v.fuelAmount=tankCap-burn-deficit
+    v.amRate=burn/10000
+    ctl:observe(v)
+    if v.fuelTickGapCompensated then corrected=true end
+    local decision=ctl:decide(v)
+    if i>12 and v.fuelEstimate and math.abs(v.fuelEstimate-520)<4 then
+      calibrated=true
+    end
+    if i>12 then
+      burn=decision.target
+      deficit=math.max(0,deficit+(burn-520)*20*2)
+    end
+  end
+  assert(corrected,"one tick transport compensation locks before shortage")
+  assert(calibrated,"actual 520 mB/t fuel production becomes measurable after deficit")
+  assert(ctl.fuelEstimate and math.abs(ctl.fuelEstimate-520)<6,
+    "corrected fuel production must remain stable near 520mB/t")
+end
 print('antimatter v1 controller model regressions: OK')
