@@ -180,8 +180,11 @@ function M.new(config)
       limit("ANTIMATTER_OUTPUT",c.minimumBurn)
     end
     -- Censored full fuel tank never becomes an artificially low limit.
-    local fuelFresh=self.fuelSampleAge>0 and now-self.fuelSampleAge<=190
-    if fuelFresh and valid(self.fuelEstimate) then
+    -- Keep the last validated supply estimate as a persistent ceiling.
+    -- It must NOT expire merely because the tank refilled to 100%:
+    -- at saturation production is censored, so a 190s expiration would
+    -- repeatedly reopen the cap and cause 430 -> 550 -> 430 oscillations.
+    if valid(self.fuelEstimate) then
       local allowance=max(0.5,c.fuelMargin)
       limit("FUEL_PRODUCTION",max(c.minimumBurn,self.fuelEstimate-allowance))
     end
