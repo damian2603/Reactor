@@ -107,6 +107,12 @@ mixing incompatible rows with old history.
   control; the pack's published configuration disables global
   radiation mechanics. No radiation-based safety promises are made.
 
+Thermal telemetry now uses `/cc-mekanism/history_v5_thermal.csv` so previous
+`history_v4_stable.csv` remains intact with its original CSV column header.
+Check `expectedTemp`, `tempTrend`, `thermalState`, `thermalModelCap`,
+`spsCapReason`, `fuelRapidNet`, `steamPressureState`, and `spRate` to explain
+why SPS AUTO is or is not increasing burn rate.
+
 Tests perform Lua syntax checking, independent thermal-model tests,
 and full mocked controller scenarios at 448 / 540 / 600 mB/t,
 with safe 995K operation, abnormal heating and a hard 1150K
