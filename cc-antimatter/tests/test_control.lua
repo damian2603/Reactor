@@ -95,4 +95,37 @@ close(outLow[#outLow].burn,430,12,'low supply; estimated '..
   tostring(outLow[#outLow].stored)..' net '..
   tostring(outLow[#outLow].fuelNet)..' reason '..
   tostring(outLow[#outLow].reason))
+-- Real Elite Chemical Tank screenshot: 1,023,465 / 1,024,000 mB.
+-- Remaining gap 535 mB is near one tick of ~535 burn. These
+-- stationary per-burn oscillations cannot reveal maximum centrifuge
+-- output and MUST NOT accidentally become a hard 535 mB/t fuel cap.
+do
+  local near=core.new(settings)
+  local capacity=1024000
+  local first=base()
+  first.maxBurn=1920
+  first.burn=535;first.actual=535
+  first.fuelCapacity=capacity
+  first.amRate=0.0535
+  for i=1,30 do
+    local t={}
+    for k,v in pairs(first) do t[k]=v end
+    t.ts=100+i*5
+    local ripple=({-36,0,27,48,-15})[(i-1)%5+1]
+    t.fuelAmount=capacity-535+ripple
+    near:observe(t)
+    local d=near:decide(t)
+    assert(t.fuelNearFull and t.fuelMissing>=487 and t.fuelMissing<=571,
+      "near-full 535 mB cyclic gap must be recognized")
+    assert(t.fuelEstimate==nil,
+      "constant saturated tank NEVER proves exact maximum fissile output")
+    if i>=7 then
+      assert(t.fuelStatus=="NEAR FULL: BURN SUPPORTED, MAX UNKNOWN",
+        "oscillations should NOT be called sustained deficit: "..tostring(t.fuelStatus))
+      assert(t.fuelSupplyFloor and t.fuelSupplyFloor>532,
+        "stable buffer proves at least approximately current consumption")
+      assert(d.target>=535,"do not throttle because tank has a 535 mB cyclic gap")
+    end
+  end
+end
 print('antimatter v1 controller model regressions: OK')
