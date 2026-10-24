@@ -45,6 +45,9 @@ local defaults = {
   spsPressureGrowthFast=0.005, -- require forecast overflow for early hold
   spsPressureTrimSeconds=28, -- non-emergency throttle spacing
   spsPressureTrimFraction=0.045, -- small, measured non-emergency cut
+  spsPressureRecoverLevel=0.83, -- pressure hysteresis before ramp resumes
+  spsBurnDeadbandAbs=4.0, -- ignore trivial fluctuations in AM-derived burn
+  spsBurnDeadbandFraction=0.012,
   spsRampSteadySeconds=12, -- minimum time between SPS ramp increases
   spsDumpCoolantWarn=0.997, -- dumping excess vents steam: guard coolant reserve
   spsDumpCoolantTrip=0.98, -- stop early if water makeup cannot sustain dumping
@@ -253,6 +256,7 @@ local spsEMA=nil
 local spsWindow={}
 local spsInputWindow={}
 local steamPressureWindow={}
+local steamPressureRecovery=false
 local spsBaseline=nil
 local fuelWindow={}
 local fuelCap=nil
@@ -1032,6 +1036,8 @@ local function autoSPS(t)
   local downStep=math.max(2,t.burn*0.06)
   local target=t.burn
   local reason="HOLD: SPS DEMAND BALANCED"
+  local burnDeadband=math.max(c.spsBurnDeadbandAbs,t.burn*c.spsBurnDeadbandFraction)
+  t.spsBurnDeadband=burnDeadband
   local urgent=t.burn>cap+0.009
   local pressure=optimizerMath.spsPressure({
     steam=t.steam,slope=t.steamTrend,
@@ -1041,6 +1047,17 @@ local function autoSPS(t)
     trendWarn=c.spsPressureGrowthWarn,
     trendFast=c.spsPressureGrowthFast
   })
+  if pressure.state=="TRIM" or pressure.state=="TRIM_FAST" then
+    steamPressureRecovery=true
+  elseif steamPressureRecovery and t.steam and
+      t.steam<=c.spsPressureRecoverLevel and
+      (not t.steamTrend or t.steamTrend<=c.spsPressureGrowthWarn) then
+    steamPressureRecovery=false
+  elseif steamPressureRecovery and pressure.state=="OK" then
+    pressure.state="HOLD"
+    pressure.reason="STEAM PRESSURE RECOVERING"
+  end
+  t.steamPressureRecovering=steamPressureRecovery
   t.steamPressureState=pressure.state
   t.steamPressureReason=pressure.reason
   local thermal=nil
@@ -1093,13 +1110,13 @@ local function autoSPS(t)
       t.fuelRapidNet<0 and elapsed>=8 then
     target=math.min(t.burn,math.max(0.01,t.burn-downStep))
     reason="THROTTLE: FISSILE FUEL FALLING"
-  elseif desired<t.burn-0.009 then
+  elseif desired<t.burn-burnDeadband then
     if elapsed>=math.max(18,math.min(30,c.spsSettleSeconds)) then
       target=math.max(desired,t.burn-downStep)
       reason=spsOutputHold and "THROTTLE: ANTIMATTER BUFFER" or
         "TRIM: SPS USES LESS POLONIUM"
     else reason="HOLD: SPS DEMAND SETTLING" end
-  elseif desired>t.burn+0.009 then
+  elseif desired>t.burn+burnDeadband then
     if elapsed>=math.max(c.spsRampSeconds,c.spsRampSteadySeconds) and
         t.coolant>=c.coolantWarn and
         not (t.coolantDelta and t.coolantDelta< -0.002) and
@@ -1222,7 +1239,8 @@ end
 local fields={"ts","on","burn","actual","temp","damage","coolant","heated","waste",
   "fuel","steamMade","coolantType","rLength","rWidth","rHeight","assemblies","boilEfficiency",
   "steam","steamIn","steamTrend","steamTrendWindow",
-  "steamPressureState","steamPressureReason","protectionCause",
+  "steamPressureState","steamPressureReason","steamPressureRecovering",
+  "protectionCause","spsBurnDeadband",
   "flow","maxFlow","power","energy","dump","dumpExcess",
   "waterReturnGapEstimate",
   "tLength","tWidth","tHeight",
