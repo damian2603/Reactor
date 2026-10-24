@@ -103,4 +103,39 @@ function M.assessFE(o)
   end
   return res
 end
+-- Separate turbine backpressure from SPS production control.
+-- A small positive 1-second steam change at 50-70% tank fill is NOT
+-- a reason to cut reactor burn by 15%. Only the severe/high/sustained
+-- states below request trim; mild rises temporarily pause further ramps.
+function M.spsPressure(o)
+  o=o or {}
+  local steam=o.steam
+  local slope=num(o.slope) and o.slope or nil
+  local holdLevel=num(o.holdLevel) and o.holdLevel or 0.78
+  local trimLevel=num(o.trimLevel) and o.trimLevel or 0.88
+  local criticalLevel=num(o.criticalLevel) and o.criticalLevel or 0.93
+  local trendWarn=num(o.trendWarn) and o.trendWarn or 0.0007
+  local trendFast=num(o.trendFast) and o.trendFast or 0.005
+  if not num(steam) then
+    return {state="UNKNOWN",reason="STEAM DATA MISSING",level=steam}
+  end
+  if steam>=criticalLevel then
+    return {state="TRIM_FAST",reason="TURBINE STEAM NEAR CRITICAL",level=steam,slope=slope}
+  end
+  if steam>=trimLevel then
+    return {state="TRIM",reason="TURBINE STEAM HIGH",level=steam,slope=slope}
+  end
+  if slope then
+    if steam>=holdLevel and slope>trendWarn then
+      return {state="HOLD",reason="STEAM BUFFER GROWING",level=steam,slope=slope}
+    end
+    -- Extremely rapid growth predicts an overflow within 35 seconds.
+    if steam>=0.55 and slope>trendFast and
+        (criticalLevel-steam)/slope<35 then
+      return {state="HOLD",reason="STEAM FILL RISING FAST",level=steam,slope=slope}
+    end
+  end
+  return {state="OK",reason="TURBINE STEAM STABLE",level=steam,slope=slope}
+end
+
 return M
