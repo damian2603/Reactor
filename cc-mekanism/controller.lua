@@ -248,6 +248,9 @@ local telemetryBadCount=0
 local stopReason=nil
 local spsOutputHold=false
 local spsNoSolarSince=nil
+local spsThroughputLimit=nil
+local spsThroughputExpires=0
+local spsKnownFeLimit=0
 local feTrial=nil
 local feTrialResult=nil
 local fuelCapTimestamp=0
@@ -786,6 +789,11 @@ local function autoSPS(t)
     cap=math.min(cap,t.snaWasteCapacity*
       clamp(c.spsSolarUtilization,0.5,1))
   end
+  if c.fluxLimitFE~=spsKnownFeLimit then
+    spsThroughputLimit=nil
+    spsThroughputExpires=0
+    spsKnownFeLimit=c.fluxLimitFE
+  end
   if c.fluxLimitFE>0 then
     local feBurn=optimizerMath.feBurnLimit(c.fluxLimitFE,
       JOULES_PER_FE,WASTE_PER_POLONIUM,SPS_JOULES_PER_POLONIUM,
@@ -794,6 +802,10 @@ local function autoSPS(t)
   end
   if t.fuelCapFresh and t.fuelCap then
     cap=math.min(cap,t.fuelCap*c.fuelMargin)
+  end
+  if spsThroughputLimit and t.ts<spsThroughputExpires then
+    cap=math.min(cap,spsThroughputLimit)
+    t.spsLearnedThroughputCap=spsThroughputLimit
   end
   -- The short-term falling inventory is evidence of fuel starvation,
   -- even while the long 120s estimate is still warming up.
@@ -819,6 +831,23 @@ local function autoSPS(t)
     SPS_POLONIUM_PER_ANTIMATTER)
   local bootstrap=math.min(cap,math.max(2,math.min(25,cap*0.06)))
   local desired=base>0 and base*(1+c.spsFeedForwardMargin) or bootstrap
+  -- If SPS consumes almost all production, safely probe for more AM throughput.
+  -- A stable low (e.g. 2%) Polonium buffer is not by itself starvation.
+  local usingSupply=t.spsEfficiency and t.spsEfficiency>=0.92 and
+      t.spInput<0.30 and t.spOutput<c.spsOutputWarn and
+      (not t.spInputTrend120 or t.spInputTrend120<=c.spsTrendDeadband)
+  if usingSupply and not t.fuelRateLimited then
+    desired=math.max(desired,math.min(cap,t.burn+math.max(1,t.maxBurn*0.02)))
+  end
+  local processingSaturated=t.spsEfficiency and t.spsEfficiency<0.85 and
+      (t.spInput>0.15 or
+       t.spInputControlTrend and t.spInputControlTrend>c.spsTrendDeadband)
+  if processingSaturated and t.spWindowSeconds and t.spWindowSeconds>=60 then
+    spsThroughputLimit=math.max(0.1,base*1.04)
+    spsThroughputExpires=t.ts+180
+    desired=math.min(desired,spsThroughputLimit)
+    t.spsLearnedThroughputCap=spsThroughputLimit
+  end
   local trend=t.spInputControlTrend
   if trend and t.spControlSeconds and t.spControlSeconds>=c.spsMinTrendSeconds*0.9 then
     local correction=optimizerMath.feedback(trend,t.spInputCapacity,
@@ -866,7 +895,7 @@ local function autoSPS(t)
     target=math.min(t.burn,math.max(0.01,t.burn-downStep))
     reason="THROTTLE: FISSILE FUEL FALLING"
   elseif desired<t.burn-0.009 then
-    if elapsed>=12 then
+    if elapsed>=math.max(12,math.min(30,c.spsSettleSeconds)) then
       target=math.max(desired,t.burn-downStep)
       reason=spsOutputHold and "THROTTLE: ANTIMATTER BUFFER" or
         "TRIM: SPS USES LESS POLONIUM"
@@ -1016,7 +1045,7 @@ local fields={"ts","on","burn","actual","temp","damage","coolant","heated","wast
   "fuelNetPerTick","fuelRapidNet","fuelRapidProduction",
   "fuelProducedEstimate","fuelCap","fuelCapFresh",
   "fuelSampleSeconds","fuelRateLimited","tps","spsDemandBurn","spInputControlTrend",
-  "spControlSeconds","feAdvice","safeCap","limit"}
+  "spControlSeconds","feAdvice","safeCap","limit","spsLearnedThroughputCap"}
 local function history(t)
   if t.ts-lastLog<c.logSeconds then return end
   lastLog=t.ts
