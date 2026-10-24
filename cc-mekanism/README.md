@@ -12,6 +12,30 @@ separate historical CSV log schemas, each growing without a size cap.
 The older installer duplicated each new file to `*.new` before replacing it;
 with little disk headroom it could not complete.
 
+### Compressed distribution: works with 78,827 bytes free
+
+The installer now stages a **71,907-byte LZW-packed controller**
+(`controller.packed.lua`) and then replaces the old large
+`/cc-mekanism/controller.lua` with a tiny launcher downloaded from
+`controller-launcher.lua`. The packed file is decompressed **only in RAM**
+on each launch and verified using source length plus an embedded checksum.
+The full readable `controller.lua` remains in this GitHub repository.
+
+This removes the temporary requirement for ~101,003 bytes free. In a test
+matching the **78,827-byte free space** shown on the user's computer, with
+`optimizer_math.lua` and `thermal_model.lua` already installed, the new
+installer completes **without deleting any history or settings**. Test
+`test_packed_controller.lua` verifies the unpacked bytes exactly match
+GitHub source, while `test_installer_mock.lua` checks both this exact
+disk capacity and the low-space refusal/cleanup paths.
+
+The command and CC controls are unchanged:
+`cc-mekanism/controller`. Do not attempt to run or manually install the
+readable 97KB `controller.lua` from the repository onto a nearly-full
+CC computer; the **installer** is responsible for choosing the packed
+distribution. Every future source-code modification must regenerate the
+packed file; CI detects stale or mismatched payloads.
+
 **Recovery on the same computer:**
 
 ```text
