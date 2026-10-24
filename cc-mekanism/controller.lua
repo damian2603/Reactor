@@ -1123,16 +1123,12 @@ end
 -- telemetry update. A full clear is only necessary for a new layout/page.
 local monitorLayout=nil
 local monitorPaintCache={}
-local monitorDrawCalls=0
 local function scadaDraw(dev,isMonitor)
   local w,h=dev.getSize()
   if h<19 or w<38 then return false end
   buttons={}
   local function paint(y,label,fg,bg)
     if y<1 or y>h then return end
-    dev.setCursorPos(1,y)
-    dev.setBackgroundColor(bg or colors.black)
-    dev.setTextColor(fg or colors.white)
     local s=tostring(label):sub(1,w)
     local fgColor=fg or colors.white
     local bgColor=bg or colors.black
@@ -1140,6 +1136,9 @@ local function scadaDraw(dev,isMonitor)
     if prior and prior.text==s and prior.fg==fgColor and prior.bg==bgColor then
       return
     end
+    dev.setCursorPos(1,y)
+    dev.setBackgroundColor(bgColor)
+    dev.setTextColor(fgColor)
     dev.write(s..string.rep(" ",math.max(0,w-#s)))
     if isMonitor then
       monitorPaintCache[y]={text=s,fg=fgColor,bg=bgColor}
@@ -1701,8 +1700,8 @@ if rawget(_G,"CC_MEKANISM_TEST")==true then
     getInfo=function() return info end,
     drawMonitor=function(dev,t)
       current=t or current
-      render(dev,true)
-      return buttons
+      local ok=render(dev,true)
+      return buttons,ok
     end,
   }
 end
