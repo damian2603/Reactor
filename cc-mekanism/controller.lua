@@ -22,6 +22,8 @@ local defaults = {
   spsFeedbackGain=0.50, spsFeedForwardMargin=0.01,
   spsManualFeCapMargin=1.10,
   sampleSeconds=1, logSeconds=10,
+  historyMaxBytes=140000, historyMinFreeBytes=16000,
+  historyKeepPrevious=true, -- bounded rolling CSV plus one backup segment
   maxAutoBurn=1.0, step=0.1, stepSeconds=15,
   autoBurnCeiling=0, -- 0=use detected reactor maximum; manual override only
   autoRampFraction=0.005, -- 0.5% of detected max burn per ramp interval
@@ -102,9 +104,39 @@ else
   local f=fs.open(CONF,"w")
   if f then f.write(textutils.serialize(c));f.close() end
 end
+-- Never truncate the ONLY copy of saved settings when disk is nearly full.
+local function spaceFree()
+  if not fs.getFreeSpace then return nil end
+  local ok,free=pcall(fs.getFreeSpace,ROOT)
+  return ok and type(free)=="number" and free or nil
+end
 local function save()
-  local f=fs.open(CONF,"w")
-  if f then f.write(textutils.serialize(c));f.close() end
+  local body=textutils.serialize(c)
+  local free=spaceFree()
+  if free and free<#body+1024 then
+    return false,"disk full: settings NOT saved"
+  end
+  local tmp=CONF..".new"
+  if fs.exists(tmp) then pcall(fs.delete,tmp) end
+  local ok,err=pcall(function()
+    local f=assert(fs.open(tmp,"w"),"cannot open temporary settings")
+    local written,reason=pcall(f.write,body)
+    pcall(f.close)
+    if not written then error(reason) end
+    if fs.getSize and fs.getSize(tmp)~=#body then
+      error("partial settings write")
+    end
+  end)
+  if not ok then
+    if fs.exists(tmp) then pcall(fs.delete,tmp) end
+    return false,"settings staging failed: "..tostring(err)
+  end
+  local moved,moveErr=pcall(function()
+    if fs.exists(CONF) then fs.delete(CONF) end
+    fs.move(tmp,CONF)
+  end)
+  if not moved then return false,"settings rename failed: "..tostring(moveErr) end
+  return true
 end
 local function N(x)
   if type(x)=="table" then x=x.amount or x.value or x.stored or x.energy end
@@ -1356,14 +1388,37 @@ local fields={"ts","on","burn","actual","temp","damage","coolant","heated","wast
   "fuelProducedEstimate","fuelCap","fuelCapFresh",
   "fuelSampleSeconds","fuelRateLimited","tps","spsDemandBurn","spInputControlTrend",
   "spControlSeconds","feAdvice","safeCap","limit",
+  "storageFree","storageWarning",
   "spsTurbineFlowHardCap","spsCapReason","spsLearnedThroughputCap"}
+-- Bounded logging: history is telemetry, NEVER a reason to stop the RPS.
+-- Keep the latest CSV and, optionally, one previous segment.
 local function history(t)
   if t.ts-lastLog<c.logSeconds then return end
   lastLog=t.ts
-  local exists=fs.exists(CSV)
-  local f=fs.open(CSV,"a")
-  if not f then return end
-  if not exists then f.writeLine(table.concat(fields,",")..",mode,alarm") end
+  local free=spaceFree()
+  t.storageFree=free
+  local rotateAt=math.max(20000,c.historyMaxBytes)
+  local archive=CSV:gsub("%.csv$",".previous.csv")
+  if fs.exists(CSV) and fs.getSize(CSV)>=rotateAt then
+    local rotated,reason=pcall(function()
+      if c.historyKeepPrevious then
+        if fs.exists(archive) then fs.delete(archive) end
+        fs.move(CSV,archive)
+      else
+        fs.delete(CSV)
+      end
+    end)
+    if not rotated then
+      t.storageWarning="CSV rotation failed: "..tostring(reason)
+      return
+    end
+    free=spaceFree()
+    t.storageFree=free
+  end
+  if free and free<c.historyMinFreeBytes then
+    t.storageWarning="LOW DISK: telemetry logging paused (no SCRAM)"
+    return
+  end
   local function csvValue(v)
     if type(v)=="boolean" then v=v and 1 or 0 end
     if v==nil then return "" end
@@ -1377,7 +1432,25 @@ local function history(t)
   for _,key in ipairs(fields) do vals[#vals+1]=csvValue(t[key]) end
   vals[#vals+1]=csvValue(mode)
   vals[#vals+1]=csvValue(alarm)
-  f.writeLine(table.concat(vals,","));f.close()
+  local rowText=table.concat(vals,",")
+  if free and free<c.historyMinFreeBytes+#rowText+256 then
+    t.storageWarning="LOW DISK: CSV skipped to preserve settings space"
+    return
+  end
+  local exists=fs.exists(CSV)
+  local f,openErr=fs.open(CSV,"a")
+  if not f then
+    t.storageWarning="CSV cannot open: "..tostring(openErr)
+    return
+  end
+  local wrote,reason=pcall(function()
+    if not exists then f.writeLine(table.concat(fields,",")..",mode,alarm") end
+    f.writeLine(rowText)
+  end)
+  local closed,closeErr=pcall(f.close)
+  if not wrote or not closed then
+    t.storageWarning="CSV write failed: "..tostring(reason or closeErr)
+  end
 end
 local function row(dev,y,label,clr)
   local w,h=dev.getSize();if y<1 or y>h then return end
@@ -1560,6 +1633,10 @@ local function scadaDraw(dev,isMonitor)
     paint(9,"SPS diagnosis: "..tostring(current.spsDiagnosis))
     paint(11,"Control: "..info,colors.yellow)
     paint(13,"CSV log: /cc-mekanism/history_v5_thermal.csv")
+    paint(16,"CC free storage "..fmt(current.storageFree).." bytes")
+    if current.storageWarning then
+      paint(17,"DISK: "..tostring(current.storageWarning),colors.red)
+    end
     paint(15,"Note: 'potential' is not confirmed optimality.",colors.orange)
   end
   if isMonitor then
