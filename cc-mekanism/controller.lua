@@ -29,6 +29,7 @@ local defaults = {
   spsNoSolarHold=true, -- require Solar Neutron Activator telemetry
   spsBufferLow=0.08, spsBufferHigh=0.22,
   spsTrendDeadband=0.000025, spsMinTrendSeconds=45,
+  spsSettleSeconds=60, fuelMinSampleSeconds=120,
   safetyFlowFactor=0.78, requireTurbine=true,
   returnWaterRequired=false,
   alarmRedstoneSide="", -- optional output (e.g. "right"), true when latched
@@ -168,6 +169,11 @@ local spsInputWindow={}
 local spsBaseline=nil
 local fuelWindow={}
 local fuelCap=nil
+local fuelCapTimestamp=0
+local fuelSampleBurn=nil
+local fuelSampleStart=0
+local spsTrendResetAt=0
+local spsControlWindow={}
 local lastSpsDecision="WAITING FOR SAMPLES"
 local lastSpsChange=0
 local latched=false
@@ -330,8 +336,8 @@ local function read()
   -- This is the equivalent SPS FE spent on observed processing;
   -- it is NOT a direct measurement of incoming FE at the SPS coils.
   local ft=names.fuelTank
-  t.fuelStored=N(pc(ft,"getStored"))
-  t.fuelTankCapacity=N(pc(ft,"getCapacity"))
+  t.fuelStored=N(pc(ft,"getStored")) or N(pc(ft,"getStoredGas")) or N(pc(ft,"getStoredChemical"))
+  t.fuelTankCapacity=N(pc(ft,"getCapacity")) or N(pc(ft,"getTankCapacity"))
   t.fuelTankFill=t.fuelStored and t.fuelTankCapacity and t.fuelTankCapacity>0 and
     clamp(t.fuelStored/t.fuelTankCapacity,0,1) or nil
   t.imEnergy=N(pc(im,"getEnergyFilledPercentage"))
@@ -388,10 +394,20 @@ local function read()
     if t.spInput~=nil then
       spsInputWindow[#spsInputWindow+1]={time=t.ts,value=t.spInput}
       while #spsInputWindow>0 and t.ts-spsInputWindow[1].time>120 do table.remove(spsInputWindow,1) end
-      if #spsInputWindow>=2 then
-        local oldest=spsInputWindow[1]
-        local elapsed=t.ts-oldest.time
-        if elapsed>=20 then t.spInputTrend120=(t.spInput-oldest.value)/elapsed end
+      local first=spsInputWindow[1]
+      if #spsInputWindow>=2 and t.ts-first.time>=20 then
+        t.spInputTrend120=(t.spInput-first.value)/(t.ts-first.time)
+      end
+      if t.ts-spsTrendResetAt>=c.spsSettleSeconds then
+        spsControlWindow[#spsControlWindow+1]={time=t.ts,value=t.spInput}
+        while #spsControlWindow>1 and t.ts-spsControlWindow[1].time>c.spsMinTrendSeconds do
+          table.remove(spsControlWindow,1)
+        end
+        local start=spsControlWindow[1]
+        if #spsControlWindow>=2 and t.ts-start.time>=c.spsMinTrendSeconds*0.9 then
+          t.spInputControlTrend=(t.spInput-start.value)/(t.ts-start.time)
+          t.spControlSeconds=t.ts-start.time
+        end
       end
     end
   end
@@ -402,24 +418,38 @@ local function read()
     t.spRateAverage=total/#rateHistory
     t.spRateTrend=t.spRate-first.rate
   end
-  if t.fuelStored~=nil then
+  -- Measure tank depletion only after the burn setting has been stable.
+  -- The user's pipes normally remain full; the tank is the first buffer to drain.
+  if t.fuelStored~=nil and t.actual~=nil and t.burn~=nil then
+    if fuelSampleBurn==nil or math.abs(t.burn-fuelSampleBurn)>0.009 or
+        (previous and previous.on~=t.on) then
+      fuelWindow={}
+      fuelSampleBurn=t.burn
+      fuelSampleStart=t.ts
+    end
     fuelWindow[#fuelWindow+1]={ts=t.ts,stored=t.fuelStored}
     while #fuelWindow>1 and t.ts-fuelWindow[1].ts>c.fuelTrendSeconds do
       table.remove(fuelWindow,1)
     end
     local first=fuelWindow[1]
     local dt=t.ts-first.ts
-    if dt>=60 then
+    if dt>=c.fuelMinSampleSeconds and t.on==true then
       t.fuelNetPerTick=(t.fuelStored-first.stored)/dt/20
-      if t.actual and t.actual>0 and t.fuelTankFill and
-          t.fuelTankFill>0.10 and t.fuelTankFill<0.90 then
+      if t.fuelTankFill and t.fuelTankFill>0.10 and t.fuelTankFill<0.90 and
+          t.actual>0 then
         local estimate=t.actual+t.fuelNetPerTick
-        if estimate>0 then fuelCap=fuelCap and
-          (fuelCap*0.9+estimate*0.1) or estimate end
+        if estimate>0 then
+          fuelCap=fuelCap and (fuelCap*0.75+estimate*0.25) or estimate
+          fuelCapTimestamp=t.ts
+        end
       end
     end
+  else
+    fuelWindow={}
+    fuelSampleBurn=nil
   end
   t.fuelCap=fuelCap
+  t.fuelCapFresh=fuelCapTimestamp>0 and t.ts-fuelCapTimestamp<300
   if t.spWindowSeconds and t.spWindowSeconds>=45 and t.spInputTrend120 then
     if t.spInput<c.spsBufferLow and t.spInputTrend120< -c.spsTrendDeadband then
       t.feAdvice="HOLD FE: POLONIUM SHORTAGE"
@@ -537,7 +567,7 @@ local function autoSPS(t)
     cap=math.min(cap,t.snaWasteCapacity*
       clamp(c.spsSolarUtilization,0.5,1))
   end
-  if t.fuelCap then cap=math.min(cap,t.fuelCap*c.fuelMargin) end
+  if t.fuelCapFresh and t.fuelCap then cap=math.min(cap,t.fuelCap*c.fuelMargin) end
   if t.fuelTankFill and t.fuelTankFill<c.fuelReserve then
     cap=math.min(cap,math.max(0,(t.actual or t.burn)*0.8))
   end
@@ -589,34 +619,34 @@ local function autoSPS(t)
     reason="CAP: AVAILABLE SOLAR / TURBINE CAPACITY"
   elseif not stabilized then
     reason="STABILIZING SPS / SOLAR PROCESSING"
-  elseif t.spWindowSeconds==nil or t.spWindowSeconds<c.spsMinTrendSeconds or
-      t.spInputTrend120==nil then
+  elseif t.spControlSeconds==nil or t.spControlSeconds<c.spsMinTrendSeconds*0.9 or
+      t.spInputControlTrend==nil then
     reason="HOLD: COLLECTING SPS BUFFER TREND"
   elseif t.snaMaxOutputFill>=0.75 then
     reason="HOLD: SNA OUTPUT TRANSFER SLOW"
   elseif t.steam and t.steam>=c.feSteamHold then
     reason="HOLD: STEAM SAFETY HEADROOM"
   elseif t.spInput>=c.spsBufferHigh and
-      t.spInputTrend120>c.spsTrendDeadband then
+      t.spInputControlTrend>c.spsTrendDeadband then
     target=math.max(0,t.burn-step)
     reason="TRIM: POLONIUM SURPLUS / SAVE FUEL"
   elseif t.spInput>=c.spsBufferHigh and
-      math.abs(t.spInputTrend120)<=c.spsTrendDeadband then
+      math.abs(t.spInputControlTrend)<=c.spsTrendDeadband then
     -- Probe downward only when there is a comfortable stored reserve.
     target=math.max(0,t.burn-step)
     reason="PROBE: MINIMUM SUSTAINABLE BURN"
   elseif t.spInput<c.spsBufferLow and
-      t.spInputTrend120< -c.spsTrendDeadband and t.burn<cap-0.009 then
+      t.spInputControlTrend< -c.spsTrendDeadband and t.burn<cap-0.009 then
     target=math.min(cap,t.burn+step)
     reason="RAMP: POLONIUM BUFFER DEPLETING"
   elseif t.spInput<c.spsBufferLow and t.burn<cap-0.009 and
       t.spRate120 and t.spRate120>0 then
     target=math.min(cap,t.burn+step)
     reason="RAMP: RESTORE POLONIUM RESERVE"
-  elseif t.spInputTrend120>c.spsTrendDeadband and t.spInput>=c.spsBufferLow then
+  elseif t.spInputControlTrend>c.spsTrendDeadband and t.spInput>=c.spsBufferLow then
     target=math.max(0,t.burn-step)
     reason="TRIM: BUFFER RISING"
-  elseif t.spInputTrend120< -c.spsTrendDeadband and
+  elseif t.spInputControlTrend< -c.spsTrendDeadband and
       t.spInput<c.spsBufferHigh and t.burn<cap-0.009 then
     target=math.min(cap,t.burn+step)
     reason="RAMP: BUFFER FALLING"
@@ -636,6 +666,8 @@ local function autoSPS(t)
       return
     end
     lastChange=now
+    spsTrendResetAt=now
+    spsControlWindow={}
   end
   t.limit=reason
   lastSpsDecision=reason
@@ -1023,6 +1055,8 @@ local function command(cmd)
     end
     mode=cmd=="fe" and "FE" or "SPS"
     lastChange=current.ts or os.epoch("utc")/1000
+    spsTrendResetAt=lastChange
+    spsControlWindow={}
     info="AUTO "..mode.." enabled; reactor never auto-starts"
     return
   end
