@@ -114,7 +114,7 @@ discover()
 local mode="MANUAL" -- NEVER persist automatic operation or auto-start
 local latched=false
 local alarm,info="","Boot: MANUAL, auto-start disabled"
-local current={}, previous=nil
+local current, previous = {}, nil
 local recentValid=0
 local lastChange,lastLog=0,0
 local learnedSteamPerBurn=nil
