@@ -230,9 +230,12 @@ local function read()
   t.condensers=N(pc(u,"getCondensers"))
   t.dispersers=N(pc(u,"getDispersers"))
   t.maxProduction=N(pc(u,"getMaxProduction"))
+  -- Mekanism CC reports J/t; this pack uses 2.5 J per FE.
+  t.maxProductionFE=t.maxProduction and t.maxProduction/JOULES_PER_FE
   t.steamCapacity=N(pc(u,"getSteamCapacity"))
   t.steamIn=N(pc(u,"getLastSteamInputRate"))
   t.power=N(pc(u,"getProductionRate"))
+  t.powerFE=t.power and t.power/JOULES_PER_FE
   t.energy=N(pc(u,"getEnergyFilledPercentage"))
   if t.power and t.maxProduction and t.maxProduction>0 then
     t.productionFraction=clamp(t.power/t.maxProduction,0,5)
@@ -332,6 +335,8 @@ local function read()
   end
   t.imEnergy=N(pc(im,"getEnergyFilledPercentage"))
   t.imIn=N(pc(im,"getLastInput"));t.imOut=N(pc(im,"getLastOutput"))
+  t.imInFE=t.imIn and t.imIn/JOULES_PER_FE
+  t.imOutFE=t.imOut and t.imOut/JOULES_PER_FE
   if previous then
     local dt=t.ts-previous.ts
     if dt>0.2 and dt<15 then
@@ -451,6 +456,8 @@ local function autoSPS(t)
   cap=math.max(0,math.floor(cap*100+0.5)/100)
   t.safeCap=cap
   t.spsTargetRate=cap/(WASTE_PER_POLONIUM*SPS_POLONIUM_PER_ANTIMATTER)
+  t.spsTargetFE=t.spsTargetRate*SPS_POLONIUM_PER_ANTIMATTER*
+    SPS_JOULES_PER_POLONIUM/JOULES_PER_FE
   local step=math.max(0.1,math.floor(t.maxBurn*
     clamp(c.spsRampFraction,0.0001,0.05)*100+0.5)/100)
   local target=t.burn
@@ -620,14 +627,16 @@ end
 local fields={"ts","on","burn","actual","temp","damage","coolant","heated","waste",
   "fuel","steamMade","coolantType","rLength","rWidth","rHeight","assemblies","boilEfficiency",
   "steam","steamIn","flow","maxFlow","power","energy","tLength","tWidth","tHeight",
-  "blades","coils","vents","condensers","maxProduction","waterOut","productionFraction",
+  "blades","coils","vents","condensers","maxProduction",
+  "powerFE","maxProductionFE","waterOut","productionFraction",
   "spInput","spOutput","spRate","spInputAmount","spOutputAmount",
   "spEnergyUsedFE","snaCount","snaActive","snaSun","snaProduction",
   "snaWasteCapacity","snaAntimatterPotential","snaMaxOutputFill",
   "snaMaxInputFill","snaTotalInput","snaTotalOutput",
-  "fissionAntimatterPotential","spsEfficiency","spsTargetRate","spsDiagnosis",
+  "fissionAntimatterPotential","spsEfficiency","spsTargetRate","spsTargetFE","spsDiagnosis",
   "spLength","spWidth","spHeight","spCoils",
-  "bSteam","bHot","bWater","bBoilCapacity","imEnergy","imIn","imOut"}
+  "bSteam","bHot","bWater","bBoilCapacity","imEnergy","imIn",
+  "imOut","imInFE","imOutFE"}
 local function history(t)
   if t.ts-lastLog<c.logSeconds then return end
   lastLog=t.ts
@@ -680,17 +689,17 @@ local function render(dev,isMonitor)
     row(dev,7,"SPS ANTIMATTER "..n(current.spRate,3).." mB/t | "..
       "FROM FISSION "..n(current.fissionAntimatterPotential,3).." mB/t",colors.lime)
     row(dev,8,"SPS Polonium "..p(current.spInput).." | Antimatter "..p(current.spOutput)..
-      " | SPS FE estimate "..fmt(current.spEnergyUsedFE).."/t")
+      " | SPS FE used ~"..fmt(current.spEnergyUsedFE).." FE/t")
     row(dev,9,"SOLAR "..tostring(current.snaActive or 0).."/"..tostring(current.snaCount or 0)..
       " active | rate "..fmt(current.snaProduction).." polonium/t | peak "..
       fmt(current.snaPeak))
     row(dev,10,"SOLAR input "..p(current.snaMaxInputFill).." | output "..
       p(current.snaMaxOutputFill).." | waste capacity "..fmt(current.snaWasteCapacity).."/t")
     row(dev,11,"SPS potential "..n(current.spsTargetRate,3).." AM/t | "..
-      "conversion efficiency "..(current.spsEfficiency and
-      n(current.spsEfficiency*100,1).."%" or "--"))
-    row(dev,12,"Turbine FE "..fmt(current.power).."/"..fmt(current.maxProduction)..
-      " | steam "..p(current.steam).." | FE buffer "..p(current.energy))
+      "FE required ~"..fmt(current.spsTargetFE).."/t | balance "..
+      (current.spsEfficiency and n(current.spsEfficiency*100,1).."%" or "--"))
+    row(dev,12,"Turbine "..fmt(current.powerFE).."/"..fmt(current.maxProductionFE)..
+      " FE/t | steam "..p(current.steam).." | FE buffer "..p(current.energy))
     row(dev,13,"Steam flow "..fmt(current.flow).."/"..fmt(current.maxFlow)..
       " | boiler "..(names.boiler and "connected" or "none")..
       " | sodium "..(current.sodiumCoolant and "YES" or "NO"))
