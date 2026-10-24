@@ -99,7 +99,18 @@ local function discover()
   local old=P.monitor
   P.reactor=choose(reactors,cfg.reactor)
   P.sps=choose(sps,cfg.sps)
-  P.fuelTank=choose(tanks,cfg.fuelTank)
+  -- Prefer a unique chemical tank containing Fissile Fuel. If empty
+  -- or ambiguous, use explicitly configured peripheral name.
+  local fissile={}
+  for _,name in ipairs(tanks) do
+    local stack=pc(name,"getStored") or pc(name,"getStoredGas")
+    if type(stack)=="table" then
+      local gas=tostring(stack.name or stack.id or ""):lower()
+      if gas:find("fissile",1,true) then fissile[#fissile+1]=name end
+    end
+  end
+  P.fuelTank=choose(tanks,cfg.fuelTank) or
+    (not cfg.fuelTank and choose(fissile,nil))
   P.turbine=choose(turbines,nil)
   P.monitor=choose(monitors,cfg.monitor)
   P.solar=solars
@@ -365,7 +376,9 @@ local function draw(dev,side)
         model.cfg.userCap=cfg.userCap end},
       {"CAP+",function()local before=cfg.userCap;cfg.userCap=cfg.userCap+25
         if not saveConfig() then cfg.userCap=before end
-        model.cfg.userCap=cfg.userCap end}}
+        model.cfg.userCap=cfg.userCap end},
+      {"RECAL",function()model=control.new(cfg)
+        state.info="FUEL AND SPS CALIBRATION RESET; AUTOMATIC SEARCH RESTARTED" end}}
     local x=1;touch[side]={}
     for _,entry in ipairs(buttons) do
       local label="["..entry[1].."]"
@@ -378,7 +391,7 @@ local function draw(dev,side)
         end
       end
     end
-    line(h-1,"Keyboard: A AUTO / M MANUAL / X SCRAM / Q QUIT",colors.white)
+    line(h-1,"Keyboard: A AUTO / M MAN / R RECAL / X SCRAM / Q QUIT",colors.white)
     line(h,"No auto activation; hardware SCRAM strongly recommended",colors.gray)
   end
   for y=1,h do
@@ -422,6 +435,8 @@ local function inputLoop()
           state.mode="AUTO";state.info="AUTO ON. NEVER AUTO-STARTS."
         else state.info="AUTO NEEDS HEALTHY RUNNING REACTOR + TANK + SPS" end
       elseif ch=="m" then state.mode="MANUAL";state.info="MANUAL CONTROL"
+      elseif ch=="r" then model=control.new(cfg)
+        state.info="CALIBRATION RESET - RELEARNING FISSILE FUEL SUPPLY"
       elseif ch=="x" or ch=="s" then emergency("OPERATOR SCRAM")
       elseif ch=="q" then state.running=false;state.info="EXIT: SCRAM ON EXIT"
       elseif ch=="+" or ch=="-" then
@@ -455,6 +470,7 @@ end
 -- Allow pure mock runtime testing without actual CC.Tweaked hardware.
 if rawget(_G,"ANTIMATTER_UNIT_TEST") then
   return {control=control,setBurn=setBurn,safety=control.safety,
-    state=state,config=cfg}
+    state=state,config=cfg,peripherals=P,discover=discover,
+    sample=tsSample,fastSafety=fastSafety,emergency=emergency}
 end
 main()
