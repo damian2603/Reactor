@@ -1,4 +1,4 @@
--- Project Infinity / Mekanism Fission-Turbine-SPS Controller 2.2 (FE-output controller)
+-- Project Infinity / Mekanism Fission-Turbine-SPS Controller 3.0 (SPS-first antimatter optimizer)
 -- CC:Tweaked 1.20.1. Standalone, no dependencies.
 -- Adapted from analysis of Mekanism's CC API; inspired by cc-mek-scada's
 -- fail-safe alarm philosophy. Not a copy of upstream code.
@@ -20,6 +20,11 @@ local defaults = {
   feSteamHold=0.89, feSteamThrottle=0.93,
   feRateStabilitySeconds=12, -- allow turbine flow to settle after each change
   spsInputWarn=0.85, spsOutputWarn=0.90,
+  spsSolarUtilization=0.92, -- solar peak throughput headroom
+  spsSteamFlowFraction=0.96, -- thermal flow cap, not a power target
+  spsRateChangeSeconds=12,
+  spsRampFraction=0.01, -- fraction of actual max burn rate per step
+  spsNoSolarHold=true, -- require Solar Neutron Activator telemetry
   safetyFlowFactor=0.78, requireTurbine=true,
   returnWaterRequired=false,
   alarmRedstoneSide="", -- optional output (e.g. "right"), true when latched
@@ -93,6 +98,10 @@ local schema={
   monitor={"setTextScale","getSize"},
 }
 local order={"reactor","turbine","sps","boiler","matrix","monitor"}
+local SPS_POLONIUM_PER_ANTIMATTER=1000
+local WASTE_PER_POLONIUM=10
+local SPS_JOULES_PER_POLONIUM=1000000
+local JOULES_PER_FE=2.5
 local names,duplicates={},{}
 local function isMonitorPeripheral(name)
   -- The device type is more reliable than assuming every peripheral
@@ -108,6 +117,15 @@ end
 local function discover()
   local all=peripheral.getNames()
   table.sort(all)
+  names.sna={}
+  for _,per in ipairs(all) do
+    if has(per,"getPeakProductionRate") and
+        has(per,"getProductionRate") and has(per,"canSeeSun") and
+        has(per,"getInputFilledPercentage") and
+        has(per,"getOutputFilledPercentage") then
+      names.sna[#names.sna+1]=per
+    end
+  end
   for _,kind in ipairs(order) do
     local matches={}
     for _,per in ipairs(all) do
@@ -230,12 +248,60 @@ local function read()
   t.spInput=N(pc(sp,"getInputFilledPercentage"))
   t.spOutput=N(pc(sp,"getOutputFilledPercentage"))
   t.spRate=N(pc(sp,"getProcessRate"))
+  t.spInputAmount=N(pc(sp,"getInput"))
+  t.spOutputAmount=N(pc(sp,"getOutput"))
+  t.spEnergyUsedFE=t.spRate and
+    t.spRate*SPS_POLONIUM_PER_ANTIMATTER*
+    SPS_JOULES_PER_POLONIUM/JOULES_PER_FE or nil
   t.spLength=N(pc(sp,"getLength"))
   t.spWidth=N(pc(sp,"getWidth"))
   t.spHeight=N(pc(sp,"getHeight"))
   t.spCoils=N(pc(sp,"getCoils"))
   t.spInputCapacity=N(pc(sp,"getInputCapacity"))
   t.spOutputCapacity=N(pc(sp,"getOutputCapacity"))
+  -- Sum production potential from ALL connected Solar Neutron Activators.
+  -- getProductionRate() is weather/sun/biome dependent: capacity, not
+  -- guaranteed actual output if waste input is missing or output is blocked.
+  t.snaCount=#(names.sna or {})
+  t.snaActive=0
+  t.snaSun=0
+  t.snaBroken=0
+  t.snaPeak=0
+  t.snaProduction=0
+  t.snaMaxOutputFill=0
+  t.snaMaxInputFill=0
+  t.snaTotalOutput=0
+  t.snaTotalInput=0
+  for _,dev in ipairs(names.sna or {}) do
+    local rate=N(pc(dev,"getProductionRate"))
+    local peak=N(pc(dev,"getPeakProductionRate"))
+    local inFill=N(pc(dev,"getInputFilledPercentage"))
+    local outFill=N(pc(dev,"getOutputFilledPercentage"))
+    local gasIn=N(pc(dev,"getInput"))
+    local gasOut=N(pc(dev,"getOutput"))
+    local sunlight=pc(dev,"canSeeSun")
+    if rate==nil or peak==nil or inFill==nil or outFill==nil or sunlight==nil then
+      t.snaBroken=t.snaBroken+1
+    else
+      t.snaPeak=t.snaPeak+math.max(0,peak)
+      t.snaMaxInputFill=math.max(t.snaMaxInputFill,inFill)
+      t.snaMaxOutputFill=math.max(t.snaMaxOutputFill,outFill)
+      t.snaTotalOutput=t.snaTotalOutput+(gasOut or 0)
+      t.snaTotalInput=t.snaTotalInput+(gasIn or 0)
+      if sunlight then t.snaSun=t.snaSun+1 end
+      if rate>0 then t.snaActive=t.snaActive+1 end
+      -- A blocked output prevents useful conversion even when peak speed
+      -- remains high. Avoid demanding more waste when output cannot leave.
+      if outFill<0.90 then t.snaProduction=t.snaProduction+math.max(0,rate) end
+    end
+  end
+  t.snaWasteCapacity=t.snaProduction*WASTE_PER_POLONIUM
+  t.snaAntimatterPotential=t.snaProduction/SPS_POLONIUM_PER_ANTIMATTER
+  t.fissionAntimatterPotential=t.actual and
+      t.actual/(WASTE_PER_POLONIUM*SPS_POLONIUM_PER_ANTIMATTER) or nil
+  t.spsEfficiency=t.spRate and t.fissionAntimatterPotential and
+      t.fissionAntimatterPotential>0 and
+      t.spRate/t.fissionAntimatterPotential or nil
   t.imEnergy=N(pc(im,"getEnergyFilledPercentage"))
   t.imIn=N(pc(im,"getLastInput"));t.imOut=N(pc(im,"getLastOutput"))
   if previous then
@@ -297,8 +363,9 @@ local function bottleneck(t)
   add(t.fuel and t.fuel<0.05,"LOW FUEL")
   return table.concat(reasons,", ")
 end
-local function safeCap(t)
+local function safeCap(t,flowFraction)
   local cap=t.maxBurn or 0
+  flowFraction=flowFraction or c.feTarget
   if c.autoBurnCeiling>0 then cap=math.min(cap,c.autoBurnCeiling) end
   -- Empirical steam-to-burn conversion: only direct-water-cooled fission.
   -- For sodium cooling, a separate boiler converts heat to steam.
@@ -316,15 +383,123 @@ local function safeCap(t)
   if t.bFormed~=true and not t.sodiumCoolant and
       learnedSteamPerBurn and
       t.maxFlow and t.maxFlow>0 then
-    cap=math.min(cap,t.maxFlow*c.feTarget/learnedSteamPerBurn)
+    cap=math.min(cap,t.maxFlow*flowFraction/learnedSteamPerBurn)
     if c.returnWaterRequired and t.waterOut and t.waterOut>0 then
       cap=math.min(cap,t.waterOut*0.95/learnedSteamPerBurn)
     end
   end
   return math.floor(math.max(0,cap)*100+0.5)/100
 end
+local function autoSPS(t)
+  -- First objective: maximize mB antimatter/t without filling waste,
+  -- Polonium or Antimatter buffers. Turbine FE is a by-product.
+  if not names.sps or t.spFormed~=true or t.spRate==nil or
+      t.spInput==nil or t.spOutput==nil then
+    mode="MANUAL"
+    info="SPS AUTO unavailable: missing SPS telemetry"
+    return
+  end
+  if t.snaCount==0 or t.snaBroken>0 then
+    if c.spsNoSolarHold then
+      mode="MANUAL"
+      info="SPS AUTO needs ALL Solar Neutron Activators connected"
+      return
+    end
+  end
+  if t.sodiumCoolant and not names.boiler then
+    mode="MANUAL";info="SPS AUTO requires sodium boiler telemetry";return
+  end
+  if c.returnWaterRequired and (not t.waterOut or t.waterOut==0) then
+    mode="MANUAL";info="SPS AUTO requires return-water telemetry";return
+  end
+  if t.burn==nil or t.maxBurn==nil then return end
+  local baseCap=safeCap(t,c.spsSteamFlowFraction)
+  local cap=baseCap
+  if t.snaCount>0 and t.snaBroken==0 then
+    cap=math.min(cap,t.snaWasteCapacity*
+      clamp(c.spsSolarUtilization,0.5,1))
+  end
+  cap=math.max(0,math.floor(cap*100+0.5)/100)
+  t.safeCap=cap
+  t.spsTargetRate=cap/(WASTE_PER_POLONIUM*SPS_POLONIUM_PER_ANTIMATTER)
+  local step=math.max(0.1,math.floor(t.maxBurn*
+    clamp(c.spsRampFraction,0.0001,0.05)*100+0.5)/100)
+  local target=t.burn
+  local reason="HOLD: SPS THROUGHPUT"
+  local now=t.ts
+  local stabilized=(now-lastChange)>=c.spsRateChangeSeconds
+  local solarAvailable=t.snaCount>0 and t.snaBroken==0 and
+    t.snaProduction>0
+  local outputBlocked=t.spOutput>=c.spsOutputWarn
+  -- Do not waste fissile fuel when solar activation is impossible:
+  -- e.g. night or rain reducing net available throughput to zero.
+  if not solarAvailable and t.snaCount>0 and t.snaBroken==0 then
+    target=0
+    reason="PAUSE: NO SOLAR POLONIUM PRODUCTION"
+  elseif outputBlocked then
+    target=0
+    reason="PAUSE: ANTIMATTER OUTPUT FULL"
+  elseif t.snaMaxOutputFill>=0.94 then
+    target=math.max(0,t.burn-math.max(step*3,t.burn*0.25))
+    reason="THROTTLE: SOLAR OUTPUT BACKPRESSURE"
+  elseif t.spInput>=c.spsInputWarn then
+    target=math.max(0,t.burn-math.max(step*3,t.burn*0.20))
+    reason="THROTTLE: SPS POLONIUM FULL"
+  elseif t.waste>=c.wasteWarn or
+      t.wasteDelta and t.wasteDelta>0.002 and t.waste>=0.30 then
+    target=math.max(0,t.burn-math.max(step*2,t.burn*0.15))
+    reason="THROTTLE: NUCLEAR WASTE BACKLOG"
+  elseif t.heated>=c.heatedWarn or
+      t.coolant<c.coolantWarn or t.temp>=c.tempWarn or
+      t.bSteam and t.bSteam>=c.steamWarn or
+      t.bHot and t.bHot>=c.heatedWarn then
+    target=math.max(0,t.burn-math.max(step*2,t.burn*0.10))
+    reason="THROTTLE: REACTOR COOLING"
+  elseif t.steam and t.steam>=c.feSteamThrottle and
+      (t.steamDelta==nil or t.steamDelta>=-0.001) then
+    target=math.max(0,t.burn-math.max(step,t.burn*0.10))
+    reason="THROTTLE: TURBINE STEAM BACKPRESSURE"
+  elseif t.burn>cap+0.009 then
+    target=cap
+    reason="CAP: AVAILABLE SOLAR / TURBINE CAPACITY"
+  elseif not stabilized then
+    reason="STABILIZING SPS / SOLAR PROCESSING"
+  elseif t.spInput>=0.50 and t.spsEfficiency and
+      t.spsEfficiency<0.70 then
+    -- Polonium is present but SPS is not processing it at the
+    -- theoretical rate. Additional fission cannot fix that.
+    reason="HOLD: SPS POWER / PROCESSING BOTTLENECK"
+    if t.spInputDelta and t.spInputDelta>0.003 then
+      target=math.max(0,t.burn-step)
+    end
+  elseif t.snaMaxOutputFill>=0.75 then
+    reason="HOLD: SNA OUTPUT TRANSFER SLOW"
+  elseif t.steam and t.steam>=c.feSteamHold then
+    reason="HOLD: STEAM SAFETY HEADROOM"
+  elseif t.burn<cap-0.009 then
+    target=math.min(cap,t.burn+step)
+    reason="RAMP: MAXIMIZING ANTIMATTER / TICK"
+  else
+    reason="HOLD: MAX SUSTAINABLE SPS THROUGHPUT"
+  end
+  -- Prevent twitchy feedback on every tick; pauses and cap drops
+  -- bypass the timer, but normal increases cannot.
+  if target>t.burn and not stabilized then target=t.burn end
+  target=math.max(0,math.min(target,cap))
+  if math.abs(target-t.burn)>=0.009 then
+    local ok,err=burn(target)
+    if not ok then
+      mode="MANUAL";info="SPS AUTO setBurnRate failed: "..tostring(err)
+      return
+    end
+    lastChange=now
+  end
+  t.limit=reason
+  info=reason.." | AM "..n(t.spRate,3).."/"..n(t.spsTargetRate,3).." mB/t"
+end
 local function auto(t)
   if mode=="MANUAL" or latched or t.on~=true then return end
+  if mode=="SPS" then autoSPS(t);return end
   if mode=="SPS" and (not names.sps or t.spFormed~=true or
       t.spInput==nil or t.spOutput==nil or t.spRate==nil) then
     mode="MANUAL";info="AUTO SPS disabled: no SPS data";return
