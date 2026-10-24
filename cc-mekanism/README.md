@@ -2,7 +2,7 @@
 
 Standalone ComputerCraft / CC:Tweaked controller for **Mekanism Fission Reactor + Industrial Turbine + SPS**, developed for Minecraft 1.20.1 / Project Infinity 0.1. The separate NuclearCraft optimizer in this repository is untouched.
 
-**Status: v2.2 experimental (autodetection of multiblock sizes).** Tested against inspected Mekanism API source, **not yet validated in an actual running Project Infinity world**. Do not rely on this program as your only reactor safety mechanism.
+**Status: v3.0 experimental (autodetection of multiblock sizes).** Tested against inspected Mekanism API source, **not yet validated in an actual running Project Infinity world**. Do not rely on this program as your only reactor safety mechanism.
 
 ## Install in ComputerCraft
 
@@ -78,6 +78,27 @@ To impose your own additional cap, press **C** and enter a value >0; enter **0**
 This is **adaptive, but not omniscient**: there is no Mekanism peripheral that exposes an entire pipe network's true safe throughput. For example, Polonium production may be bottlenecked by Solar Neutron Activators or chemical tanks. The controller detects symptoms via Nuclear Waste and SPS buffers, then throttles. Keep the independent reactor safety logic connected.
 
 The program **never silently changes turbine dumping mode**. Inspect your water return loop and turbine vent/dump mode manually.
+
+
+### v3.0 — SPS-first antimatter governor
+
+**SPS production is the primary optimization objective.** Wired modems must expose the **SPS Port** and **all Solar Neutron Activators** to the same ComputerCraft computer, in addition to the reactor and turbine. Do not cover the sky-facing side of Solar Neutron Activators. Press **P** to engage SPS AUTO; it starts in MANUAL after every reboot.
+
+Mekanism's actual processing ratios:
+- 1 mB burned fuel → 1 mB Nuclear Waste.
+- 10 mB Nuclear Waste → 1 mB Polonium (Solar Neutron Activator).
+- 1000 mB Polonium → 1 mB Antimatter in SPS.
+- SPS requires **1 million Mekanism Joules per Polonium mB**, and Project Infinity converts **2.5 J to 1 FE**. Hence 1 mB Antimatter requires approximately **400 million FE**.
+
+At 400 mB/t burn, the upper bound is **0.040 mB Antimatter/t**; at 1920 mB/t it is **0.192 mB/t**, *if* solar conversion, SPS power and transport can sustain it.
+
+The controller detects any number of connected Solar Neutron Activators, reads weather/biome-sensitive `getProductionRate`, and targets up to 92% of the current total Solar throughput (10 waste per operation). It further respects the reactor burn capacity, physical cooling/steam flow limits, changing waste fills, Polonium backpressure and Antimatter export backpressure. If solar conversion rate drops to zero (e.g. night), it pauses burn instead of accumulating Nuclear Waste. It uses SPS `getProcessRate()` as the observed Antimatter/t, and diagnoses likely energy, polonium feed, waste transfer or steam bottlenecks.
+
+**This is a telemetry-based adaptive estimator, not a perfect closed-loop full-chain throughput model**: the native SPS API doesn't reveal the actual total FE accepted through all its coils, and Solar Neutron Activator `getProductionRate` reports its weather-adjusted capability rather than guaranteed executed operations when starved or backed up. The controller cannot directly power the SPS or change its external energy input.
+
+**Important unit correction:** Mekanism's turbine energy readings are **J/t, not FE/t**. New UI converts those using pack-specific 2.5 J/FE. For example 79.98 MJ/t = 31.99 MFE/t; 0.040 AM/t SPS consumes ~16 MFE/t equivalent.
+
+Optional setting `spsNoSolarHold=false` allows SPS AUTO without SNA peripheral data, but lacks live throughput caps and is *not recommended*. AUTO FE remains separate. On first trial use a moderate `autoBurnCeiling`, and keep independent redstone fission safeguards and stable coolant supply.
 
 ### v2.2 turbine-generation governor
 
