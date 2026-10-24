@@ -245,4 +245,27 @@ do
   assert(ctl.fuelEstimate and math.abs(ctl.fuelEstimate-520)<6,
     "corrected fuel production must remain stable near 520mB/t")
 end
+-- Existing users who saved FE or burn cap on the touchscreen still
+-- have all of the OLD defaults serialized in cc-antimatter/settings.
+-- Verify one-time migration to quiet tuning without losing the user CAP.
+do
+  local upgraded=core.defaults({
+    userCap=575,fluxFE=24000000,coolantWarn=0.95,
+    rampStep=12,downwardStep=38,changeIntervalSeconds=6
+  })
+  assert(upgraded.legacyControllerMigrated==true,
+    "legacy settings with old oscillating defaults should migrate")
+  assert(upgraded.userCap==575 and upgraded.fluxFE==24000000,
+    "keep manually edited operator limits")
+  assert(upgraded.rampStep==1 and upgraded.downwardStep==2 and
+    upgraded.changeIntervalSeconds==2 and upgraded.coolantWarn==0.88,
+    "replace +12/-38 and 95% aggressive cooldown defaults")
+  local custom=core.defaults({
+    userCap=575,rampStep=0.5,downwardStep=1,
+    changeIntervalSeconds=3,coolantWarn=0.91
+  })
+  assert(custom.rampStep==0.5 and custom.downwardStep==1 and
+    custom.coolantWarn==0.91 and not custom.legacyControllerMigrated,
+    "do not silently change custom tuning")
+end
 print('antimatter v1 controller model regressions: OK')
