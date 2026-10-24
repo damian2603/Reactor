@@ -12,6 +12,7 @@ local defaults = {
   fuelTank="", fluxLimitFE=16000000, fuelReserve=0.15,
   fuelMargin=0.90, fuelTrendSeconds=180,
   fuelRapidSeconds=30, fuelEstimateInterval=25, fuelLimitStart=0.30,
+  spsFuelDeficitMinimum=1.0, spsFuelDeficitFraction=0.01,
   fuelLimitRelease=0.40, fuelGraceSeconds=45,
   spsRampSeconds=5, spsRampMaxFraction=0.02,
   spsOutputResume=0.75, spsStopOutput=0.98,
@@ -947,8 +948,11 @@ local function autoSPS(t)
   -- Deficit detected while the Elite Tank is still >30% must ALSO cap
   -- burn: waiting for the low-fuel threshold could waste large reserves.
   -- Use only a measured 30s trend and a material (>1%) deficit.
-  local rapidDeficit=t.fuelRapidNet and t.fuelRapidProduction and
-      t.fuelRapidNet< -math.max(1,t.actual*0.01)
+  local fuelDeficit,fuelDeficitThreshold=optimizerMath.fuelDeficit(
+    t.fuelRapidNet,t.actual,c.spsFuelDeficitMinimum,c.spsFuelDeficitFraction)
+  t.fuelDeficitThreshold=fuelDeficitThreshold
+  t.fuelDeficitMaterial=fuelDeficit
+  local rapidDeficit=fuelDeficit and t.fuelRapidProduction~=nil
   if rapidDeficit then
     limitCap(math.max(0.01,t.fuelRapidProduction*c.fuelMargin),
       "FUEL PRODUCTION (RAPID)")
@@ -1104,11 +1108,11 @@ local function autoSPS(t)
         not (t.bWater and t.dumpExcess and t.bWater<0.20) and
         not (t.heatedDelta and t.heatedDelta>0.002) and
         not (tankFill and tankFill<c.fuelLimitStart) and
-        not (t.fuelRapidNet and t.fuelRapidNet< -0.005) then
+        not fuelDeficit then
       local ready=t.fuelCapFresh or
         (tankFill and tankFill>=c.fuelLimitRelease and
           t.fuelSampleSeconds and t.fuelSampleSeconds>=c.fuelRapidSeconds and
-          t.fuelRapidNet and t.fuelRapidNet>=-0.001)
+          t.fuelRapidNet and not fuelDeficit)
       if ready then
         target=math.min(desired,t.burn+upStep)
         reason="RAMP: SPS PRODUCTION DEMAND"
@@ -1239,6 +1243,7 @@ local fields={"ts","on","burn","actual","temp","damage","coolant","heated","wast
   "imOut","imInFE","imOutFE",
   "fuelSource","fuelAvailable","reactorFuelAmount","fuelTankFill",
   "fuelNetPerTick","fuelRapidNet","fuelRapidProduction","fuelRapidLimited",
+  "fuelDeficitMaterial","fuelDeficitThreshold",
   "fuelProducedEstimate","fuelCap","fuelCapFresh",
   "fuelSampleSeconds","fuelRateLimited","tps","spsDemandBurn","spInputControlTrend",
   "spControlSeconds","feAdvice","safeCap","limit",
@@ -1367,7 +1372,7 @@ local function scadaDraw(dev,isMonitor)
     bar(11,"Waste",current.waste,colors.yellow)
     bar(12,"Fuel",current.fuel,colors.lime)
     paint(13,"Fuel "..tostring(current.fuelSource or "MISSING").." "..p(current.fuelFillForControl)..
-      " net "..n(current.fuelRapidNet,2).." mB/t")
+      " net "..n(current.fuelRapidNet,2).." mB/t (deficit < -"..n(current.fuelDeficitThreshold,2)..")")
     if mode=="MANUAL" then
       paint(14,"AUTO SPS CAP -- (MANUAL MODE; NOT REGULATING)",colors.lightBlue)
     else
