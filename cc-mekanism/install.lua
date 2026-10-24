@@ -129,7 +129,12 @@ local function install(name,body,target)
       end
     end
   end
-  if not makeRoom(#body+MIN_HEADROOM) then
+  -- Tiny launcher updates carry only a validated in-RAM delta to the
+  -- already-installed checksummed 72KB controller. A 512B staging reserve
+  -- lets this critical fix install on computers with only ~6KB remaining.
+  local headroom=(name=="controller-launcher.lua" and
+    target=="controller.lua") and 512 or MIN_HEADROOM
+  if not makeRoom(#body+headroom) then
     return false,"Not enough free disk space to safely stage "..name
   end
   local ok,err=pcall(function()
