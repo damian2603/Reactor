@@ -29,6 +29,7 @@ local defaults = {
   thermalEnergyPerFuel=1000000, -- Project Infinity 0.1 fission Generators config
   thermalTrendSeconds=20, thermalModelBurnMargin=0.98,
   thermalMinTrendSeconds=12, thermalExpectedTolerance=55,
+  thermalRequireHeatCapacity=true, -- block unverified AUTO ramps
   coolantTrip=0.60, coolantWarn=0.85, coolantDropTrip=0.08,
   wasteTrip=0.85, wasteWarn=0.68, heatedTrip=0.85, heatedWarn=0.68,
   steamTrip=0.95, steamWarn=0.89, turbineEnergyWarn=0.92,
@@ -825,7 +826,9 @@ local function safety(t)
   local good,why=required(t)
   if not good then return false,why end
   if t.disabled==true then return false,"reactor force disabled" end
-  if t.temp>=c.tempTrip then return false,"critical temperature" end
+  if t.temp>=math.min(c.tempTrip,1150) then
+    return false,"reactor temperature reached software SCRAM threshold"
+  end
   if t.damage>c.damageTrip then return false,"reactor damage" end
   if t.coolant<c.coolantTrip then return false,"coolant too low" end
   if t.dumpExcess and t.coolant<c.spsDumpCoolantTrip then
@@ -983,6 +986,12 @@ local function autoSPS(t)
     limitCap(t.snaWasteCapacity*
       clamp(c.spsSolarUtilization,0.5,1),"SOLAR ACTIVATORS")
   end
+  -- This cap is derived from the reactor's measured heat capacity,
+  -- not from a flat 850K warning. It prevents finding an SPS "optimum"
+  -- at temperatures that would exceed our 1100K thermal soft ceiling.
+  if t.thermalModelCap then
+    limitCap(t.thermalModelCap,"THERMAL EQUILIBRIUM MODEL")
+  end
   if c.fluxLimitFE~=spsKnownFeLimit then
     spsThroughputLimit=nil
     spsThroughputExpires=0
@@ -1110,9 +1119,26 @@ local function autoSPS(t)
   t.steamPressureReason=pressure.reason
   local thermal=nil
   local thermalUrgent=false
-  if t.temp>=c.tempWarn then
-    thermal="REACTOR TEMPERATURE "..n(t.temp,0).." K"
-    thermalUrgent=t.temp>=(c.tempTrip-50)
+  local thermalState=t.thermalState
+  local thermalReason=t.thermalReason
+  if thermalState==nil then
+    local m=thermalModel.assess({
+      temp=t.temp,trend=t.tempTrend,burn=t.actual or t.burn,
+      heatCapacity=t.heatCapacity,isSodium=t.sodiumCoolant,
+      energyPerFuel=c.thermalEnergyPerFuel,
+      warn=c.tempWarn,trip=c.tempTrip
+    })
+    thermalState=m.state
+    thermalReason=m.reason
+    t.thermalState=thermalState
+    t.thermalReason=thermalReason
+    t.expectedTemp=m.expected
+  end
+  if thermalState=="TRIM" or thermalState=="TRIM_FAST" or
+      thermalState=="TRIP" then
+    thermal=thermalReason.." ("..n(t.temp,0).."K, model "..
+      n(t.expectedTemp,0).."K)"
+    thermalUrgent=thermalState~="TRIM"
   elseif t.coolant<c.coolantWarn then
     thermal="LOW COOLANT "..p(t.coolant)
     thermalUrgent=t.coolant<c.coolantTrip+0.05
@@ -1150,6 +1176,14 @@ local function autoSPS(t)
     else
       reason="HOLD: "..thermal.." (NEXT TRIM "..n(minPause-elapsed,0).."s)"
     end
+  elseif thermalState=="HOLD" then
+    reason="HOLD: "..tostring(thermalReason)..
+      " | actual "..n(t.temp,0).."K predicted "..
+      n(t.expectedTemp,0).."K"
+  elseif thermalState=="UNKNOWN" and c.thermalRequireHeatCapacity then
+    reason="HOLD: THERMAL MODEL UNAVAILABLE / NO TEMP READ"
+  elseif c.thermalRequireHeatCapacity and not t.heatCapacity then
+    reason="HOLD: NO REACTOR HEAT CAPACITY READ"
   elseif pressure.state=="HOLD" then
     -- Turbine tank rising at 78%+? Pause growth; do NOT destroy a healthy
     -- antimatter production point because of temporary steam buffering.
@@ -1285,7 +1319,11 @@ local function auto(t)
   t.limit=decision
 end
 local fields={"ts","on","burn","actual","temp","damage","coolant","heated","waste",
-  "fuel","steamMade","coolantType","rLength","rWidth","rHeight","assemblies","boilEfficiency",
+  "fuel","steamMade","coolantType","heatCapacity","expectedTemp",
+  "expectedAtMaxBurn","thermalModelCap","tempTrend","tempTrendSeconds",
+  "thermalState","thermalReason","thermalExpectedError",
+  "thermalWarnEffective","thermalTripEffective",
+  "rLength","rWidth","rHeight","assemblies","boilEfficiency",
   "steam","steamIn","steamTrend","steamTrendWindow",
   "steamPressureState","steamPressureReason","steamPressureRecovering",
   "protectionCause","spsBurnDeadband",
@@ -1935,7 +1973,7 @@ local function fastSafetyLoop()
     local reason=nil
     if q.formed==false then reason="RPS: reactor not formed"
     elseif q.disabled==true then reason="RPS: reactor disabled"
-    elseif q.temp and q.temp>=c.tempTrip then reason="RPS: high temperature"
+    elseif q.temp and q.temp>=math.min(c.tempTrip,1150) then reason="RPS: high temperature"
     elseif q.damage and q.damage>c.damageTrip then reason="RPS: reactor damage"
     elseif q.coolant and q.coolant<c.coolantTrip then reason="RPS: low coolant"
     elseif q.dump and tostring(q.dump):lower():find("excess",1,true) and
