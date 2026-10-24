@@ -1149,6 +1149,7 @@ local function scadaDraw(dev,isMonitor)
     paint(7,"EMA "..n(current.spRateEMA,4).." | AVG "..n(current.spRate120,4).." mB/t ("..n(current.spWindowSeconds,0).."s)")
     bar(9,"Polonium",current.spInput,colors.yellow)
     bar(10,"Antimatter",current.spOutput,colors.lime)
+    paint(11,"SPS coils "..n(current.spCoils,0).." | FE buffer "..p(current.spEnergyFill),colors.lightBlue)
     paint(12,"Solar "..tostring(current.snaActive or 0).."/"..tostring(current.snaCount or 0)..
       "  potential "..fmt(current.snaProduction).." polonium/t")
     paint(13,"Fission potential "..n(current.fissionAntimatterPotential,4).." AM/t (THEORY)")
@@ -1227,7 +1228,7 @@ local function scadaDraw(dev,isMonitor)
     paint(8,"AM EMA "..n(current.spRateEMA,4).." | 120s "..n(current.spRate120,4))
     paint(9,"SPS diagnosis: "..tostring(current.spsDiagnosis))
     paint(11,"Control: "..info,colors.yellow)
-    paint(13,"CSV log: /cc-mekanism/history.csv")
+    paint(13,"CSV log: /cc-mekanism/history_v4.csv")
     paint(15,"Note: 'potential' is not confirmed optimality.",colors.orange)
   end
   if isMonitor then
