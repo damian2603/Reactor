@@ -2,6 +2,52 @@
 
 An independent CC:Tweaked / Mekanism 1.20.1 Fission Reactor + SNA + SPS controller. This is NOT a patch of the legacy cc-mekanism script. Separate settings, safety coroutine, optimizer, monitor UI, and bounded logs. Old files remain untouched.
 
+## Verified closed-loop water balance: 552.06 mB/t
+
+The operator found a stable Fission Reactor burn of **552.06 mB/t**
+where the Mekanism Industrial Turbine returns enough water to the
+Fission Reactor without needing the auxiliary makeup-water source.
+
+Reported turbine Steam capacity: **258,944,000 mB**. The operator
+described a steady near-full reading ending in alternating **6 / 7**:
+if the intended complete amount was **258,943,296–297 mB**, the tank
+has only **704–703 mB** free at that instant. This is a very small
+reserve compared with the enormous tank. The originally typed
+`25894329` has fewer digits, so **this amount is an interpretation,
+not a confirmed byte-exact telemetry sample**.
+
+**Control consequence:** `waterLoopCap=552.06` mB/t and
+`waterLoopEnabled=1` are now independent, default-on, *site-specific*
+burn ceilings. Even if the Isotopic Centrifuge supplies more than
+552 mB/t and FE/SPS could consume more, AUTO will not burn above
+the manually verified closed-water-loop balance point.
+
+A different manually configured `userCap` remains a second ceiling.
+New installations default to `userCap=552.06`. If an existing
+`cc-antimatter/settings` file still specifies `userCap=550`, the
+controller will still stop at 550 until you press **W** on the computer
+or **[W-CAP]** on the large monitor. That operator command sets
+`userCap` to exactly `waterLoopCap`, then attempts to save settings.
+It does **not** alter the Flux Point, turbine, reactor activation, or
+the independent safety thresholds. `CAP+` cannot override the active
+water-loop cap by itself. To re-tune after rebuilding turbine/condensers
+or water plumbing, explicitly update the two numerical fields
+`waterLoopCap` and `userCap` in settings after testing the new
+equilibrium. Setting `waterLoopEnabled=0` disables only this manually
+measured cap and is appropriate only if the external water supply and
+other reactor safety constraints are intentionally allowed to take over.
+
+**Important distinction:** Steam nearly full is **not** a target that
+the controller deliberately seeks, and it is **not** proof by itself
+that water return is sufficient. The 552.06 ceiling comes from the
+operator's *simultaneous observation of stable re-circulation*.
+The controller still checks real reactor coolant, heated-coolant
+outlet, thermal limit, and nuclear waste. If any of those deteriorate,
+it cuts burn **below** 552.06 or attempts SCRAM according to independent
+safety limits. Turbine steam percentage remains diagnostics only;
+`DUMPING_EXCESS` can vent water and may invalidate the earlier
+closed-loop calibration. Verify steady behavior over sustained runs.
+
 ## Goals and mechanics
 
 1. Prioritize avoiding a Fission Reactor meltdown. Observe real temperature, damage, coolant, heated coolant and nuclear waste, rather than turbine steam fill.
