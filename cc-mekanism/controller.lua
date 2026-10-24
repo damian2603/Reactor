@@ -1442,9 +1442,9 @@ local function history(t)
     return
   end
   local exists=fs.exists(CSV)
-  local f,openErr=fs.open(CSV,"a")
-  if not f then
-    t.storageWarning="CSV cannot open: "..tostring(openErr)
+  local opened,f,openErr=pcall(fs.open,CSV,"a")
+  if not opened or not f then
+    t.storageWarning="CSV cannot open: "..tostring(openErr or f)
     return
   end
   local wrote,reason=pcall(function()
