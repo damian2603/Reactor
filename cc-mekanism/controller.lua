@@ -1305,8 +1305,12 @@ local function scadaDraw(dev,isMonitor)
     bar(12,"Fuel",current.fuel,colors.lime)
     paint(13,"Fuel "..tostring(current.fuelSource or "MISSING").." "..p(current.fuelFillForControl)..
       " net "..n(current.fuelRapidNet,2).." mB/t")
-    paint(14,"AUTO CAP "..n(current.safeCap,2).." mB/t | "..
-      tostring(current.spsCapReason or "MANUAL"))
+    if mode=="MANUAL" then
+      paint(14,"AUTO SPS CAP -- (MANUAL MODE; NOT REGULATING)",colors.lightBlue)
+    else
+      paint(14,"AUTO CAP "..n(current.safeCap,2).." mB/t | "..
+        tostring(current.spsCapReason or "WAITING FOR SPS DATA"))
+    end
     paint(15,"CONTROL "..tostring(current.limit or "--"),colors.yellow)
     paint(16,"Fuel estimate "..n(current.fuelCap,2).." mB/t | TPS "..n(current.tps,1))
     paint(17,"SCRAM protection: "..(latched and "LATCHED" or "ARMED"),
@@ -1786,7 +1790,13 @@ local function monitorLoop()
       pcall(peripheral.call,names.reactor,"scram")
     end
     if good and not latched then auto(current) end
-    if current.safeCap==nil then current.safeCap=safeCap(current) end
+    if current.safeCap==nil then
+      current.safeCap=safeCap(current,c.spsSteamFlowFraction,
+        mode~="SPS" or c.spsTurbineFlowHardCap)
+      if mode=="SPS" then
+        current.spsCapReason="WAIT: PROCESS TELEMETRY"
+      end
+    end
     -- Preserve the chosen control action instead of overwriting it
     -- with a generic list of warnings on every display refresh.
     if not current.limit then current.limit=bottleneck(current) end
