@@ -12,8 +12,8 @@ local SOURCES={
   {remote="thermal_model.lua"},
   {remote="controller.packed.lua"},
   {remote="controller-launcher.lua",target="controller.lua"},
-  {remote="probe.lua"},
-  {remote="monitor-test.lua"}
+  {remote="probe.lua",optional=true},
+  {remote="monitor-test.lua",optional=true}
 }
 local MIN_HEADROOM=4096
 
@@ -158,21 +158,60 @@ end
 
 print("Project Infinity CC:Mekanism updater")
 print("Free disk: "..pretty(freeBytes()))
+local optionalSkipped={}
 for _,item in ipairs(SOURCES) do
   local name=item.remote
   print("Downloading "..name.."..."..
     (item.target and " -> "..item.target or ""))
   local body,err=fetch(name)
-  if not body then error(err,0) end
-  local ok,reason=install(name,body,item.target)
-  if not ok then
-    print("UPDATE INCOMPLETE: "..reason)
-    print("Never start AUTO on a partially updated installation.")
-    error(reason,0)
+  if not body then
+    if item.optional then
+      print("SKIPPED optional "..name..": "..tostring(err))
+      optionalSkipped[#optionalSkipped+1]=name
+    else
+      print("CORE UPDATE INCOMPLETE: "..tostring(err))
+      error(err,0)
+    end
+  else
+    local dest=DIR.."/"..(item.target or name)
+    local free=freeBytes()
+    local existing=fs.exists(dest)
+    local identical=false
+    if existing then
+      local okRead,content=pcall(function()
+        local f=assert(fs.open(dest,"r"))
+        local data=f.readAll()
+        f.close()
+        return data
+      end)
+      identical=okRead and content==body
+    end
+    if item.optional and not identical and
+        free and free<#body+MIN_HEADROOM then
+      print("SKIPPED optional "..name.." (needs "..
+        pretty(#body+MIN_HEADROOM).."; free "..pretty(free)..")")
+      optionalSkipped[#optionalSkipped+1]=name
+    else
+      local ok,reason=install(name,body,item.target)
+      if not ok then
+        if item.optional then
+          print("SKIPPED optional "..name..": "..tostring(reason))
+          optionalSkipped[#optionalSkipped+1]=name
+        else
+          print("CORE UPDATE INCOMPLETE: "..reason)
+          print("Never start AUTO on a partially updated installation.")
+          error(reason,0)
+        end
+      end
+    end
   end
 end
 print("")
-print("Installation completed. Settings preserved.")
+print("CORE INSTALLATION COMPLETE. Settings preserved.")
+if #optionalSkipped>0 then
+  print("Optional diagnostics not updated: "..table.concat(optionalSkipped,", "))
+  print("They are NOT needed for running the reactor controller.")
+end
 print("Free disk after update: "..pretty(freeBytes()))
-print("1) Test: cc-mekanism/probe")
-print("2) Run:  cc-mekanism/controller")
+print("Run: cc-mekanism/controller")
+print("Probe is optional: cc-mekanism/probe")
