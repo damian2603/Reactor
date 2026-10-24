@@ -95,8 +95,10 @@ Installer now also downloads `optimizer_math.lua`. Old settings survive.
 Telemetry history is now stored in `/cc-mekanism/history_v4.csv`; previous
 `history.csv` is preserved.
 
-Tests: `.github/workflows/cc-mekanism-checks.yml` performs Lua syntax checks
-and independent calculation tests. It is not an in-world integration test.
+Tests: `.github/workflows/cc-mekanism-checks.yml` performs Lua syntax checks,
+independent calculation tests, and headless runtime scenarios against the actual
+controller (SPS ramps, fuel limits, night idle, SCRAM and fuel integration).
+These checks pass, but are **not** an in-world integration test.
 Use a conservative manual `autoBurnCeiling`, keep independent reactor
 hardware protection, and first verify the tank API/throughput in your pack.
 
