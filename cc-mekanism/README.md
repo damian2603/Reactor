@@ -36,9 +36,11 @@ fission. Turbine FE is a by-product, not the controller's primary objective.
    damage, waste, hot coolant, turbine/boiler buffers and sensor failures.
    The main SCADA collects peripheral readings in parallel and caches static
    machine geometry for 30 seconds.
-6. The program deliberately **SCRAMs and switches to MANUAL** after sustained
-   loss of SNA production, at ≥98% antimatter output fill, or critically
-   draining fuel reserve. It **never auto-restarts** the reactor.
+6. When sunlight is unavailable, it enters **0.01 mB/t idle** (configurable) rather
+   than wasting fuel or forcing an automatic restart. Normal SPS optimization
+   resumes when solar conversion returns. It deliberately **SCRAMs and switches
+   to MANUAL** at ≥98% antimatter output fill or critically draining fuel
+   reserve. It **never auto-restarts** a stopped reactor.
 
 **Important:** Exact *instantaneous* `burn ≤ fuel production` cannot be
 mathematically guaranteed from buffered inventories alone. Estimates lag supply
@@ -103,6 +105,7 @@ Useful v4 settings: `fuelRapidSeconds=30`,
 `fuelMargin=0.90`, `fuelLimitStart=0.30`,
 `fuelLimitRelease=0.40`, `spsRampSeconds=5`,
 `spsRampMaxFraction=0.02`, `spsSettleSeconds=60`,
+`spsNightIdleBurn=0.01`, `spsNightStopSeconds=0` (0 = keep idle),
 `fastSafetySeconds=0.2`, `safetyBadReads=3`. Modify cautiously.
 
 **Conceptual inspirations:** the independent RPS, EMA fuel limiting,
