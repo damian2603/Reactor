@@ -83,7 +83,10 @@ local out,highs=simulate(500,125)
 assert(highs>0,'must probe past unknown fuel production to discover limit')
 close(out[#out].burn,500,9,'should converge close to actual fuel supply')
 assert(out[#out].fuelEstimate and out[#out].fuelEstimate>490 and out[#out].fuelEstimate<510,
-  'must estimate production using tank derivative and actual consumption')
+  'fuel estimate='..tostring(out[#out].fuelEstimate)..
+  ' burn='..tostring(out[#out].burn)..
+  ' fuelStored='..tostring(out[#out].stored)..
+  ' expected production ~500')
 local outHigh=simulate(600,70)
 assert(outHigh[#outHigh].burn>535,'surplus fuel allows max SPS/FE burn')
 local outLow=simulate(430,135)
