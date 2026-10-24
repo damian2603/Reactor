@@ -5,7 +5,8 @@ if not fs.exists("/cc-mekanism") then fs.makeDir("/cc-mekanism") end
 local f=assert(fs.open(path,"w"))
 local function out(msg) msg=tostring(msg); print(msg);f.writeLine(msg) end
 local selected={
-  "isFormed","getStatus","getBurnRate","getActualBurnRate","getMaxBurnRate",
+  "isFormed","getLength","getWidth","getHeight","getFuelAssemblies",
+  "getFuelSurfaceArea","getBoilEfficiency","getBurnRate","getActualBurnRate","getMaxBurnRate",
   "getTemperature","getDamagePercent","getCoolantFilledPercentage",
   "getHeatedCoolantFilledPercentage","getWasteFilledPercentage",
   "getFuelFilledPercentage","getHeatingRate","isForceDisabled",
@@ -13,7 +14,10 @@ local selected={
   "getSteamFilledPercentage","getEnergyFilledPercentage","getProductionRate",
   "getMaxProduction","getMaxWaterOutput","getWaterFilledPercentage",
   "getProcessRate","getInputFilledPercentage","getOutputFilledPercentage",
-  "getCoils","getLastInput","getLastOutput","getBoilCapacity"
+  "getCoils","getBlades","getCondensers","getVents","getDispersers",
+  "getFuelCapacity","getCoolantCapacity","getWasteCapacity","getSteamCapacity",
+  "getInputCapacity","getOutputCapacity","getMaxProduction",
+  "getLastInput","getLastOutput","getBoilCapacity"
 }
 local names=peripheral.getNames()
 table.sort(names)
