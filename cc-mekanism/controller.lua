@@ -1586,6 +1586,24 @@ local function monitorLoop()
     sleep(math.max(0.2,c.sampleSeconds))
   end
 end
+-- Headless scenario hook; completely inert in normal CC:Tweaked execution.
+if rawget(_G,"CC_MEKANISM_TEST")==true then
+  return {
+    exerciseSPS=function(t)
+      current=t
+      mode="SPS"
+      latched=false
+      lastChange=t.ts-100
+      fastSafetyHealthy=true
+      fastSafetyLast=t.ts
+      spsTrendResetAt=t.ts-100
+      autoSPS(t)
+      return {mode=mode,info=info,limit=t.limit,cap=t.safeCap}
+    end,
+    safety=safety,
+    read=read,
+  }
+end
 local ok,err=xpcall(function()
   parallel.waitForAny(monitorLoop,fastSafetyLoop,tpsLoop,inputLoop)
 end,
