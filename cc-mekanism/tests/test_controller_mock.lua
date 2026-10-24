@@ -200,19 +200,82 @@ do
   assert(t.spsTurbineFlowHardCap==false)
 end
 
--- Disabling the turbine hard cap must NOT disable overpressure protection.
+-- Regression from user's screenshot: 64% steam, 100% coolant and
+-- 809 K are normal operating conditions, NOT an excuse for 15% cut.
+do
+  local ctl=newController()
+  for i=1,6 do ctl.command("fluxplus") end
+  local t=sample()
+  t.maxBurn=1920
+  t.burn=414
+  t.actual=414
+  t.temp=808.9
+  t.steam=0.64
+  t.steamDelta=0.003
+  t.steamTrend=0.003
+  t.coolant=1
+  t.heated=0
+  t.waste=0
+  t.dumpExcess=true
+  t.spRate=0.042
+  t.spRateEMA=0.042
+  t.spRate120=0.042
+  t.spsEfficiency=0.042/(414/10000)
+  t.spInput=0.021
+  t.spInputTrend120=0.0013/60
+  t.snaProduction=280.3
+  t.snaWasteCapacity=2803
+  t.fuelCapFresh=false
+  t.fuelCap=nil
+  t.fuelRapidNet=0
+  t.fuelRapidProduction=414
+  t.fuelFillForControl=1
+  local result=ctl.exerciseSPS(t)
+  assert(result.mode=="SPS")
+  assert(t.steamPressureState=="OK","64% steam must be normal")
+  assert(result.limit=="RAMP: SPS PRODUCTION DEMAND" or
+      result.limit=="HOLD: SPS DEMAND BALANCED",
+    "healthy steam should not cause protection cooldown: "..tostring(result.limit))
+  assert(burnRate>=414,"no 15% steam dump-related oscillation at 64% steam")
+end
+-- Hold growth at 80% only when there is a sustained rising trend.
 do
   local ctl=newController()
   local t=sample()
   t.fuelCapFresh=false
   t.fuelCap=nil
-  t.steam=0.65
-  t.steamDelta=0.003
+  t.steam=0.80
+  t.steamTrend=0.002
   local result=ctl.exerciseSPS(t)
   assert(result.mode=="SPS")
-  assert(burnRate<400,"rising high turbine steam must throttle burn")
-  assert(result.limit:find("THERMAL",1,true),
-    "steam pressure growth should trigger thermal throttling")
+  assert(t.steamPressureState=="HOLD")
+  near(burnRate,400,0.01,"hold 80% steam without cutting 15%")
+  assert(result.limit:find("STEAM BUFFER GROWING",1,true))
+end
+-- Genuine high steam pressure must still trigger measured, gentle trimming.
+do
+  local ctl=newController()
+  local t=sample()
+  t.fuelCapFresh=false
+  t.fuelCap=nil
+  t.steam=0.89
+  t.steamTrend=0
+  local result=ctl.exerciseSPS(t)
+  assert(result.mode=="SPS")
+  assert(t.steamPressureState=="TRIM")
+  near(burnRate,382,0.01,"at 89% trim 4.5%, not 15%")
+  assert(result.limit:find("TURBINE STEAM HIGH",1,true))
+end
+do
+  local ctl=newController()
+  local t=sample()
+  t.fuelCapFresh=false
+  t.fuelCap=nil
+  t.steam=0.94
+  t.steamTrend=0.001
+  local result=ctl.exerciseSPS(t)
+  assert(t.steamPressureState=="TRIM_FAST")
+  near(burnRate,360,0.01,"near emergency 94% throttle 10%")
 end
 
 -- Integrated fuel estimate must continue across burn rate changes:
