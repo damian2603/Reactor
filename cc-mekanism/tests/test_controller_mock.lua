@@ -162,4 +162,25 @@ do
   assert(latest.fuelSampleSeconds>=120,"fuel window not reset by setpoint")
   assert(latest.fuelCapFresh==true,"fuel cap should calibrate")
 end
+-- Regression from a real 2026-10-24 Project Infinity probe:
+-- getStatus=false and canSeeSun=false are valid measurements, not API failures.
+do
+  local ctl=newController()
+  active=false
+  data.sna.canSeeSun=false
+  data.sna.getProductionRate=0
+  stored=1024000
+  data.tank.getCapacity=1024000
+  local t=ctl.read()
+  assert(t.on==false,"reactor OFF must remain boolean false")
+  assert(t.disabled==false,"isForceDisabled=false must remain false")
+  assert(t.snaBroken==0,"night canSeeSun=false is valid telemetry")
+  assert(t.snaSun==0,"no SNA sunlight at night")
+  near(t.fuelTankFill,1,0.00001,"Elite Chemical Tank is full")
+  near(t.fuelStored,1024000,0.00001,"Mekanism chemical-stack amount")
+  local good,err=ctl.safety(t)
+  assert(good==true,"safe inactive reactor should not trigger read-failed: "..tostring(err))
+  data.sna.canSeeSun=true
+  data.sna.getProductionRate=100
+end
 print("controller headless scenarios: OK")
