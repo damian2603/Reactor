@@ -4,7 +4,7 @@
 -- fail-safe alarm philosophy. Not a copy of upstream code.
 -- IMPORTANT: independent Fission Logic Adapters are still required.
 local ROOT = "/cc-mekanism"
-local CONF, CSV = ROOT.."/settings", ROOT.."/history.csv"
+local CONF, CSV = ROOT.."/settings", ROOT.."/history_v4.csv"
 if not fs.exists(ROOT) then fs.makeDir(ROOT) end
 local optimizerMath=dofile(ROOT.."/optimizer_math.lua")
 local defaults = {
@@ -584,6 +584,43 @@ local function read()
       t.feAdvice="HOLD FE: NO PROVEN BENEFIT"
     end
   else t.feAdvice="WAIT: COLLECTING BASELINE" end
+  if feTrial then
+    local age=t.ts-feTrial.started
+    if age<180 then
+      t.feAdvice="FE TRIAL: "..n(math.max(0,180-age),0).."s remaining"
+    elseif t.spRate120 and t.spWindowSeconds and t.spWindowSeconds>=110 then
+      local gain=t.spRate120-feTrial.beforeRate
+      local percent=feTrial.beforeRate>0 and
+        gain/feTrial.beforeRate*100 or 0
+      local deltaFE=feTrial.newLimit-feTrial.oldLimit
+      if deltaFE>0 then
+        feTrialResult=gain>math.max(0.0005,feTrial.beforeRate*0.025) and
+          ("FE + "..fmt(deltaFE)..": AM +"..n(percent,2).."% (benefit)") or
+          ("FE + "..fmt(deltaFE)..": little AM gain; consider reverting")
+      elseif deltaFE<0 then
+        feTrialResult=gain>=-math.max(0.0005,feTrial.beforeRate*0.02) and
+          ("LOWER FE: AM stable; keep lower cap") or
+          ("LOWER FE: AM loss "..n(percent,2).."%")
+      else feTrialResult="FE limit unchanged" end
+      local path=ROOT.."/fe_trials.csv"
+      local existed=fs.exists(path)
+      local f=fs.open(path,"a")
+      if f then
+        if not existed then
+          f.writeLine("timestamp,old_limit_fe,new_limit_fe,before_am_per_tick,after_am_per_tick,change_percent")
+        end
+        f.writeLine(table.concat({
+          tostring(math.floor(t.ts)),tostring(feTrial.oldLimit),
+          tostring(feTrial.newLimit),tostring(feTrial.beforeRate),
+          tostring(t.spRate120),tostring(percent)},","))
+        f.close()
+      end
+      feTrial=nil
+      t.feAdvice=feTrialResult
+    else t.feAdvice="FE TRIAL: WAIT FOR STABLE AM WINDOW" end
+  elseif feTrialResult then
+    t.feAdvice=feTrialResult
+  end
   previous=t
   telemetryCache=nil
   return t
@@ -951,7 +988,11 @@ local fields={"ts","on","burn","actual","temp","damage","coolant","heated","wast
   "fissionAntimatterPotential","spsEfficiency","spsTargetRate","spsTargetFE","spsDiagnosis",
   "spLength","spWidth","spHeight","spCoils",
   "bSteam","bHot","bWater","bBoilCapacity","imEnergy","imIn",
-  "imOut","imInFE","imOutFE"}
+  "imOut","imInFE","imOutFE",
+  "fuelSource","fuelAvailable","reactorFuelAmount","fuelTankFill",
+  "fuelNetPerTick","fuelProducedEstimate","fuelCap","fuelCapFresh",
+  "fuelSampleSeconds","fuelRateLimited","tps","spsDemandBurn","spInputControlTrend",
+  "spControlSeconds","feAdvice","safeCap","limit"}
 local function history(t)
   if t.ts-lastLog<c.logSeconds then return end
   lastLog=t.ts
@@ -1052,8 +1093,11 @@ local function scadaDraw(dev,isMonitor)
     bar(10,"Heated",current.heated,colors.orange)
     bar(11,"Waste",current.waste,colors.yellow)
     bar(12,"Fuel",current.fuel,colors.lime)
+    paint(13,"Fuel "..tostring(current.fuelSource or "MISSING").." "..p(current.fuelFillForControl)..
+      " net "..n(current.fuelNetPerTick,2).." mB/t")
     paint(14,"AUTO CAP "..n(current.safeCap,2).." mB/t")
     paint(15,"CONTROL "..tostring(current.limit or "--"),colors.yellow)
+    paint(16,"Fuel estimate "..n(current.fuelCap,2).." mB/t | TPS "..n(current.tps,1))
     paint(17,"SCRAM protection: "..(latched and "LATCHED" or "ARMED"),
       latched and colors.red or colors.lime)
   elseif uiPage==3 then
@@ -1067,13 +1111,14 @@ local function scadaDraw(dev,isMonitor)
     paint(15,"FE delivery to SPS: NOT MEASURED",colors.yellow)
     paint(16,"Flux limit "..fmt(c.fluxLimitFE).." FE/t (key L)",colors.yellow)
     paint(17,"Advice "..tostring(current.feAdvice or "--"),colors.lime)
+    paint(18,"L: record new FE limit, then adjust Flux Point manually",colors.lightBlue)
   elseif uiPage==4 then
     title("DIAGNOSTICS / ALARMS")
     paint(6,"SPS: "..tostring(current.spsDiagnosis or "--"),colors.yellow)
     paint(7,"Safety: "..(latched and alarm or "NO LATCHED ALARM"),
       latched and colors.red or colors.lime)
     paint(8,"Fuel tank "..p(current.fuelTankFill).." net "..n(current.fuelNetPerTick,2).." mB/t")
-    paint(10,"Fuel cap ~"..n(current.fuelCap,2).." mB/t")
+    paint(10,"Fuel cap ~"..n(current.fuelCap,2).." mB/t | TPS "..n(current.tps,1))
     paint(9,"Data: SPS "..tostring(names.sps or "MISSING")..
       " | SNA "..tostring(current.snaCount or 0))
     paint(11,"Recent alarms:",colors.cyan)
@@ -1276,8 +1321,20 @@ local function setTyped()
     c.autoBurnCeiling=math.floor(v*100+0.5)/100
     save();info="AUTO ceiling "..(v==0 and "DETECTED MAX" or n(v,2))
   elseif edit=="flux" then
-    c.fluxLimitFE=math.floor(v+0.5)
-    save();info="Flux limit recorded "..fmt(c.fluxLimitFE).." FE/t"
+    local old=c.fluxLimitFE
+    local new=math.floor(v+0.5)
+    if old~=new and current.spRate120 and current.spWindowSeconds and
+        current.spWindowSeconds>=60 then
+      feTrial={started=os.epoch("utc")/1000,oldLimit=old,
+        newLimit=new,beforeRate=current.spRate120}
+      feTrialResult=nil
+      info="FE test started. Set Flux Point to "..fmt(new)..
+        " FE/t now; compare AM after 180s."
+    else
+      info="Flux reference updated; FE A/B test needs 60s stable baseline"
+    end
+    c.fluxLimitFE=new
+    save()
   elseif edit=="target" then
     if v<20 or v>100 then
       info="Target must be between 20 and 100 percent"
