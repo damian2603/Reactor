@@ -962,10 +962,6 @@ end
 local function auto(t)
   if mode=="MANUAL" or latched or t.on~=true then return end
   if mode=="SPS" then autoSPS(t);return end
-  if mode=="SPS" and (not names.sps or t.spFormed~=true or
-      t.spInput==nil or t.spOutput==nil or t.spRate==nil) then
-    mode="MANUAL";info="AUTO SPS disabled: no SPS data";return
-  end
   if t.sodiumCoolant and not names.boiler then
     mode="MANUAL";info="AUTO disabled: sodium cooling requires boiler telemetry";return
   end
@@ -1015,12 +1011,6 @@ local function auto(t)
       target=math.max(0.1,t.burn-math.max(step,t.burn*0.12))
       decision="THROTTLE: COOLING OR WASTE"
     else decision="HOLD: COOLING / WASTE / SETTLING" end
-  elseif mode=="SPS" and (t.spInput and t.spInput>=c.spsInputWarn or
-      t.spOutput and t.spOutput>=c.spsOutputWarn) then
-    if canThrottle then
-      target=math.max(0.1,t.burn-math.max(step,t.burn*0.10))
-      decision="THROTTLE: SPS BUFFER"
-    else decision="HOLD: SPS BUFFER / SETTLING" end
   elseif t.burn>cap+0.009 then
     target=cap
     decision="CAP: TURBINE MAX FLOW"
