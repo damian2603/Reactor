@@ -110,7 +110,10 @@ end
 local function pc(name,method,...)
   if telemetryCache and name then
     local val=telemetryCache[name.."|"..method]
-    if val~=nil then return val==MISSING_READ and nil or val end
+    if val~=nil then
+      if val==MISSING_READ then return nil end
+      return val
+    end
   end
   if staticMethods[method] and name and peripheral.isPresent(name) then
     local key=name.."|"..method
