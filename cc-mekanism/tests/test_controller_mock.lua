@@ -346,6 +346,7 @@ do
 end
 do
   local ctl=newController()
+  for i=1,4 do ctl.command("fluxplus") end
   local t=sample()
   t.burn=525
   t.actual=525
