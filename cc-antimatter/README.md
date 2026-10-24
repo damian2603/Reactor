@@ -58,6 +58,75 @@ samples do not establish sustained fuel surplus or starvation.
 The former controller's assumption that zero tank trend meant
 an exact fuel-production ceiling would be incorrect here.
 
+## 2026-10-24: empirical review of user's 104-row `history.csv`
+
+We received **104 rows covering 26.58 minutes** of real in-game
+telemetry from the first `cc-antimatter` controller. The source
+recorded burn **499–575 mB/t**, mean AM rate **0.05503 mB/t**,
+minimum coolant **92.8%**, and maximum temperature **1035.5 K**.
+Maximum absolute difference between observed and predicted reactor
+temperature was only **0.1 K**; heated-coolant fill stayed below
+**0.9%** and nuclear waste was **0%** in these snapshots.
+
+Twelve rows explicitly report
+`REACTOR COOLANT/OUTPUT BACKPRESSURE`. In each, reactor coolant
+was **92.8–94.9%**, but there was no corresponding high heated-coolant
+or waste pressure. The old `coolantWarn=0.95` overreacted to
+this ordinary circulation fluctuation. The old ramp controller
+could request **+12 mB/t every 6 seconds** and cut **−38 mB/t**;
+logs therefore displayed jumps like 575 → 511 → 547.
+
+**Even more importantly, all 104 rows satisfy the exact identity:**
+
+```text
+Elite Chemical Tank amount = 1,024,000 - getActualBurnRate()
+```
+
+Examples: 535 burn → 1,023,465 stored; 550 burn →
+1,023,450 stored; 575 burn → 1,023,425 stored. This is strong
+evidence of a **one-tick fuel transport gap**, not evidence that
+the centrifuge was underproducing. Raw tank inventory derivatives
+can become falsely negative simply because burn increased, and
+would poison a model that attempts to estimate supply from raw
+inventory. This identity was checked for all 104 real samples;
+the *cause* (tick/pipe transfer order) remains an inference.
+
+**Revised control (regression-tested):**
+
+- Actuator normally changes by **+1 mB/t per command**, or trims
+  **−2 mB/t**; minimum 2 seconds between regular commands.
+  Configure `rampStep=0.5` if even smaller steps are desired.
+  Larger immediate safety trims are reserved for *clearly severe*
+  reactor cooling, temperature or waste problems.
+- A coolant dip from 100% to **92.8%** no longer automatically
+  drops burn. At/below **92%**, AUTO pauses an increase and
+  observes for several seconds. Persistent coolant below **88%**
+  leads to controlled reductions; below **80%** accelerates
+  reduction. Independent software SCRAM at **65% coolant**,
+  1135K temperature, true outlet backing-up or reactor damage
+  remains in effect.
+- After **5 separate corroborating observations**, the controller
+  detects `capacity - tankAmount ≈ actualBurn` while nearly
+  full. It then computes fuel-balance trends from
+  `min(capacity,tankAmount + actualBurn)`, removing this
+  reproducible 1-tick transfer gap **in the model only**.
+  No change is made to the actual tank or Mekanism pipes.
+- While this corrected amount is saturated, no exact *maximum*
+  upstream production rate is claimed. Only if an additional,
+  accumulating deficit appears beyond the 1-tick gap can the
+  controller infer that the Isotopic Centrifuge line cannot
+  sustain its burn.
+- The monitor explicitly says
+  `1-TICK GAP: BURN SUPPORTED, MAX UNKNOWN` for a
+  stable corrected tank.
+
+The tests now include a **104-row replay** of the user's exact
+burn/coolant pattern, a sustained 87.5% coolant case that
+first holds and only gradually trims, and an actual **520 mB/t
+fuel-production shortage** superimposed on the one-tick gap.
+All scenarios continue to test independent reactor protection,
+SPS output and complete turbine irrelevance.
+
 ## Installation
 
 **A fresh CC computer is recommended.** The old one had only ~2–6KB free. The new controller needs ~32KB for program modules, plus a free reserve for settings and history. This installer refuses to delete or overwrite old cc-mekanism files.
