@@ -110,11 +110,23 @@ function M.new(config)
         -- fully saturated => production is at least actual, not exactly it.
         t.fuelCensored=fill and first.fill and
           (fill>=0.9985 or first.fill>=0.9985)
-        if dt>=c.sampleLongSeconds and not t.fuelCensored and
-            valid(t.fuelProduction) and t.fuelProduction>=0 then
-          if self.fuelEstimate then
-            self.fuelEstimate=self.fuelEstimate*0.75+t.fuelProduction*0.25
-          else self.fuelEstimate=t.fuelProduction end
+      end
+      -- Short window catches a serious fuel deficit quickly; long window
+      -- measures sustainable production independent of setpoint ramps.
+      -- Crucially: do NOT reuse the short-window 'first' for 95s calibration.
+      local longStart=findWindow(self.fuel,c.sampleLongSeconds,now)
+      if longStart then
+        local longDt=now-longStart.ts
+        local longTicks=longDt*c.ticksPerSecond
+        local longFill=fill and longStart.fill and
+          (fill>=0.9985 or longStart.fill>=0.9985)
+        local produced=(self.consumed-longStart.consumed+
+          t.fuelAmount-longStart.amount)/longTicks
+        t.fuelLongWindow=longDt
+        t.fuelLongCensored=longFill
+        if not longFill and valid(produced) and produced>=0 then
+          self.fuelEstimate=self.fuelEstimate and
+            (self.fuelEstimate*0.75+produced*0.25) or produced
           self.fuelSampleAge=now
         end
       end
