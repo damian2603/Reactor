@@ -828,6 +828,15 @@ local function autoSPS(t)
   if t.fuelCapFresh and t.fuelCap then
     cap=math.min(cap,t.fuelCap*c.fuelMargin)
   end
+  -- Deficit detected while the Elite Tank is still >30% must ALSO cap
+  -- burn: waiting for the low-fuel threshold could waste large reserves.
+  -- Use only a measured 30s trend and a material (>1%) deficit.
+  local rapidDeficit=t.fuelRapidNet and t.fuelRapidProduction and
+      t.fuelRapidNet< -math.max(1,t.actual*0.01)
+  if rapidDeficit then
+    cap=math.min(cap,math.max(0.01,t.fuelRapidProduction*c.fuelMargin))
+    t.fuelRapidLimited=true
+  end
   if spsThroughputLimit and t.ts<spsThroughputExpires then
     cap=math.min(cap,spsThroughputLimit)
     t.spsLearnedThroughputCap=spsThroughputLimit
@@ -1058,7 +1067,7 @@ local fields={"ts","on","burn","actual","temp","damage","coolant","heated","wast
   "bSteam","bHot","bWater","bBoilCapacity","imEnergy","imIn",
   "imOut","imInFE","imOutFE",
   "fuelSource","fuelAvailable","reactorFuelAmount","fuelTankFill",
-  "fuelNetPerTick","fuelRapidNet","fuelRapidProduction",
+  "fuelNetPerTick","fuelRapidNet","fuelRapidProduction","fuelRapidLimited",
   "fuelProducedEstimate","fuelCap","fuelCapFresh",
   "fuelSampleSeconds","fuelRateLimited","tps","spsDemandBurn","spInputControlTrend",
   "spControlSeconds","feAdvice","safeCap","limit","spsLearnedThroughputCap"}
