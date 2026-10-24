@@ -278,6 +278,69 @@ do
   near(burnRate,360,0.01,"near emergency 94% throttle 10%")
 end
 
+-- With a full tank, -0.06 mB/t is measurement jitter and MUST
+-- NOT freeze the optimizer at 330-400 mB/t.
+do
+  local ctl=newController()
+  local t=sample()
+  t.fuelCap=nil
+  t.fuelCapFresh=false
+  t.fuelFillForControl=1.0
+  t.fuelRapidNet=-0.06
+  t.fuelRapidProduction=400
+  t.spRate=0.040
+  t.spRateEMA=0.040
+  t.spRate120=0.040
+  t.spsEfficiency=1.0
+  local result=ctl.exerciseSPS(t)
+  assert(t.fuelDeficitMaterial==false,
+    "tiny 0.06 mB/t deficit at 400 is below 1% tolerance")
+  assert(t.fuelDeficitThreshold==4,"4 mB/t material deficit threshold")
+  assert(burnRate>400,
+    "ramp must not be blocked by tiny full-tank drift: "..tostring(result.limit))
+end
+
+-- True tank drain (8 mB/t) must constrain burn even while tank is full.
+do
+  local ctl=newController()
+  local t=sample()
+  t.fuelCap=nil
+  t.fuelCapFresh=false
+  t.fuelFillForControl=1.0
+  t.fuelRapidNet=-8
+  t.fuelRapidProduction=392
+  local result=ctl.exerciseSPS(t)
+  assert(t.fuelDeficitMaterial==true)
+  near(result.cap,352.8,0.01,"measured fuel supply capped with margin")
+  near(burnRate,352.8,0.01,"real fuel starvation still acts promptly")
+end
+
+-- Once thermal trimming begins, don't oscillate up again immediately when
+-- steam dips from 89% to 86%; release only after recovery to <=83%.
+do
+  local ctl=newController()
+  local high=sample()
+  high.steam=0.89
+  ctl.exerciseSPS(high)
+  assert(high.steamPressureRecovering==true)
+  near(burnRate,382,0.01,"initial pressure trim")
+  local recovering=sample()
+  recovering.steam=0.86
+  recovering.burn=burnRate
+  recovering.actual=burnRate
+  ctl.exerciseSPS(recovering)
+  assert(recovering.steamPressureState=="HOLD")
+  assert(recovering.steamPressureReason=="STEAM PRESSURE RECOVERING")
+  near(burnRate,382,0.01,"no immediate rebound at 86% steam")
+  local recovered=sample()
+  recovered.steam=0.82
+  recovered.burn=burnRate
+  recovered.actual=burnRate
+  ctl.exerciseSPS(recovered)
+  assert(recovered.steamPressureRecovering==false)
+  assert(burnRate>382,"ramp may resume after pressure recovery")
+end
+
 -- Integrated fuel estimate must continue across burn rate changes:
 -- 90s at 300 mB/t, then 90s at 450 mB/t, 400 mB/t production.
 do
