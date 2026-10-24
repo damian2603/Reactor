@@ -13,6 +13,106 @@ Solar Neutron Activators, turbine/boiler heat handling, and sustained Fissile Fu
 production permit. When the SPS does not use added polonium, reduce unnecessary
 fission. Turbine FE is a by-product, not the controller's primary objective.
 
+### Thermal safety overhaul: measured Mekanism heat capacity (2026-10-24)
+
+The user ran an **18x18x18 water-cooled standard Mekanism Fission
+Reactor** with a normal measured temperature of **889.6 K at
+448 mB/t**. The old blanket `tempWarn=850` caused SPS AUTO to trim
+a healthy burn setting and `tempTrip=1000` left almost no headroom
+above the user's manually tested 540 mB/t. That was a controller
+policy mistake, *not* evidence of a cooling failure.
+
+The controller now reads **`getHeatCapacity()`** from the formed
+Fission Reactor's actual CC:Tweaked peripheral and uses the validated
+steady-state approximation from
+[cc-mek-scada Reactor Temperature Calculation](https://github.com/MikaylaFischler/cc-mek-scada/wiki/Reactor-Temperature-Calculation):
+
+```text
+Water:   expected K = 373.15 + burn(mB/t) * (2 * energyPerFissionFuel / heatCapacity)
+Sodium:  expected K = 373.15 + burn(mB/t) * (    energyPerFissionFuel / heatCapacity)
+```
+
+The [Project Infinity Mekanism Generators config](https://github.com/BOLTMAGIC/Project-Infinity-0.1/blob/main/config/Mekanism/generators.toml)
+sets `energyPerFissionFuel=1000000` Joules/mB,
+`casingHeatCapacity=1000` J/K and
+`meltdownsEnabled=true`.
+At 18x18x18, a shell of 1736 blocks gives approximately
+**1,736,000 J/K**, confirmed if `getHeatCapacity()` returns this
+number. This predicts:
+
+| Water-cooled burn | Model temperature |
+| --- | --- |
+| 400 mB/t | 834 K |
+| 448 mB/t | 889 K |
+| 540 mB/t | 995 K |
+| 600 mB/t | 1064 K |
+| 650 mB/t | 1122 K |
+
+The approximation assumes stable, effective cooling. If your coolant
+flow, water feed, heating characteristics or modpack configs differ,
+**actual measured temperature and its direction of change override
+model expectations**. Model-vs-actual errors and the rolling
+12–20-second K/s trend are logged and shown on the REACTOR, DIAG and
+computer terminal views. In AUTO, unexpected measured overheating
+pauses or reduces burn without waiting for a fixed 850K threshold.
+
+**New thermal policy:**
+- **1100 K** default steady thermal soft warning: controlled trim and
+  calibrated max burn cap. The physical model estimates a
+  conservative **~618 mB/t** upper cap for the user's reactor
+  at default settings and a 2% safety margin, before SPS/FE/fuel/flow
+  constraints.
+- **1150 K** absolute software SCRAM and autonomous RPS SCRAM (also
+  clamps custom higher values to 1150). Structural damage begins
+  around **1200 K** in standard Mekanism, so we keep at least 50 K
+  pre-damage headroom. Any actual damage >0 remains an SCRAM condition.
+- Rising temperature unexpectedly far above calculated equilibrium,
+  a rapidly rising temperature on a path to the hard limit, dropping
+  coolant, heated-coolant backup, waste pressure or steam buildup can
+  force a hold/trim or SCRAM sooner.
+- If `getHeatCapacity()` is missing, **AUTO SPS will not increase burn**
+  while `thermalRequireHeatCapacity=true`. The independent RPS still
+  checks measured temperature and coolant.
+
+**Settings migration:** if an existing CC configuration still has
+the exact old defaults `tempWarn=850` and `tempTrip=1000`, only
+that unmodified pair is upgraded to 1100/1150 during startup. An
+explicitly customized lower trip threshold is preserved. Other
+settings, including your manually configured `autoBurnCeiling`,
+remain unchanged.
+
+Thermal readouts and settings: `heatCapacity`, `expectedTemp`,
+`thermalExpectedError`, `tempTrend`, `thermalState`,
+`thermalReason`, `thermalModelCap`, `thermalTrendSeconds=20`,
+`thermalMinTrendSeconds=12`, `thermalModelBurnMargin=0.98`,
+`thermalRequireHeatCapacity=true` and
+`thermalEnergyPerFuel=1000000`. The existing CSV header changed,
+so the new log file retains all new thermal columns rather than
+mixing incompatible rows with old history.
+
+**Mods and addons reviewed:**
+- **Mekanism 10.4.16 + Mekanism Generators:** these implement the
+  standard Fission Reactor, turbine, SNA and SPS controlled here;
+  actual reactor API and `generators.toml` settings govern heat physics.
+- **Mekanism Extra / MekanismExtras**, **Evolved Mekanism**,
+  **Compact Mekanism Machines** and **Better Fusion Reactor for
+  Mekanism** occur in Project Infinity. They add other equipment,
+  recipes or reactor variants; a Naquadah Reactor or an addon
+  fusion/compact reactor must **not** be assumed to have the same
+  fission temperature formula or CC methods. This program will only
+  apply the standard fission model to a formed peripheral exposing
+  the standard Mekanism Fission methods.
+- **Advanced Peripherals** is available for optional environment
+  sensing, but its radiation readout is not required for burn-rate
+  control; the pack's published configuration disables global
+  radiation mechanics. No radiation-based safety promises are made.
+
+Tests perform Lua syntax checking, independent thermal-model tests,
+and full mocked controller scenarios at 448 / 540 / 600 mB/t,
+with safe 995K operation, abnormal heating and a hard 1150K
+SCRAM. A passing simulated test is NOT a replacement for an in-game
+commissioning run or an independent physical Fission Logic Adapter.
+
 ### Fix: SPS AUTO hunting 414 → 330 mB/t (2026-10-24)
 
 The user's new screenshots showed a reactor falling between approximately
