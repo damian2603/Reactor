@@ -67,11 +67,33 @@ function peripheral.call(name,method,...)
   if type(v)=="function" then return v(...) end
   return v
 end
+local mockFiles={}
 fs={}
-function fs.exists(p) return p=="/cc-mekanism" end
+function fs.exists(p) return p=="/cc-mekanism" or mockFiles[p]~=nil end
 function fs.makeDir() end
-function fs.open()
-  return {write=function() end,writeLine=function() end,close=function() end}
+function fs.open(p,mode)
+  if mode=="r" and not fs.exists(p) then return nil end
+  if mode=="w" then mockFiles[p]="" end
+  if mode=="a" and not mockFiles[p] then mockFiles[p]="" end
+  return {
+    readAll=function() return mockFiles[p] end,
+    write=function(s) mockFiles[p]=mockFiles[p]..tostring(s) end,
+    writeLine=function(s) mockFiles[p]=mockFiles[p]..tostring(s).."\\n" end,
+    close=function() end,
+  }
+end
+function fs.getSize(p) return #(mockFiles[p] or "") end
+function fs.getFreeSpace()
+  local used=0
+  for _,s in pairs(mockFiles) do used=used+#s end
+  return math.max(0,1048576-used)
+end
+function fs.delete(p) mockFiles[p]=nil end
+function fs.move(from,to)
+  assert(mockFiles[from]~=nil,"mock cannot move missing file "..from)
+  assert(mockFiles[to]==nil,"mock cannot overwrite file "..to)
+  mockFiles[to]=mockFiles[from]
+  mockFiles[from]=nil
 end
 textutils={serialize=function() return "{}" end,unserialize=function() return {} end}
 term={current=function() return {} end}
@@ -90,6 +112,7 @@ local function newController()
   calls={}
   epochMs=1000000
   burnRate=400
+  mockFiles={}
   return originalDofile("cc-mekanism/controller.lua")
 end
 local function sample()
