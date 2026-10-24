@@ -153,6 +153,10 @@ local function discover()
 end
 discover()
 local mode="MANUAL" -- NEVER persist automatic operation or auto-start
+local uiPage=1
+local rateHistory={}
+local alarmHistory={}
+local lastAlarmText=""
 local latched=false
 local alarm,info="","Boot: MANUAL, auto-start disabled"
 local current, previous = {}, nil
@@ -172,6 +176,11 @@ local function redstoneAlarm(on)
 end
 local function trip(reason)
   latched=true;alarm=tostring(reason)
+  if alarm~=lastAlarmText then
+    alarmHistory[#alarmHistory+1]={time=os.epoch("utc")/1000,message=alarm}
+    if #alarmHistory>30 then table.remove(alarmHistory,1) end
+    lastAlarmText=alarm
+  end
   mode="MANUAL"
   redstoneAlarm(true)
   if names.reactor and peripheral.isPresent(names.reactor) then
@@ -345,6 +354,17 @@ local function read()
   else
     t.spsDiagnosis="SPS RUNNING / BALANCED"
   end
+  if t.spRate then
+    rateHistory[#rateHistory+1]={time=t.ts,rate=t.spRate,input=t.spInput}
+    if #rateHistory>300 then table.remove(rateHistory,1) end
+  end
+  if #rateHistory>=2 then
+    local first=rateHistory[1]
+    local total=0
+    for _,v in ipairs(rateHistory) do total=total+v.rate end
+    t.spRateAverage=total/#rateHistory
+    t.spRateTrend=t.spRate-first.rate
+  end
   previous=t
   return t
 end
@@ -516,7 +536,7 @@ local function autoSPS(t)
     target=math.min(cap,t.burn+step)
     reason="RAMP: MAXIMIZING ANTIMATTER / TICK"
   else
-    reason="HOLD: MAX SUSTAINABLE SPS THROUGHPUT"
+    reason="HOLD: SUPPLY CAP (FE LIMIT NOT VERIFIED)"
   end
   -- Prevent twitchy feedback on every tick; pauses and cap drops
   -- bypass the timer, but normal increases cannot.
@@ -670,12 +690,136 @@ local function btn(dev,y,x,label,id)
   dev.setTextColor(colors.white);dev.write(s)
   buttons[#buttons+1]={y=y,x=x,last=x+#s-1,id=id}
 end
+local function scadaDraw(dev,isMonitor)
+  local w,h=dev.getSize()
+  if h<19 or w<38 then return false end
+  buttons={}
+  local function paint(y,label,fg,bg)
+    if y<1 or y>h then return end
+    dev.setCursorPos(1,y)
+    dev.setBackgroundColor(bg or colors.black)
+    dev.setTextColor(fg or colors.white)
+    local s=tostring(label):sub(1,w)
+    dev.write(s..string.rep(" ",math.max(0,w-#s)))
+  end
+  local function bar(y,label,frac,color)
+    if not N(frac) then paint(y,label.." --");return end
+    frac=clamp(frac,0,1)
+    local width=math.max(4,math.min(28,w-#label-11))
+    local used=math.floor(width*frac+0.5)
+    paint(y,label.." ["..string.rep("=",used)..string.rep("-",width-used).."] "..p(frac),color)
+  end
+  local function title(text) paint(4," "..text,colors.cyan) end
+  paint(1," PROJECT INFINITY  /  MEKANISM SCADA  |  "..mode,colors.black,colors.cyan)
+  paint(2," SPS | REACTOR | TURBINE | DIAG | HISTORY",colors.lightBlue)
+  paint(3," "..(latched and "TRIPPED" or current.on and "REACTOR ONLINE" or "REACTOR OFF")..
+    "  |  AM "..n(current.spRate,4).." mB/t",latched and colors.red or colors.lime)
+  if uiPage==1 then
+    title("SPS / ANTIMATTER")
+    paint(6,"OUTPUT "..n(current.spRate,4).." mB/t  |  "..n((current.spRate or 0)*1200,2).." mB/min",colors.lime)
+    paint(7,"AVG "..n(current.spRateAverage,4).." mB/t | DELTA "..n(current.spRateTrend,4))
+    bar(9,"Polonium",current.spInput,colors.yellow)
+    bar(10,"Antimatter",current.spOutput,colors.lime)
+    paint(12,"Solar "..tostring(current.snaActive or 0).."/"..tostring(current.snaCount or 0)..
+      "  potential "..fmt(current.snaProduction).." polonium/t")
+    paint(13,"Fission potential "..n(current.fissionAntimatterPotential,4).." AM/t")
+    paint(14,"SPS FE demand ~"..fmt(current.spEnergyUsedFE).." FE/t (EST.)")
+    paint(15,"Flux Point: manual limit / FE supply unmeasured",colors.yellow)
+    paint(17,"DIAG "..tostring(current.spsDiagnosis or "--"),colors.orange)
+    if h>=27 then
+      paint(19,"AM PRODUCTION HISTORY ("..#rateHistory.." samples)",colors.cyan)
+      local gh=math.min(5,h-24)
+      if gh>0 and #rateHistory>0 then
+        local graphWidth=math.min(w,#rateHistory)
+        local peak=0
+        for _,v in ipairs(rateHistory) do peak=math.max(peak,v.rate or 0) end
+        peak=math.max(peak,0.00001)
+        for x=1,graphWidth do
+          local v=rateHistory[#rateHistory-graphWidth+x].rate or 0
+          local level=math.floor(v/peak*gh+0.5)
+          for yy=0,level-1 do
+            dev.setCursorPos(x,20+gh-1-yy)
+            dev.setTextColor(colors.lime)
+            dev.write("|")
+          end
+        end
+      end
+    end
+  elseif uiPage==2 then
+    title("FISSION REACTOR / CONTROL")
+    paint(6,"Burn "..n(current.burn,2).." / actual "..n(current.actual,2)..
+      " / max "..n(current.maxBurn,2).." mB/t")
+    paint(7,"Temperature "..n(current.temp,1).." K | damage "..n(current.damage,1).."%")
+    bar(9,"Coolant",current.coolant,colors.aqua)
+    bar(10,"Heated",current.heated,colors.orange)
+    bar(11,"Waste",current.waste,colors.yellow)
+    bar(12,"Fuel",current.fuel,colors.lime)
+    paint(14,"AUTO CAP "..n(current.safeCap,2).." mB/t")
+    paint(15,"CONTROL "..tostring(current.limit or "--"),colors.yellow)
+    paint(17,"SCRAM protection: "..(latched and "LATCHED" or "ARMED"),
+      latched and colors.red or colors.lime)
+  elseif uiPage==3 then
+    title("TURBINE / ENERGY")
+    paint(6,"FE output "..fmt(current.powerFE).." / "..fmt(current.maxProductionFE).." FE/t")
+    paint(7,"Steam flow "..fmt(current.flow).." / "..fmt(current.maxFlow))
+    bar(9,"Steam",current.steam,colors.aqua)
+    bar(10,"FE buffer",current.energy,colors.lime)
+    paint(12,"Matrix IN "..fmt(current.imInFE).." FE/t")
+    paint(13,"Matrix OUT "..fmt(current.imOutFE).." FE/t")
+    paint(15,"FE delivery to SPS: NOT MEASURED",colors.yellow)
+    paint(16,"Flux Point limit: set manually",colors.yellow)
+  elseif uiPage==4 then
+    title("DIAGNOSTICS / ALARMS")
+    paint(6,"SPS: "..tostring(current.spsDiagnosis or "--"),colors.yellow)
+    paint(7,"Safety: "..(latched and alarm or "NO LATCHED ALARM"),
+      latched and colors.red or colors.lime)
+    paint(9,"Data: SPS "..tostring(names.sps or "MISSING")..
+      " | SNA "..tostring(current.snaCount or 0))
+    paint(11,"Recent alarms:",colors.cyan)
+    for i=math.max(1,#alarmHistory-6),#alarmHistory do
+      local entry=alarmHistory[i]
+      paint(12+i-math.max(1,#alarmHistory-6),entry.message,colors.orange)
+    end
+    paint(math.min(h-7,21),"Safety always active; reactor never auto-starts.",colors.yellow)
+  else
+    title("HISTORY / CONTROL STATUS")
+    paint(6,"AM average "..n(current.spRateAverage,4).." mB/t")
+    paint(7,"AM latest "..n(current.spRate,4).." mB/t")
+    paint(9,"SPS diagnosis: "..tostring(current.spsDiagnosis))
+    paint(11,"Control: "..info,colors.yellow)
+    paint(13,"CSV log: /cc-mekanism/history.csv")
+    paint(15,"Note: 'potential' is not confirmed optimality.",colors.orange)
+  end
+  if isMonitor then
+    local nav={"SPS","REACTOR","FE","DIAG","LOG"}
+    local width=math.floor(w/5)
+    for i,label in ipairs(nav) do
+      local x=(i-1)*width+1
+      local txt="["..label.."]"
+      if x+#txt-1<=w then
+        dev.setCursorPos(x,h-3)
+        dev.setBackgroundColor(i==uiPage and colors.blue or colors.gray)
+        dev.setTextColor(colors.white)
+        dev.write(txt)
+        buttons[#buttons+1]={x=x,last=x+#txt-1,y=h-3,id="page"..i}
+      end
+    end
+    btn(dev,h-2,1,"MAN","manual")
+    btn(dev,h-2,7,"FE","fe")
+    btn(dev,h-2,12,"SPS","sps")
+    btn(dev,h-2,18,"SCRAM","scram")
+    btn(dev,h-2,26,"START","start")
+  end
+  paint(h,"1-5 pages | +/- burn | C cap | M manual | P SPS | S SCRAM",colors.lightGray)
+  return true
+end
 local function render(dev,isMonitor)
   if not dev then return false end
   local ok,err=pcall(function()
     if dev.setTextScale then dev.setTextScale(0.5) end
     local w,h=dev.getSize()
     dev.setBackgroundColor(colors.black);dev.setTextColor(colors.white);dev.clear()
+    if scadaDraw(dev,isMonitor) then return end
     row(dev,1,"PROJECT INFINITY / MEKANISM | "..mode..
         (latched and " | ALARM LATCHED" or (current.on and " | ACTIVE" or " | OFF")),latched and colors.red or colors.cyan)
     row(dev,2,"Reactor "..(tostring(current.rLength or "?").."x"..tostring(current.rWidth or "?").."x"..tostring(current.rHeight or "?"))..
@@ -757,6 +901,8 @@ local function canStart()
   return true
 end
 local function command(cmd)
+  local pageNumber=tonumber(tostring(cmd):match("^page([1-5])$"))
+  if pageNumber then uiPage=pageNumber;return end
   if cmd=="scram" then trip("manual SCRAM");return end
   if cmd=="manual" then mode="MANUAL";info="MANUAL (safety still enabled)";return end
   if cmd=="fe" or cmd=="sps" then
@@ -842,7 +988,8 @@ local function inputLoop()
         setTyped();edit=nil;buffer=""
       end
     elseif ev=="char" then
-      if a=="q" then active=false;return
+      if a:match("^[1-5]$") then uiPage=tonumber(a)
+      elseif a=="q" then active=false;return
       elseif a=="b" then edit="burn";buffer=tostring(current.burn or 0);info="Enter burn: "..buffer
       elseif a=="c" then edit="cap";buffer=tostring(c.autoBurnCeiling);info="Enter ceiling (0=automatic): "..buffer
       elseif a=="t" then edit="target";buffer=tostring(math.floor(c.feTarget*1000+0.5)/10)
