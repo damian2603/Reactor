@@ -334,12 +334,23 @@ do
   assert(t.feSuggestedLimit==23000000,"trial FE with room")
   assert(t.dumpExcess==true,"monitor turbine Dumping Excess mode")
   assert(ctl.safety(t)==true,"healthy coolant in excess dumping mode")
-  data.reactor.getCoolantFilledPercentage=0.91
+  data.reactor.getHeatingRate=10500000
+  data.turbine.getFlowRate=10000000
+  local ventRisk=ctl.read()
+  near(ventRisk.waterReturnGapEstimate,500000,0.1,
+    "possible water return shortfall is diagnostic, not actual vent meter")
+  data.reactor.getCoolantFilledPercentage=0.979
   local losing=ctl.read()
   local safe,why=ctl.safety(losing)
   assert(safe==false and why:find("water reserve",1,true),
     "dumping steam with critically low coolant must trip")
+  data.reactor.getCoolantFilledPercentage=0.99
+  local recovered=ctl.read()
+  local okay=ctl.safety(recovered)
+  assert(okay==true,"coolant recovered above 98% no dumping SCRAM")
   data.reactor.getCoolantFilledPercentage=1
+  data.reactor.getHeatingRate=50000
+  data.turbine.getFlowRate=50000
   data.turbine.getDumpingMode="IDLE"
   data.sps.getProcessRate=0.039
   data.sps.getInputFilledPercentage=0.02
