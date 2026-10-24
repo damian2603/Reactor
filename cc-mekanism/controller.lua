@@ -97,7 +97,8 @@ local staticMethods={getLength=true,getWidth=true,getHeight=true,getFuelAssembli
   getMaxBurnRate=true,getSteamCapacity=true,getMaxFlowRate=true,
   getMaxProduction=true,getMaxWaterOutput=true,getBlades=true,
   getCoils=true,getVents=true,getCondensers=true,getDispersers=true,
-  getInputCapacity=true,getOutputCapacity=true,getBoilCapacity=true,getCapacity=true,
+  getInputCapacity=true,getOutputCapacity=true,getMaxEnergy=true,
+  getBoilCapacity=true,getCapacity=true,
   getTankCapacity=true}
 local telemetryCache=nil
 local MISSING_READ={}
@@ -201,7 +202,7 @@ local sampleMethods={
   reactor={"getActualBurnRate","getBoilEfficiency","getBurnRate","getCoolant","getCoolantCapacity","getCoolantFilledPercentage","getDamagePercent","getFuelAssemblies","getFuelCapacity","getFuel","getFuelFilledPercentage","getHeatedCoolantFilledPercentage","getHeatingRate","getHeight","getLength","getMaxBurnRate","getStatus","getTemperature","getWasteCapacity","getWasteFilledPercentage","getWidth","isForceDisabled","isFormed"},
   turbine={"getBlades","getCoils","getCondensers","getDispersers","getDumpingMode","getEnergyFilledPercentage","getFlowRate","getHeight","getLastSteamInputRate","getLength","getMaxFlowRate","getMaxProduction","getMaxWaterOutput","getProductionRate","getSteamCapacity","getSteamFilledPercentage","getVents","getWidth","isFormed"},
   boiler={"getBoilCapacity","getHeatedCoolantFilledPercentage","getSteamFilledPercentage","getWaterFilledPercentage","isFormed"},
-  sps={"getCoils","getHeight","getInput","getInputCapacity","getInputFilledPercentage","getLength","getOutput","getOutputCapacity","getOutputFilledPercentage","getProcessRate","getWidth","isFormed"},
+  sps={"getCoils","getEnergy","getEnergyFilledPercentage","getMaxEnergy","getHeight","getInput","getInputCapacity","getInputFilledPercentage","getLength","getOutput","getOutputCapacity","getOutputFilledPercentage","getProcessRate","getWidth","isFormed"},
   sna={"canSeeSun","getInput","getInputFilledPercentage","getOutput","getOutputFilledPercentage","getPeakProductionRate","getProductionRate"},
   fuelTank={"getCapacity","getStored","getStoredChemical","getStoredGas","getTankCapacity"},
   matrix={"getEnergyFilledPercentage","getLastInput","getLastOutput"},
@@ -369,6 +370,9 @@ local function read()
   t.spInput=N(pc(sp,"getInputFilledPercentage"))
   t.spOutput=N(pc(sp,"getOutputFilledPercentage"))
   t.spRate=N(pc(sp,"getProcessRate"))
+  t.spEnergyFill=N(pc(sp,"getEnergyFilledPercentage"))
+  t.spEnergyStored=N(pc(sp,"getEnergy"))
+  t.spMaxEnergy=N(pc(sp,"getMaxEnergy"))
   t.spInputAmount=N(pc(sp,"getInput"))
   t.spOutputAmount=N(pc(sp,"getOutput"))
   t.spEnergyUsedFE=t.spRate and
@@ -460,6 +464,11 @@ local function read()
   elseif t.waste and t.waste>=0.25 and t.wasteDelta and
        t.wasteDelta>0.001 then
     t.spsDiagnosis="SNA TOO SLOW / WASTE TRANSFER"
+  elseif t.spInput and t.spInput>=0.15 and
+       t.spEnergyFill and t.spEnergyFill<0.05 and t.spRate and
+       t.fissionAntimatterPotential and
+       t.spRate<t.fissionAntimatterPotential*0.85 then
+    t.spsDiagnosis="SPS FE SUPPLY / COILS LIMIT SUSPECTED"
   elseif t.spInput and t.spInput>=0.40 and t.spRate and
        t.fissionAntimatterPotential and
        t.spRate<t.fissionAntimatterPotential*0.75 then
@@ -1058,7 +1067,8 @@ local fields={"ts","on","burn","actual","temp","damage","coolant","heated","wast
   "steam","steamIn","flow","maxFlow","power","energy","tLength","tWidth","tHeight",
   "blades","coils","vents","condensers","maxProduction",
   "powerFE","maxProductionFE","waterOut","productionFraction",
-  "spInput","spOutput","spRate","spInputAmount","spOutputAmount",
+  "spInput","spOutput","spRate","spEnergyFill","spEnergyStored",
+  "spMaxEnergy","spInputAmount","spOutputAmount",
   "spEnergyUsedFE","snaCount","snaActive","snaSun","snaProduction",
   "snaWasteCapacity","snaAntimatterPotential","snaMaxOutputFill",
   "snaMaxInputFill","snaTotalInput","snaTotalOutput",
