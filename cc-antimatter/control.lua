@@ -258,8 +258,8 @@ function M.new(config)
         -- At almost-full tank there is enough reserve to intentionally
         -- drain a little for calibration. DO NOT slash burn by 38 mB/t
         -- on every minor decline, otherwise we never learn true supply.
-        local reserve=(valid(t.fuelAmount) and valid(t.fuelCapacity)) and
-          max(0,t.fuelAmount-0.15*t.fuelCapacity) or 0
+        local reserve=(valid(t.fuelEffective) and valid(t.fuelCapacity)) and
+          max(0,t.fuelEffective-0.15*t.fuelCapacity) or 0
         local horizon=reserve/(-t.fuelNet*c.ticksPerSecond)
         if horizon<75 then
           limit("FUEL_RESERVE",max(c.minimumBurn,burn-c.downwardStep))
@@ -362,7 +362,12 @@ function M.new(config)
       -- Normal limits change by 1-2 mB/t per command, not 38-66 in one
       -- go. Fast intervention is reserved for clearly dangerous readings.
       local step=urgent and c.emergencyDownwardStep or c.downwardStep
-      if interval>=c.changeIntervalSeconds or urgent then
+      if reason=="NO SOLAR POLONIUM CONVERSION" or
+          (valid(t.antimatterFill) and t.antimatterFill>=c.spsFull) then
+        -- Stop actively wasting fuel when Polonium has no conversion
+        -- or the Antimatter product is completely backpressured.
+        target=cap
+      elseif interval>=c.changeIntervalSeconds or urgent then
         target=max(cap,burn-step)
       end
       reason=reason=="SEEK FUEL/SPS LIMIT" and "TRIM TO REAL LIMIT" or reason
