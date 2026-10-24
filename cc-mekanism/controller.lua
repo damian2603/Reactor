@@ -32,7 +32,10 @@ local defaults = {
   feRateStabilitySeconds=12, -- allow turbine flow to settle after each change
   spsInputWarn=0.85, spsOutputWarn=0.90,
   spsSolarUtilization=0.92, -- solar peak throughput headroom
-  spsSteamFlowFraction=0.96, -- thermal flow cap, not a power target
+  spsSteamFlowFraction=0.96, -- used only if spsTurbineFlowHardCap=true
+  spsTurbineFlowHardCap=false, -- SPS prioritizes antimatter; turbine FE is secondary
+  spsSteamEarlyWarn=0.50, -- fraction where rising steam buffer prevents further ramp
+  spsSteamGrowthWarn=0.0004, -- rising steam fill per second at high occupancy
   spsRateChangeSeconds=12,
   spsRampFraction=0.01, -- fraction of actual max burn rate per step
   spsNoSolarHold=true, -- require Solar Neutron Activator telemetry
@@ -710,13 +713,14 @@ local function bottleneck(t)
   add(t.fuel and t.fuel<0.05,"LOW FUEL")
   return table.concat(reasons,", ")
 end
-local function safeCap(t,flowFraction)
+local function safeCap(t,flowFraction,applyTurbineFlowCap)
   local cap=t.maxBurn or 0
   flowFraction=flowFraction or c.feTarget
+  if applyTurbineFlowCap==nil then applyTurbineFlowCap=true end
   if c.autoBurnCeiling>0 then cap=math.min(cap,c.autoBurnCeiling) end
   -- Empirical steam-to-burn conversion: only direct-water-cooled fission.
   -- For sodium cooling, a separate boiler converts heat to steam.
-  if t.bFormed~=true and not t.sodiumCoolant and
+  if applyTurbineFlowCap and t.bFormed~=true and not t.sodiumCoolant and
       t.actual and t.actual>0.09 and
       t.steamMade and t.steamMade>0 then
     local observed=t.steamMade/t.actual
@@ -727,7 +731,7 @@ local function safeCap(t,flowFraction)
   end
   -- The soft cap is based on usable turbine steam FLOW, not how full the
   -- steam tank is. Target up to 95% of the turbine's generation potential.
-  if t.bFormed~=true and not t.sodiumCoolant and
+  if applyTurbineFlowCap and t.bFormed~=true and not t.sodiumCoolant and
       learnedSteamPerBurn and
       t.maxFlow and t.maxFlow>0 then
     cap=math.min(cap,t.maxFlow*flowFraction/learnedSteamPerBurn)
@@ -818,7 +822,9 @@ local function autoSPS(t)
 
   -- Three independent constraints: physics/heat, solar conversion,
   -- available fissile fuel. Manual Flux Point cap is a soft estimate.
-  local cap=safeCap(t,c.spsSteamFlowFraction)
+  local turbineHardCap=c.spsTurbineFlowHardCap==true
+  local cap=safeCap(t,c.spsSteamFlowFraction,turbineHardCap)
+  t.spsTurbineFlowHardCap=turbineHardCap
   if t.snaProduction>0 then
     cap=math.min(cap,t.snaWasteCapacity*
       clamp(c.spsSolarUtilization,0.5,1))
@@ -923,6 +929,10 @@ local function autoSPS(t)
     target=cap
     reason="CAP: SOLAR / FUEL / FE / COOLING"
   elseif t.temp>=c.tempWarn or t.coolant<c.coolantWarn or
+      (t.steam and t.steam>c.spsSteamEarlyWarn and
+       t.steamDelta and t.steamDelta>c.spsSteamGrowthWarn) or
+      (t.heated and t.heated>c.spsSteamEarlyWarn and
+       t.heatedDelta and t.heatedDelta>c.spsSteamGrowthWarn) or
       t.heated>=c.heatedWarn or t.waste>=c.wasteWarn or
       t.bSteam and t.bSteam>=c.steamWarn or
       t.bHot and t.bHot>=c.heatedWarn or
@@ -948,6 +958,10 @@ local function autoSPS(t)
     if elapsed>=c.spsRampSeconds and
         t.coolant>=c.coolantWarn and
         not (t.coolantDelta and t.coolantDelta< -0.002) and
+        not (t.steam and t.steam>c.spsSteamEarlyWarn and
+          t.steamDelta and t.steamDelta>c.spsSteamGrowthWarn) and
+        not (t.heated and t.heated>c.spsSteamEarlyWarn and
+          t.heatedDelta and t.heatedDelta>c.spsSteamGrowthWarn) and
         not (t.heatedDelta and t.heatedDelta>0.002) and
         not (tankFill and tankFill<c.fuelLimitStart) and
         not (t.fuelRapidNet and t.fuelRapidNet< -0.005) then
@@ -1080,7 +1094,8 @@ local fields={"ts","on","burn","actual","temp","damage","coolant","heated","wast
   "fuelNetPerTick","fuelRapidNet","fuelRapidProduction","fuelRapidLimited",
   "fuelProducedEstimate","fuelCap","fuelCapFresh",
   "fuelSampleSeconds","fuelRateLimited","tps","spsDemandBurn","spInputControlTrend",
-  "spControlSeconds","feAdvice","safeCap","limit","spsLearnedThroughputCap"}
+  "spControlSeconds","feAdvice","safeCap","limit",
+  "spsTurbineFlowHardCap","spsLearnedThroughputCap"}
 local function history(t)
   if t.ts-lastLog<c.logSeconds then return end
   lastLog=t.ts
@@ -1205,7 +1220,8 @@ local function scadaDraw(dev,isMonitor)
     bar(12,"Fuel",current.fuel,colors.lime)
     paint(13,"Fuel "..tostring(current.fuelSource or "MISSING").." "..p(current.fuelFillForControl)..
       " net "..n(current.fuelRapidNet,2).." mB/t")
-    paint(14,"AUTO CAP "..n(current.safeCap,2).." mB/t")
+    paint(14,"AUTO CAP "..n(current.safeCap,2).." mB/t"
+      ..(c.spsTurbineFlowHardCap and " (TURBINE HARD)" or " (SPS FIRST)"))
     paint(15,"CONTROL "..tostring(current.limit or "--"),colors.yellow)
     paint(16,"Fuel estimate "..n(current.fuelCap,2).." mB/t | TPS "..n(current.tps,1))
     paint(17,"SCRAM protection: "..(latched and "LATCHED" or "ARMED"),
