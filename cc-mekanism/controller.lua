@@ -25,6 +25,8 @@ local defaults = {
   spsRateChangeSeconds=12,
   spsRampFraction=0.01, -- fraction of actual max burn rate per step
   spsNoSolarHold=true, -- require Solar Neutron Activator telemetry
+  spsBufferLow=0.08, spsBufferHigh=0.22,
+  spsTrendDeadband=0.000025, spsMinTrendSeconds=45,
   safetyFlowFactor=0.78, requireTurbine=true,
   returnWaterRequired=false,
   alarmRedstoneSide="", -- optional output (e.g. "right"), true when latched
@@ -508,8 +510,6 @@ local function autoSPS(t)
   local target=t.burn
   local reason="HOLD: SPS THROUGHPUT"
   -- Use a 20+ second buffer trend; single-tick fill changes are noisy.
-  local poloniumSurplus=t.spInputTrend120 and t.spInputTrend120>0.00008
-  local poloniumDepletion=t.spInputTrend120 and t.spInputTrend120< -0.00008
   local now=t.ts
   local stabilized=(now-lastChange)>=c.spsRateChangeSeconds
   local solarAvailable=t.snaCount>0 and t.snaBroken==0 and
@@ -548,38 +548,45 @@ local function autoSPS(t)
     reason="CAP: AVAILABLE SOLAR / TURBINE CAPACITY"
   elseif not stabilized then
     reason="STABILIZING SPS / SOLAR PROCESSING"
-  elseif t.spInput>=0.30 and t.spsEfficiency and
-      t.spsEfficiency<0.70 then
-    -- Polonium is present but SPS is not processing it at the
-    -- theoretical rate. Additional fission cannot fix that.
-    reason="HOLD: SPS POWER / PROCESSING BOTTLENECK"
-    if t.spInputDelta and t.spInputDelta>0.003 then
-      target=math.max(0,t.burn-step)
-    end
-  elseif poloniumSurplus and t.spInput>=0.45 and t.spRate120 and t.spRate120>0 then
-    target=math.max(0,t.burn-step)
-    reason="TRIM: POLONIUM BUFFER GROWING"
+  elseif t.spWindowSeconds==nil or t.spWindowSeconds<c.spsMinTrendSeconds or
+      t.spInputTrend120==nil then
+    reason="HOLD: COLLECTING SPS BUFFER TREND"
   elseif t.snaMaxOutputFill>=0.75 then
     reason="HOLD: SNA OUTPUT TRANSFER SLOW"
   elseif t.steam and t.steam>=c.feSteamHold then
     reason="HOLD: STEAM SAFETY HEADROOM"
-  elseif poloniumDepletion and t.spInput<0.10 and t.burn<cap-0.009 then
+  elseif t.spInput>=c.spsBufferHigh and
+      t.spInputTrend120>c.spsTrendDeadband then
+    target=math.max(0,t.burn-step)
+    reason="TRIM: POLONIUM SURPLUS / SAVE FUEL"
+  elseif t.spInput>=c.spsBufferHigh and
+      math.abs(t.spInputTrend120)<=c.spsTrendDeadband then
+    -- Probe downward only when there is a comfortable stored reserve.
+    target=math.max(0,t.burn-step)
+    reason="PROBE: MINIMUM SUSTAINABLE BURN"
+  elseif t.spInput<c.spsBufferLow and
+      t.spInputTrend120< -c.spsTrendDeadband and t.burn<cap-0.009 then
     target=math.min(cap,t.burn+step)
-    reason="RAMP: SPS POLONIUM BUFFER FALLING"
-  elseif t.burn<cap-0.009 then
-    if t.spInput>=0.20 and t.spRate120 and t.spWindowSeconds>=45 and
-        t.spRate120<t.spsTargetRate*0.75 then
-      reason="HOLD: SPS PROCESSING LIMITED / CHECK FE"
-    else
-      target=math.min(cap,t.burn+step)
-      reason="RAMP: SEEKING SUSTAINABLE POLONIUM SUPPLY"
-    end
+    reason="RAMP: POLONIUM BUFFER DEPLETING"
+  elseif t.spInput<c.spsBufferLow and t.burn<cap-0.009 and
+      t.spRate120 and t.spRate120>0 then
+    target=math.min(cap,t.burn+step)
+    reason="RAMP: RESTORE POLONIUM RESERVE"
+  elseif t.spInputTrend120>c.spsTrendDeadband and t.spInput>=c.spsBufferLow then
+    target=math.max(0,t.burn-step)
+    reason="TRIM: BUFFER RISING"
+  elseif t.spInputTrend120< -c.spsTrendDeadband and
+      t.spInput<c.spsBufferHigh and t.burn<cap-0.009 then
+    target=math.min(cap,t.burn+step)
+    reason="RAMP: BUFFER FALLING"
+  elseif t.spInput>=c.spsBufferLow and t.spInput<=c.spsBufferHigh then
+    reason="HOLD: POLONIUM SUPPLY BALANCED"
   else
     reason="HOLD: SUPPLY CAP (FE LIMIT NOT VERIFIED)"
   end
   -- Prevent twitchy feedback on every tick; pauses and cap drops
   -- bypass the timer, but normal increases cannot.
-  if target>t.burn and not stabilized then target=t.burn end
+  if not stabilized then target=t.burn end
   target=math.max(0,math.min(target,cap))
   if math.abs(target-t.burn)>=0.009 then
     local ok,err=burn(target)
