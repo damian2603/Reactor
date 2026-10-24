@@ -346,15 +346,18 @@ local function draw(dev,side)
   line(7,"Coolant "..fmt((t.coolant or 0)*100,1).."% Heated "..fmt((t.heated or 0)*100,1).."% Waste "..fmt((t.waste or 0)*100,1).."%")
   line(8,"Polonium "..fmt((t.poloniumFill or 0)*100,2).."% / Solar "..tostring(t.solarWorking or 0).."/"..tostring(t.solarCount or 0))
   line(9,"Flux REF "..fmt(cfg.fluxFE/1000000,0).."M FE/t (MANUAL, NOT MEASURED)",colors.lightBlue)
-  line(10,"User burn cap "..fmt(cfg.userCap,0).."  | Fuel tank "..fmt(t.fuelAmount,0).." mB",colors.white)
-  line(11,"Turbine steam "..fmt((t.turbineSteam or 0)*100,1).."% (DIAGNOSTIC ONLY)",colors.gray)
+  line(10,"Burn cap "..fmt(cfg.userCap,2).." | Fuel tank "..fmt(t.fuelAmount,0).." mB",colors.white)
+  line(11,"Water-return burn cap "..(cfg.waterLoopEnabled==1 and
+    fmt(cfg.waterLoopCap,2).." mB/t" or "OFF")..
+    " (manual calibration)",colors.lightBlue)
   line(12,"Control: "..tostring(d.reason or "NO AUTO DECISION"),colors.yellow)
   line(13,"Info: "..tostring(state.info or ""),colors.orange)
   line(14,"Fuel: "..tostring(t.fuelStatus or "WAITING")..
     " | gap "..fmt(t.fuelMissing,0).." mB",colors.yellow)
   if h>19 then
-    line(15,"Measured SPS / Fissile Fuel determine the optimum",colors.lightGray)
-    line(16,"Turbine steam NEVER triggers reactor SCRAM",colors.lightGray)
+    line(15,"Current turbine steam "..fmt((t.turbineSteam or 0)*100,2)..
+      "% (diagnostics only)",colors.lightGray)
+    line(16,"SPS/Fuel/RPS always override manual water-return cap",colors.lightGray)
     line(17,"Fuel source: "..tostring(P.fuelTank or "MISSING / AMBIGUOUS"),colors.gray)
     line(18,"SPS: "..tostring(P.sps or "MISSING / AMBIGUOUS"),colors.gray)
   end
@@ -382,7 +385,14 @@ local function draw(dev,side)
         if not saveConfig() then cfg.userCap=before end
         model.cfg.userCap=cfg.userCap end},
       {"RECAL",function()model=control.new(cfg)
-        state.info="FUEL AND SPS CALIBRATION RESET; AUTOMATIC SEARCH RESTARTED" end}}
+        state.info="FUEL AND SPS CALIBRATION RESET; AUTOMATIC SEARCH RESTARTED" end},
+      {"W-CAP",function()
+        local before=cfg.userCap
+        cfg.userCap=cfg.waterLoopCap
+        if not saveConfig() then cfg.userCap=before end
+        model.cfg.userCap=cfg.userCap
+        state.info="USER CAP SET TO MANUAL WATER BALANCE "..fmt(cfg.userCap,2)
+      end}}
     local x=1;touch[side]={}
     for _,entry in ipairs(buttons) do
       local label="["..entry[1].."]"
@@ -395,7 +405,7 @@ local function draw(dev,side)
         end
       end
     end
-    line(h-1,"Keyboard: A AUTO / M MAN / R RECAL / X SCRAM / Q QUIT",colors.white)
+    line(h-1,"Keyboard: A AUTO / M MAN / W W-CAP / R RECAL / X SCRAM",colors.white)
     line(h,"No auto activation; hardware SCRAM strongly recommended",colors.gray)
   end
   for y=1,h do
@@ -442,6 +452,12 @@ local function inputLoop()
       elseif ch=="m" then state.mode="MANUAL";state.info="MANUAL CONTROL"
       elseif ch=="r" then model=control.new(cfg)
         state.info="CALIBRATION RESET - RELEARNING FISSILE FUEL SUPPLY"
+      elseif ch=="w" then
+        local before=cfg.userCap
+        cfg.userCap=cfg.waterLoopCap
+        if not saveConfig() then cfg.userCap=before end
+        model.cfg.userCap=cfg.userCap
+        state.info="USER CAP ALIGNED WITH WATER LOOP: "..fmt(cfg.userCap,2)
       elseif ch=="x" or ch=="s" then emergency("OPERATOR SCRAM")
       elseif ch=="q" then state.running=false;state.info="EXIT: SCRAM ON EXIT"
       elseif ch=="+" or ch=="-" then
