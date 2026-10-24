@@ -824,10 +824,15 @@ local function autoSPS(t)
   -- available fissile fuel. Manual Flux Point cap is a soft estimate.
   local turbineHardCap=c.spsTurbineFlowHardCap==true
   local cap=safeCap(t,c.spsSteamFlowFraction,turbineHardCap)
+  local capReason=turbineHardCap and "REACTOR / TURBINE" or
+    "REACTOR / MANUAL CEILING"
   t.spsTurbineFlowHardCap=turbineHardCap
+  local function limitCap(value,source)
+    if value and value<cap-0.009 then cap=value;capReason=source end
+  end
   if t.snaProduction>0 then
-    cap=math.min(cap,t.snaWasteCapacity*
-      clamp(c.spsSolarUtilization,0.5,1))
+    limitCap(t.snaWasteCapacity*
+      clamp(c.spsSolarUtilization,0.5,1),"SOLAR ACTIVATORS")
   end
   if c.fluxLimitFE~=spsKnownFeLimit then
     spsThroughputLimit=nil
@@ -838,10 +843,10 @@ local function autoSPS(t)
     local feBurn=optimizerMath.feBurnLimit(c.fluxLimitFE,
       JOULES_PER_FE,WASTE_PER_POLONIUM,SPS_JOULES_PER_POLONIUM,
       c.spsManualFeCapMargin)
-    cap=math.min(cap,feBurn)
+    limitCap(feBurn,"FLUX FE REFERENCE")
   end
   if t.fuelCapFresh and t.fuelCap then
-    cap=math.min(cap,t.fuelCap*c.fuelMargin)
+    limitCap(t.fuelCap*c.fuelMargin,"FUEL PRODUCTION (LONG)")
   end
   -- Deficit detected while the Elite Tank is still >30% must ALSO cap
   -- burn: waiting for the low-fuel threshold could waste large reserves.
@@ -849,24 +854,27 @@ local function autoSPS(t)
   local rapidDeficit=t.fuelRapidNet and t.fuelRapidProduction and
       t.fuelRapidNet< -math.max(1,t.actual*0.01)
   if rapidDeficit then
-    cap=math.min(cap,math.max(0.01,t.fuelRapidProduction*c.fuelMargin))
+    limitCap(math.max(0.01,t.fuelRapidProduction*c.fuelMargin),
+      "FUEL PRODUCTION (RAPID)")
     t.fuelRapidLimited=true
   end
   if spsThroughputLimit and t.ts<spsThroughputExpires then
-    cap=math.min(cap,spsThroughputLimit)
+    limitCap(spsThroughputLimit,"SPS PROCESSING PLATEAU")
     t.spsLearnedThroughputCap=spsThroughputLimit
   end
   -- The short-term falling inventory is evidence of fuel starvation,
   -- even while the long 120s estimate is still warming up.
   local tankFill=t.fuelFillForControl
   if t.fuelRateLimited and t.fuelRapidProduction then
-    cap=math.min(cap,math.max(0.01,t.fuelRapidProduction*c.fuelMargin))
+    limitCap(math.max(0.01,t.fuelRapidProduction*c.fuelMargin),
+      "LOW FUEL RESERVE")
   elseif tankFill and tankFill<c.fuelReserve and
       t.fuelNetPerTick and t.fuelNetPerTick<0 then
-    cap=math.min(cap,math.max(0.01,t.actual*0.85))
+    limitCap(math.max(0.01,t.actual*0.85),"LOW FUEL EMERGENCY")
   end
   cap=math.max(0.01,math.floor(cap*100+0.5)/100)
   t.safeCap=cap
+  t.spsCapReason=capReason
   t.spsTargetRate=cap/(WASTE_PER_POLONIUM*SPS_POLONIUM_PER_ANTIMATTER)
   t.spsTargetFE=t.spsTargetRate*SPS_POLONIUM_PER_ANTIMATTER*
     SPS_JOULES_PER_POLONIUM/JOULES_PER_FE
@@ -1095,7 +1103,7 @@ local fields={"ts","on","burn","actual","temp","damage","coolant","heated","wast
   "fuelProducedEstimate","fuelCap","fuelCapFresh",
   "fuelSampleSeconds","fuelRateLimited","tps","spsDemandBurn","spInputControlTrend",
   "spControlSeconds","feAdvice","safeCap","limit",
-  "spsTurbineFlowHardCap","spsLearnedThroughputCap"}
+  "spsTurbineFlowHardCap","spsCapReason","spsLearnedThroughputCap"}
 local function history(t)
   if t.ts-lastLog<c.logSeconds then return end
   lastLog=t.ts
@@ -1220,8 +1228,8 @@ local function scadaDraw(dev,isMonitor)
     bar(12,"Fuel",current.fuel,colors.lime)
     paint(13,"Fuel "..tostring(current.fuelSource or "MISSING").." "..p(current.fuelFillForControl)..
       " net "..n(current.fuelRapidNet,2).." mB/t")
-    paint(14,"AUTO CAP "..n(current.safeCap,2).." mB/t"
-      ..(c.spsTurbineFlowHardCap and " (TURBINE HARD)" or " (SPS FIRST)"))
+    paint(14,"AUTO CAP "..n(current.safeCap,2).." mB/t | "..
+      tostring(current.spsCapReason or "MANUAL"))
     paint(15,"CONTROL "..tostring(current.limit or "--"),colors.yellow)
     paint(16,"Fuel estimate "..n(current.fuelCap,2).." mB/t | TPS "..n(current.tps,1))
     paint(17,"SCRAM protection: "..(latched and "LATCHED" or "ARMED"),
