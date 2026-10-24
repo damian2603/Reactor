@@ -2,7 +2,7 @@
 
 Standalone ComputerCraft / CC:Tweaked controller for **Mekanism Fission Reactor + Industrial Turbine + SPS**, developed for Minecraft 1.20.1 / Project Infinity 0.1. The separate NuclearCraft optimizer in this repository is untouched.
 
-**Status: v2.1 experimental (autodetection of multiblock sizes).** Tested against inspected Mekanism API source, **not yet validated in an actual running Project Infinity world**. Do not rely on this program as your only reactor safety mechanism.
+**Status: v2.2 experimental (autodetection of multiblock sizes).** Tested against inspected Mekanism API source, **not yet validated in an actual running Project Infinity world**. Do not rely on this program as your only reactor safety mechanism.
 
 ## Install in ComputerCraft
 
@@ -78,6 +78,19 @@ To impose your own additional cap, press **C** and enter a value >0; enter **0**
 This is **adaptive, but not omniscient**: there is no Mekanism peripheral that exposes an entire pipe network's true safe throughput. For example, Polonium production may be bottlenecked by Solar Neutron Activators or chemical tanks. The controller detects symptoms via Nuclear Waste and SPS buffers, then throttles. Keep the independent reactor safety logic connected.
 
 The program **never silently changes turbine dumping mode**. Inspect your water return loop and turbine vent/dump mode manually.
+
+### v2.2 turbine-generation governor
+
+AUTO FE now targets **95% of rated turbine production** instead of reacting to every positive steam tank delta. Real-time `getProductionRate / getMaxProduction` determines power utilization; the controller smooths measurements and waits 12 seconds for the turbine to stabilize after a burn change, adopting cc-mek-scada's explicit generation target and stability-delay ideas (not its code).
+
+- Press **T** in the controller to change the rated production target (20–100%, default 95%).
+- `steam growth` by itself **does not throttle**. Steam limits remain safety backstops: ramp hold near 89%, throttling near 93% when not draining, default SCRAM at 95%. Independent reactor logic adapters remain required.
+- High turbine energy buffer (default >=93%) means power isn't leaving efficiently and reduces burn.
+- For **direct water** cooling, the adaptive flow-based ceiling is estimated from observed steam created per fuel burnt, and calculated against **95% of real max turbine flow**. Do not equate sodium heating rate with actual steam generation.
+- AUTO never automatically activates a stopped reactor. Existing temperature, coolant, waste and damage SCRAMs remain.
+- A production measurement is not identical to net delivered FE. The optional Induction Matrix gives useful additional observability.
+
+To change the generation target persistently you can use `T`, or edit `feTarget = 0.95` in `/cc-mekanism/settings` while the controller is not running.
 
 ### Logging and optimization
 
