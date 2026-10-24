@@ -1394,9 +1394,55 @@ local function canStart()
   if recentValid<4 then return false,"wait for four good readings" end
   return true
 end
+local FLUX_STEP_FE=1000000
+local FLUX_MAX_FE=1000000000
+local function setFluxReference(raw)
+  local value=N(raw)
+  if value==nil or value<0 or value>FLUX_MAX_FE then
+    info="Flux FE/t reference must be 0..1G"
+    return false
+  end
+  local updated=math.floor(value+0.5)
+  local previousLimit=c.fluxLimitFE
+  if updated==previousLimit then
+    info="Flux reference unchanged: "..fmt(updated).." FE/t"
+    return false
+  end
+  local now=os.epoch("utc")/1000
+  -- Multiple +/-1M touches in quick succession are a single FE trial:
+  -- keep the original before-value and start timing after the LAST click.
+  if feTrial and now-feTrial.started<20 then
+    feTrial.newLimit=updated
+    feTrial.started=now
+    if feTrial.newLimit==feTrial.oldLimit then feTrial=nil end
+  elseif current.spRate120 and current.spWindowSeconds and
+      current.spWindowSeconds>=60 then
+    feTrial={started=now,oldLimit=previousLimit,
+      newLimit=updated,beforeRate=current.spRate120}
+  else
+    feTrial=nil
+  end
+  feTrialResult=nil
+  c.fluxLimitFE=updated
+  save()
+  info="FE ref "..fmt(updated).." FE/t saved; SET FLUX POINT MANUALLY"
+  return true
+end
 local function command(cmd)
   local pageNumber=tonumber(tostring(cmd):match("^page([1-5])$"))
   if pageNumber then uiPage=pageNumber;return end
+  if cmd=="fluxplus" or cmd=="fluxminus" then
+    local nextValue=c.fluxLimitFE+
+      (cmd=="fluxplus" and FLUX_STEP_FE or -FLUX_STEP_FE)
+    -- A zero reference disables the SPS FE ceiling, so the touch
+    -- controls do not permit it accidentally (the L key still allows 0).
+    if cmd=="fluxminus" and nextValue<FLUX_STEP_FE then
+      info="Minimum via touch: 1M FE/t (0 disables FE cap)"
+      return
+    end
+    setFluxReference(math.min(FLUX_MAX_FE,nextValue))
+    return
+  end
   if cmd=="scram" then trip("manual SCRAM");return end
   if cmd=="manual" then mode="MANUAL";info="MANUAL (safety still enabled)";return end
   if cmd=="fe" or cmd=="sps" then
@@ -1457,20 +1503,7 @@ local function setTyped()
     c.autoBurnCeiling=math.floor(v*100+0.5)/100
     save();info="AUTO ceiling "..(v==0 and "DETECTED MAX" or n(v,2))
   elseif edit=="flux" then
-    local old=c.fluxLimitFE
-    local new=math.floor(v+0.5)
-    if old~=new and current.spRate120 and current.spWindowSeconds and
-        current.spWindowSeconds>=60 then
-      feTrial={started=os.epoch("utc")/1000,oldLimit=old,
-        newLimit=new,beforeRate=current.spRate120}
-      feTrialResult=nil
-      info="FE test started. Set Flux Point to "..fmt(new)..
-        " FE/t now; compare AM after 180s."
-    else
-      info="Flux reference updated; FE A/B test needs 60s stable baseline"
-    end
-    c.fluxLimitFE=new
-    save()
+    setFluxReference(v)
   elseif edit=="target" then
     if v<20 or v>100 then
       info="Target must be between 20 and 100 percent"
@@ -1663,6 +1696,14 @@ if rawget(_G,"CC_MEKANISM_TEST")==true then
     end,
     safety=safety,
     read=read,
+    command=command,
+    getFluxReference=function() return c.fluxLimitFE end,
+    getInfo=function() return info end,
+    drawMonitor=function(dev,t)
+      current=t or current
+      render(dev,true)
+      return buttons
+    end,
   }
 end
 local ok,err=xpcall(function()
