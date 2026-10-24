@@ -14,6 +14,7 @@ local selected={
   "canSeeSun","getPeakProductionRate","getProductionRate",
   "getInput","getOutput","getInputNeeded","getOutputNeeded",
   "getFlowRate","getMaxFlowRate","getLastSteamInputRate",
+  "getDumpingMode",
   "getSteamFilledPercentage","getEnergyFilledPercentage","getEnergy",
   "getMaxEnergy","getEnergyNeeded","getProductionRate",
   "getMaxProduction","getMaxWaterOutput","getWaterFilledPercentage",
