@@ -350,6 +350,8 @@ local function draw(dev,side)
   line(11,"Turbine steam "..fmt((t.turbineSteam or 0)*100,1).."% (DIAGNOSTIC ONLY)",colors.gray)
   line(12,"Control: "..tostring(d.reason or "NO AUTO DECISION"),colors.yellow)
   line(13,"Info: "..tostring(state.info or ""),colors.orange)
+  line(14,"Fuel: "..tostring(t.fuelStatus or "WAITING")..
+    " | gap "..fmt(t.fuelMissing,0).." mB",colors.yellow)
   if h>19 then
     line(15,"Measured SPS / Fissile Fuel determine the optimum",colors.lightGray)
     line(16,"Turbine steam NEVER triggers reactor SCRAM",colors.lightGray)
