@@ -15,6 +15,7 @@ local defaults = {
   fuelLimitRelease=0.40, fuelGraceSeconds=45,
   spsRampSeconds=5, spsRampMaxFraction=0.02,
   spsOutputResume=0.75, spsStopOutput=0.98,
+  spsNightIdleBurn=0.01, spsNightStopSeconds=0,
   fastSafetySeconds=0.2, safetyBadReads=3,
   spsFeedbackGain=0.50, spsFeedForwardMargin=0.01,
   spsManualFeCapMargin=1.10,
@@ -772,10 +773,30 @@ local function autoSPS(t)
   end
   if t.snaProduction<=0 then
     if not spsNoSolarSince then spsNoSolarSince=t.ts end
-    if t.ts-spsNoSolarSince>=20 then
+    if c.spsNightStopSeconds>0 and
+        t.ts-spsNoSolarSince>=c.spsNightStopSeconds then
       processStop("NO SOLAR POLONIUM SUPPLY")
       return
     end
+    -- Upstream SCADA-style automatic idle: at night or in rain do not
+    -- waste fissile fuel, and do not require a risky automatic restart.
+    -- Reactors stay active at the minimum accepted Mekanism burn rate.
+    local idle=clamp(c.spsNightIdleBurn,0.01,0.1)
+    if t.burn>idle+0.009 then
+      local ok,err=burn(idle)
+      if not ok then
+        mode="MANUAL";info="SPS IDLE setBurnRate failed: "..tostring(err)
+        return
+      end
+      lastChange=t.ts
+      spsTrendResetAt=t.ts
+      spsControlWindow={}
+    end
+    t.safeCap=idle
+    t.limit="IDLE: NO SOLAR POLONIUM PRODUCTION"
+    lastSpsDecision=t.limit
+    info=t.limit.." | automatic ramp resumes with sunlight"
+    return
   else
     spsNoSolarSince=nil
   end
@@ -839,9 +860,10 @@ local function autoSPS(t)
   if usingSupply and not t.fuelRateLimited then
     desired=math.max(desired,math.min(cap,t.burn+math.max(1,t.maxBurn*0.02)))
   end
-  local processingSaturated=t.spsEfficiency and t.spsEfficiency<0.85 and
+  local processingSaturated=t.spsEfficiency and t.spsEfficiency<0.92 and
       (t.spInput>0.15 or
-       t.spInputControlTrend and t.spInputControlTrend>c.spsTrendDeadband)
+       t.spInputControlTrend and t.spInputControlTrend>c.spsTrendDeadband or
+       t.spInputTrend120 and t.spInputTrend120>c.spsTrendDeadband)
   if processingSaturated and t.spWindowSeconds and t.spWindowSeconds>=60 then
     spsThroughputLimit=math.max(0.1,base*1.04)
     spsThroughputExpires=t.ts+180
