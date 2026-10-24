@@ -16,6 +16,7 @@ local SOURCES={
   {remote="monitor-test.lua",optional=true}
 }
 local MIN_HEADROOM=4096
+local OPTIONAL_DISK_RESERVE=16000 -- leave space for settings and controller logs
 
 if not http then error("HTTP is disabled in CC:Tweaked config") end
 if not fs.exists(DIR) then fs.makeDir(DIR) end
@@ -187,9 +188,10 @@ for _,item in ipairs(SOURCES) do
       identical=okRead and content==body
     end
     if item.optional and not identical and
-        free and free<#body+MIN_HEADROOM then
-      print("SKIPPED optional "..name.." (needs "..
-        pretty(#body+MIN_HEADROOM).."; free "..pretty(free)..")")
+        free and free<#body+MIN_HEADROOM+OPTIONAL_DISK_RESERVE then
+      print("SKIPPED optional "..name.." (staging "..
+        pretty(#body+MIN_HEADROOM).."; free "..pretty(free)..
+        "; reserving "..pretty(OPTIONAL_DISK_RESERVE).." for core data)")
       optionalSkipped[#optionalSkipped+1]=name
     else
       local ok,reason=install(name,body,item.target)
