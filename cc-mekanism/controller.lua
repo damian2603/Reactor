@@ -42,6 +42,11 @@ local defaults = {
   spsSolarUtilization=0.92, -- solar peak throughput headroom
   spsSteamFlowFraction=0.96, -- used only if spsTurbineFlowHardCap=true
   spsTurbineFlowHardCap=false, -- SPS prioritizes antimatter; turbine FE is secondary
+  -- Project Infinity Mekanism general.toml dumpExcessKeepRatio=0.9.
+  -- DUMPING_EXCESS is expected to FILL TO 90%, then vent over 90%.
+  spsDumpKeepRatio=0.90, spsDumpPressureHoldLevel=0.93,
+  spsDumpPressureTrimLevel=0.955, spsDumpPressureCriticalLevel=0.975,
+  spsDumpPressureRecoverLevel=0.925, spsDumpSteamTrip=0.985,
   spsSteamEarlyWarn=0.50, -- fraction where rising steam buffer prevents further ramp
   spsSteamGrowthWarn=0.0004, -- legacy parameter; superseded below
   spsPressureTrendSeconds=16, -- smooth turbine steam fill observations
@@ -436,6 +441,10 @@ local function read()
   t.waterOut=N(pc(u,"getMaxWaterOutput"))
   t.dump=pc(u,"getDumpingMode")
   t.dumpExcess=t.dump~=nil and tostring(t.dump):lower():find("excess",1,true)~=nil
+  t.steamDumpKeepRatio=t.dumpExcess and c.spsDumpKeepRatio or nil
+  t.steamDumpingActive=t.dumpExcess and t.steam and
+    t.steam>=c.spsDumpKeepRatio or false
+  t.steamTripEffective=t.dumpExcess and c.spsDumpSteamTrip or c.steamTrip
   if t.dumpExcess and t.steamMade and t.flow and not t.sodiumCoolant then
     -- Heat-to-steam conversion minus condensed turbine flow. Conservative
     -- indication of possible missing water recycling, NOT measured venting.
@@ -604,8 +613,9 @@ local function read()
   elseif t.spInput and t.spInput<0.07 and t.spsEfficiency and
        t.spsEfficiency<0.75 then
     t.spsDiagnosis="SPS POLONIUM STARVED"
-  elseif t.steam and t.steam>=c.feSteamHold then
-    t.spsDiagnosis="TURBINE STEAM FLOW LIMIT"
+  elseif t.steam and (not t.dumpExcess and t.steam>=c.feSteamHold or
+      t.dumpExcess and t.steam>=c.spsDumpPressureTrimLevel) then
+    t.spsDiagnosis="TURBINE STEAM BACKPRESSURE"
   else
     t.spsDiagnosis="SPS RUNNING / BALANCED"
   end
@@ -876,7 +886,8 @@ local function safety(t)
   end
   if t.waste>=c.wasteTrip then return false,"nuclear waste full" end
   if t.heated>=c.heatedTrip then return false,"heated coolant full" end
-  if t.steam and t.steam>=c.steamTrip then return false,"turbine steam full" end
+  if t.steam and t.steam>=t.steamTripEffective then
+    return false,"turbine steam near full (dump-aware)" end
   if t.bSteam and t.bSteam>=c.steamTrip then return false,"boiler steam full" end
   if t.bHot and t.bHot>=c.heatedTrip then return false,"boiler heated coolant full" end
   if t.coolantDelta and t.coolantDelta<=-c.coolantDropTrip then return false,"coolant dropping quickly" end
@@ -1136,19 +1147,27 @@ local function autoSPS(t)
   local burnDeadband=math.max(c.spsBurnDeadbandAbs,t.burn*c.spsBurnDeadbandFraction)
   t.spsBurnDeadband=burnDeadband
   local urgent=t.burn>cap+0.009
+  -- Turbine DUMPING_EXCESS does not start until the configured keep level.
+  -- The climb toward 90% is normal, not runaway backpressure.
+  local dump=t.dumpExcess==true
   local pressure=optimizerMath.spsPressure({
-    steam=t.steam,slope=t.steamTrend,
-    holdLevel=c.spsPressureHoldLevel,
-    trimLevel=c.spsPressureTrimLevel,
-    criticalLevel=c.spsPressureCriticalLevel,
+    steam=t.steam,
+    slope=(dump and t.steam and t.steam<c.spsDumpKeepRatio)
+        and 0 or t.steamTrend,
+    holdLevel=dump and c.spsDumpPressureHoldLevel or c.spsPressureHoldLevel,
+    trimLevel=dump and c.spsDumpPressureTrimLevel or c.spsPressureTrimLevel,
+    criticalLevel=dump and c.spsDumpPressureCriticalLevel or
+      c.spsPressureCriticalLevel,
     trendWarn=c.spsPressureGrowthWarn,
     trendFast=c.spsPressureGrowthFast
   })
   if pressure.state=="TRIM" or pressure.state=="TRIM_FAST" then
     steamPressureRecovery=true
   elseif steamPressureRecovery and t.steam and
-      t.steam<=c.spsPressureRecoverLevel and
-      (not t.steamTrend or t.steamTrend<=c.spsPressureGrowthWarn) then
+      (dump and t.steam<=c.spsDumpKeepRatio or
+       t.steam<=(dump and c.spsDumpPressureRecoverLevel or
+           c.spsPressureRecoverLevel) and
+       (not t.steamTrend or t.steamTrend<=c.spsPressureGrowthWarn)) then
     steamPressureRecovery=false
   elseif steamPressureRecovery and pressure.state=="OK" then
     pressure.state="HOLD"
@@ -1366,6 +1385,7 @@ local fields={"ts","on","burn","actual","temp","damage","coolant","heated","wast
   "thermalWarnEffective","thermalTripEffective",
   "rLength","rWidth","rHeight","assemblies","boilEfficiency",
   "steam","steamIn","steamTrend","steamTrendWindow",
+  "steamDumpKeepRatio","steamDumpingActive","steamTripEffective",
   "steamPressureState","steamPressureReason","steamPressureRecovering",
   "protectionCause","spsBurnDeadband",
   "flow","maxFlow","power","energy","dump","dumpExcess",
@@ -1579,6 +1599,10 @@ local function scadaDraw(dev,isMonitor)
       n(current.thermalModelCap,2).." mB/t",colors.yellow)
     paint(24,"Temperature soft "..n(current.thermalWarnEffective,0)..
       "K / SCRAM "..n(current.thermalTripEffective,0).."K",colors.orange)
+    if current.dumpExcess then
+      paint(25,"DUMP EXCESS retains "..p(current.steamDumpKeepRatio)..
+        " steam; protective SCRAM "..p(current.steamTripEffective),colors.lightBlue)
+    end
     paint(17,"SCRAM protection: "..(latched and "LATCHED" or "ARMED"),
       latched and colors.red or colors.lime)
     paint(18,"Steam dumping "..(current.dumpExcess and "EXCESS - CHECK WATER" or
@@ -2107,7 +2131,10 @@ local function fastSafetyLoop()
       reason="RPS: coolant lost while venting steam"
     elseif q.heated and q.heated>=c.heatedTrip then reason="RPS: heated coolant full"
     elseif q.waste and q.waste>=c.wasteTrip then reason="RPS: nuclear waste full"
-    elseif q.steam and q.steam>=c.steamTrip then reason="RPS: turbine steam full"
+    elseif q.steam and q.steam>=(
+      (q.dump and tostring(q.dump):lower():find("excess",1,true)) and
+      c.spsDumpSteamTrip or c.steamTrip) then
+      reason="RPS: turbine steam near full (dump-aware)"
     elseif q.bSteam and q.bSteam>=c.steamTrip then reason="RPS: boiler steam full"
     elseif q.bHot and q.bHot>=c.heatedTrip then reason="RPS: boiler heated coolant full"
     end
