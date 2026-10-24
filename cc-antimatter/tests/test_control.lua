@@ -52,7 +52,7 @@ close(absent:decide(manualMissing).target,400,0.01,'fuel inventory missing holds
 -- many setpoint changes, and anti-starvation feedback without a reset.
 local function simulate(produced,steps)
   local ctrl=core.new(settings)
-  local burn=400,stored=200000,cap=200000
+  local burn,stored,cap=400,200000,200000
   local highs=0
   local outputs={}
   for i=1,steps do
