@@ -530,7 +530,8 @@ local function read()
     temp=t.temp,trend=t.tempTrend,
     burn=t.actual or t.burn,heatCapacity=t.heatCapacity,
     isSodium=t.sodiumCoolant,energyPerFuel=c.thermalEnergyPerFuel,
-    warn=c.tempWarn,trip=c.tempTrip
+    warn=c.tempWarn,trip=c.tempTrip,
+    errorTolerance=c.thermalExpectedTolerance
   })
   t.thermalState=model.state
   t.thermalReason=model.reason
@@ -1129,7 +1130,8 @@ local function autoSPS(t)
       temp=t.temp,trend=t.tempTrend,burn=t.actual or t.burn,
       heatCapacity=t.heatCapacity,isSodium=t.sodiumCoolant,
       energyPerFuel=c.thermalEnergyPerFuel,
-      warn=c.tempWarn,trip=c.tempTrip
+      warn=c.tempWarn,trip=c.tempTrip,
+    errorTolerance=c.thermalExpectedTolerance
     })
     thermalState=m.state
     thermalReason=m.reason
