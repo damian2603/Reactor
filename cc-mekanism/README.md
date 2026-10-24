@@ -12,6 +12,31 @@ separate historical CSV log schemas, each growing without a size cap.
 The older installer duplicated each new file to `*.new` before replacing it;
 with little disk headroom it could not complete.
 
+### Fix: 6,420 B free after packed update, optional `probe.lua` cannot stage
+
+The 2026-10-24 follow-up screenshot showed that the LZW-packed
+`controller.packed.lua` and the tiny `controller-launcher.lua` had
+already been successfully installed. Only **6,420 bytes** remained,
+whereas staging the non-essential `probe.lua` required **8,597 bytes**,
+causing the old updater to print `UPDATE INCOMPLETE`.
+
+Now `probe.lua` and `monitor-test.lua` are explicitly **optional**
+components. If there is insufficient space for their safe staging, or
+their download fails, the installer prints `SKIPPED optional ...`
+and still reports `CORE INSTALLATION COMPLETE` once the necessary
+optimizer math module, thermal model, compressed controller, and
+launcher have all been installed. Existing optional files are kept,
+including older `probe.lua`; nothing is silently erased. The
+test suite reproduces **6,420 bytes** of free CC disk storage with
+all core files installed and verifies the installer succeeds without
+a history-deletion prompt or settings changes.
+
+To recover, simply rerun the standard `wget run` installer. When
+it reports `CORE INSTALLATION COMPLETE`, run
+`cc-mekanism/controller` after checking the reactor's real state.
+**Do not run `cc-mekanism/probe` as proof of installation** when it
+was skipped; the probe can be updated after freeing disk space.
+
 ### Compressed distribution: works with 78,827 bytes free
 
 The installer now stages a **71,907-byte LZW-packed controller**
