@@ -100,6 +100,7 @@ local staticMethods={getLength=true,getWidth=true,getHeight=true,getFuelAssembli
   getInputCapacity=true,getOutputCapacity=true,getBoilCapacity=true,getCapacity=true,
   getTankCapacity=true}
 local telemetryCache=nil
+local MISSING_READ={}
 local function pcRaw(name,method,...)
   if not name or not peripheral.isPresent(name) then return nil end
   local ok,v=pcall(peripheral.call,name,method,...)
@@ -109,7 +110,7 @@ end
 local function pc(name,method,...)
   if telemetryCache and name then
     local val=telemetryCache[name.."|"..method]
-    if val~=nil then return val~=false and val or nil end
+    if val~=nil then return val==MISSING_READ and nil or val end
   end
   if staticMethods[method] and name and peripheral.isPresent(name) then
     local key=name.."|"..method
@@ -194,7 +195,7 @@ end
 discover()
 -- Batched telemetry. Protection uses pcRaw() and runs independently.
 local sampleMethods={
-  reactor={"getActualBurnRate","getBoilEfficiency","getBurnRate","getCoolant","getCoolantCapacity","getCoolantFilledPercentage","getDamagePercent","getFuelAssemblies","getFuelCapacity","getFuelFilledPercentage","getHeatedCoolantFilledPercentage","getHeatingRate","getHeight","getLength","getMaxBurnRate","getStatus","getTemperature","getWasteCapacity","getWasteFilledPercentage","getWidth","isForceDisabled","isFormed"},
+  reactor={"getActualBurnRate","getBoilEfficiency","getBurnRate","getCoolant","getCoolantCapacity","getCoolantFilledPercentage","getDamagePercent","getFuelAssemblies","getFuelCapacity","getFuel","getFuelFilledPercentage","getHeatedCoolantFilledPercentage","getHeatingRate","getHeight","getLength","getMaxBurnRate","getStatus","getTemperature","getWasteCapacity","getWasteFilledPercentage","getWidth","isForceDisabled","isFormed"},
   turbine={"getBlades","getCoils","getCondensers","getDispersers","getDumpingMode","getEnergyFilledPercentage","getFlowRate","getHeight","getLastSteamInputRate","getLength","getMaxFlowRate","getMaxProduction","getMaxWaterOutput","getProductionRate","getSteamCapacity","getSteamFilledPercentage","getVents","getWidth","isFormed"},
   boiler={"getBoilCapacity","getHeatedCoolantFilledPercentage","getSteamFilledPercentage","getWaterFilledPercentage","isFormed"},
   sps={"getCoils","getHeight","getInput","getInputCapacity","getInputFilledPercentage","getLength","getOutput","getOutputCapacity","getOutputFilledPercentage","getProcessRate","getWidth","isFormed"},
@@ -213,7 +214,7 @@ local function prefetchTelemetry()
             local device,api=name,method
             jobs[#jobs+1]=function()
               local value=pcRaw(device,api)
-              cache[device.."|"..api]=value==nil and false or value
+              cache[device.."|"..api]=value==nil and MISSING_READ or value
             end
           end
         end
