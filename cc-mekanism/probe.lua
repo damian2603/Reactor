@@ -6,7 +6,8 @@ local f=assert(fs.open(path,"w"))
 local function out(msg) msg=tostring(msg); print(msg);f.writeLine(msg) end
 local selected={
   "isFormed","getLength","getWidth","getHeight","getFuelAssemblies",
-  "getFuelSurfaceArea","getBoilEfficiency","getBurnRate","getActualBurnRate","getMaxBurnRate",
+  "getFuelSurfaceArea","getBoilEfficiency","getHeatCapacity",
+  "getEnvironmentalLoss","getBurnRate","getActualBurnRate","getMaxBurnRate",
   "getTemperature","getDamagePercent","getCoolantFilledPercentage",
   "getHeatedCoolantFilledPercentage","getWasteFilledPercentage",
   "getFuelFilledPercentage","getFuel","getFuelNeeded","getWaste",
