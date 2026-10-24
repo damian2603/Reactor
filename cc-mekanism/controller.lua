@@ -1053,14 +1053,19 @@ local function history(t)
   local f=fs.open(CSV,"a")
   if not f then return end
   if not exists then f.writeLine(table.concat(fields,",")..",mode,alarm") end
-  local vals={}
-  for _,key in ipairs(fields) do
-    local v=t[key]
+  local function csvValue(v)
     if type(v)=="boolean" then v=v and 1 or 0 end
-    vals[#vals+1]=v==nil and "" or tostring(v)
+    if v==nil then return "" end
+    local str=tostring(v)
+    if str:find('[,"\\n\\r]') then
+      return '"'..str:gsub('"','""')..'"'
+    end
+    return str
   end
-  vals[#vals+1]=mode
-  vals[#vals+1]='"'..alarm:gsub('"',"'")..'"'
+  local vals={}
+  for _,key in ipairs(fields) do vals[#vals+1]=csvValue(t[key]) end
+  vals[#vals+1]=csvValue(mode)
+  vals[#vals+1]=csvValue(alarm)
   f.writeLine(table.concat(vals,","));f.close()
 end
 local function row(dev,y,label,clr)
@@ -1468,7 +1473,7 @@ local function fastSafetyLoop()
     end
     parallel.waitForAll(table.unpack(tasks))
     local now=os.epoch("utc")/1000
-    local activeNow=q.on==true or (q.on==nil and lastActive)
+    local activeNow=q.on==true or (q.on==nil and (lastActive or current.on==true))
     if q.on~=nil then lastActive=q.on end
     local reason=nil
     if q.formed==false then reason="RPS: reactor not formed"
