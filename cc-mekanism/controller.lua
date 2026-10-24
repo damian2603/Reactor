@@ -356,9 +356,10 @@ local function bottleneck(t)
   add(t.heated and t.heated>=c.heatedWarn,"HOT COOLANT")
   add(t.bSteam and t.bSteam>=c.steamWarn,"BOILER STEAM")
   add(t.bHot and t.bHot>=c.heatedWarn,"BOILER HOT")
-  add(t.energy and t.energy>=c.feEnergyHigh,"ENERGY OUTPUT BLOCKED")
+  add(mode=="FE" and t.energy and t.energy>=c.feEnergyHigh,"ENERGY OUTPUT BLOCKED")
   add(mode=="FE" and t.imEnergy and t.imEnergy>=0.98,"MATRIX NEAR FULL")
   add(mode=="SPS" and t.spInput and t.spInput>=c.spsInputWarn,"POLONIUM BUFFER")
+  add(mode=="SPS" and t.snaMaxOutputFill and t.snaMaxOutputFill>0.9,"SOLAR TRANSFER")
   add(mode=="SPS" and t.spOutput and t.spOutput>=c.spsOutputWarn,"ANTIMATTER OUT")
   add(t.fuel and t.fuel<0.05,"LOW FUEL")
   return table.concat(reasons,", ")
@@ -592,7 +593,12 @@ local fields={"ts","on","burn","actual","temp","damage","coolant","heated","wast
   "fuel","steamMade","coolantType","rLength","rWidth","rHeight","assemblies","boilEfficiency",
   "steam","steamIn","flow","maxFlow","power","energy","tLength","tWidth","tHeight",
   "blades","coils","vents","condensers","maxProduction","waterOut","productionFraction",
-  "spInput","spOutput","spRate","spLength","spWidth","spHeight","spCoils",
+  "spInput","spOutput","spRate","spInputAmount","spOutputAmount",
+  "spEnergyUsedFE","snaCount","snaActive","snaSun","snaProduction",
+  "snaWasteCapacity","snaAntimatterPotential","snaMaxOutputFill",
+  "snaMaxInputFill","snaTotalInput","snaTotalOutput",
+  "fissionAntimatterPotential","spsEfficiency","spsTargetRate",
+  "spLength","spWidth","spHeight","spCoils",
   "bSteam","bHot","bWater","bBoilCapacity","imEnergy","imIn","imOut"}
 local function history(t)
   if t.ts-lastLog<c.logSeconds then return end
@@ -643,18 +649,23 @@ local function render(dev,isMonitor)
       "  effective cap: "..n(current.safeCap,2).." mB/t")
     row(dev,5,"Temperature: "..n(current.temp,1).." K  Damage: "..n(current.damage,0).."%")
     row(dev,6,"Coolant "..p(current.coolant).."  Hot "..p(current.heated).."  Waste "..p(current.waste))
-    row(dev,7,"Fuel "..p(current.fuel).."  Steam created "..fmt(current.steamMade).." mB/t")
-    row(dev,8,"Turbine steam "..p(current.steam).."  energy "..p(current.energy))
-    row(dev,9,"Turbine flow "..fmt(current.flow).."/"..fmt(current.maxFlow).."  input "..fmt(current.steamIn))
-    row(dev,10,"GEN "..fmt(current.power).."/"..fmt(current.maxProduction)..
-      " ("..(current.productionFraction and n(current.productionFraction*100,1) or "--")..
-      "%) | TARGET "..n(c.feTarget*100,1).."%")
-    row(dev,11,"Boiler: "..(names.boiler and ("steam "..p(current.bSteam).." hot "..p(current.bHot)..
-        " water "..p(current.bWater)) or "not connected"))
-    row(dev,12,"SPS: "..(names.sps and ("polonium "..p(current.spInput)..
-        " antimatter "..p(current.spOutput).." rate "..n(current.spRate,3)..
-        " | coils "..fmt(current.spCoils)) or "not connected"))
-    row(dev,13,"Induction Matrix "..p(current.imEnergy).."  FE in "..fmt(current.imIn).." out "..fmt(current.imOut))
+    row(dev,7,"SPS ANTIMATTER "..n(current.spRate,3).." mB/t | "..
+      "FROM FISSION "..n(current.fissionAntimatterPotential,3).." mB/t",colors.lime)
+    row(dev,8,"SPS Polonium "..p(current.spInput).." | Antimatter "..p(current.spOutput)..
+      " | SPS FE estimate "..fmt(current.spEnergyUsedFE).."/t")
+    row(dev,9,"SOLAR "..tostring(current.snaActive or 0).."/"..tostring(current.snaCount or 0)..
+      " active | rate "..fmt(current.snaProduction).." polonium/t | peak "..
+      fmt(current.snaPeak))
+    row(dev,10,"SOLAR input "..p(current.snaMaxInputFill).." | output "..
+      p(current.snaMaxOutputFill).." | waste capacity "..fmt(current.snaWasteCapacity).."/t")
+    row(dev,11,"SPS potential "..n(current.spsTargetRate,3).." AM/t | "..
+      "conversion efficiency "..(current.spsEfficiency and
+      n(current.spsEfficiency*100,1).."%" or "--"))
+    row(dev,12,"Turbine FE "..fmt(current.power).."/"..fmt(current.maxProduction)..
+      " | steam "..p(current.steam).." | FE buffer "..p(current.energy))
+    row(dev,13,"Steam flow "..fmt(current.flow).."/"..fmt(current.maxFlow)..
+      " | boiler "..(names.boiler and "connected" or "none")..
+      " | sodium "..(current.sodiumCoolant and "YES" or "NO"))
     row(dev,14,"Bottleneck: "..(current.limit or bottleneck(current)))
     row(dev,15,"Info: "..info,colors.yellow)
     row(dev,16,"Alarm: "..(alarm~="" and alarm or "none"),latched and colors.red or colors.lime)
@@ -689,7 +700,9 @@ local function display()
     print("Burn "..n(current.burn,2).." / actual "..n(current.actual,2))
     print("Temp "..n(current.temp,1).." K | coolant "..p(current.coolant)..
       " waste "..p(current.waste).." turbine steam "..p(current.steam))
-    print("SPS polonium "..p(current.spInput).." antimatter "..p(current.spOutput))
+    print("SPS "..n(current.spRate,3).." AM/t | solar "..
+      tostring(current.snaActive or 0).."/"..tostring(current.snaCount or 0))
+    print("Polonium "..p(current.spInput).." antimatter "..p(current.spOutput))
     print("Alarm "..(alarm~="" and alarm or "none"))
     print("Keys: +/- b c m f p s r q")
   else render(screen,false) end
@@ -712,6 +725,10 @@ local function command(cmd)
     if latched then info="ALARM LATCHED: restart requires manual reset";return end
     if cmd=="sps" and (not names.sps or current.spInput==nil) then
       info="No SPS peripheral";return
+    end
+    if cmd=="sps" and c.spsNoSolarHold and
+        (not names.sna or #names.sna==0) then
+      info="Connect Wired Modems to Solar Neutron Activators";return
     end
     mode=cmd=="fe" and "FE" or "SPS"
     lastChange=current.ts or os.epoch("utc")/1000
@@ -813,7 +830,7 @@ local function monitorLoop()
     local now=os.epoch("utc")/1000
     if not names.reactor or not peripheral.isPresent(names.reactor) or
         (c.requireTurbine and not names.turbine) or
-        (not names.monitor and now-lastScan>=5) then
+        (now-lastScan>=10) then
       discover()
       lastScan=now
     end
