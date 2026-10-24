@@ -7,6 +7,7 @@ local ROOT = "/cc-mekanism"
 local CONF, CSV = ROOT.."/settings", ROOT.."/history_v4_stable.csv"
 if not fs.exists(ROOT) then fs.makeDir(ROOT) end
 local optimizerMath=dofile(ROOT.."/optimizer_math.lua")
+local thermalModel=dofile(ROOT.."/thermal_model.lua")
 local defaults = {
   reactor="", turbine="", sps="", boiler="", matrix="", monitor="",
   fuelTank="", fluxLimitFE=16000000, fuelReserve=0.15,
@@ -24,7 +25,10 @@ local defaults = {
   maxAutoBurn=1.0, step=0.1, stepSeconds=15,
   autoBurnCeiling=0, -- 0=use detected reactor maximum; manual override only
   autoRampFraction=0.005, -- 0.5% of detected max burn per ramp interval
-  tempTrip=1000, tempWarn=850, damageTrip=0,
+  tempTrip=1150, tempWarn=1100, damageTrip=0,
+  thermalEnergyPerFuel=1000000, -- Project Infinity 0.1 fission Generators config
+  thermalTrendSeconds=20, thermalModelBurnMargin=0.98,
+  thermalMinTrendSeconds=12, thermalExpectedTolerance=55,
   coolantTrip=0.60, coolantWarn=0.85, coolantDropTrip=0.08,
   wasteTrip=0.85, wasteWarn=0.68, heatedTrip=0.85, heatedWarn=0.68,
   steamTrip=0.95, steamWarn=0.89, turbineEnergyWarn=0.92,
@@ -84,6 +88,13 @@ if fs.exists(CONF) then
         c.steamTrip=0.95
         c.steamWarn=0.89
       end
+      -- Legacy stock thermal pair forced 540 mB/t down despite normal
+      -- heat equilibrium (~995K in 18x18x18 water-cooled reactor).
+      -- Only migrate this exact original pair; keep custom stricter limits.
+      if loaded.tempWarn==850 and loaded.tempTrip==1000 then
+        c.tempWarn=1100
+        c.tempTrip=1150
+      end
     end
   end
 else
@@ -113,7 +124,7 @@ end
 local staticCache={}
 local staticMethods={getLength=true,getWidth=true,getHeight=true,getFuelAssemblies=true,
   getFuelCapacity=true,getWasteCapacity=true,getCoolantCapacity=true,
-  getMaxBurnRate=true,getSteamCapacity=true,getMaxFlowRate=true,
+  getMaxBurnRate=true,getHeatCapacity=true,getSteamCapacity=true,getMaxFlowRate=true,
   getMaxProduction=true,getMaxWaterOutput=true,getBlades=true,
   getCoils=true,getVents=true,getCondensers=true,getDispersers=true,
   getInputCapacity=true,getOutputCapacity=true,getMaxEnergy=true,
@@ -218,7 +229,7 @@ end
 discover()
 -- Batched telemetry. Protection uses pcRaw() and runs independently.
 local sampleMethods={
-  reactor={"getActualBurnRate","getBoilEfficiency","getBurnRate","getCoolant","getCoolantCapacity","getCoolantFilledPercentage","getDamagePercent","getFuelAssemblies","getFuelCapacity","getFuel","getFuelFilledPercentage","getHeatedCoolantFilledPercentage","getHeatingRate","getHeight","getLength","getMaxBurnRate","getStatus","getTemperature","getWasteCapacity","getWasteFilledPercentage","getWidth","isForceDisabled","isFormed"},
+  reactor={"getActualBurnRate","getBoilEfficiency","getBurnRate","getCoolant","getCoolantCapacity","getCoolantFilledPercentage","getDamagePercent","getFuelAssemblies","getFuelCapacity","getFuel","getFuelFilledPercentage","getHeatedCoolantFilledPercentage","getHeatingRate","getHeatCapacity","getHeight","getLength","getMaxBurnRate","getStatus","getTemperature","getWasteCapacity","getWasteFilledPercentage","getWidth","isForceDisabled","isFormed"},
   turbine={"getBlades","getCoils","getCondensers","getDispersers","getDumpingMode","getEnergyFilledPercentage","getFlowRate","getHeight","getLastSteamInputRate","getLength","getMaxFlowRate","getMaxProduction","getMaxWaterOutput","getProductionRate","getSteamCapacity","getSteamFilledPercentage","getVents","getWidth","isFormed"},
   boiler={"getBoilCapacity","getHeatedCoolantFilledPercentage","getSteamFilledPercentage","getWaterFilledPercentage","isFormed"},
   sps={"getCoils","getEnergy","getEnergyFilledPercentage","getMaxEnergy","getHeight","getInput","getInputCapacity","getInputFilledPercentage","getLength","getOutput","getOutputCapacity","getOutputFilledPercentage","getProcessRate","getWidth","isFormed"},
@@ -256,6 +267,7 @@ local spsEMA=nil
 local spsWindow={}
 local spsInputWindow={}
 local steamPressureWindow={}
+local reactorTemperatureWindow={}
 local steamPressureRecovery=false
 local spsBaseline=nil
 local fuelWindow={}
@@ -342,6 +354,7 @@ local function read()
   t.rHeight=N(pc(r,"getHeight"))
   t.assemblies=N(pc(r,"getFuelAssemblies"))
   t.boilEfficiency=N(pc(r,"getBoilEfficiency"))
+  t.heatCapacity=N(pc(r,"getHeatCapacity"))
   t.fuelCapacity=N(pc(r,"getFuelCapacity"))
   t.wasteCapacity=N(pc(r,"getWasteCapacity"))
   t.coolantCapacity=N(pc(r,"getCoolantCapacity"))
@@ -352,6 +365,13 @@ local function read()
   t.coolantType=type(coolantStack)=="table" and
     tostring(coolantStack.name or coolantStack.id or "") or ""
   t.sodiumCoolant=t.coolantType:lower():find("sodium",1,true)~=nil
+  t.expectedTemp=thermalModel.expected(t.actual or t.burn,
+    t.heatCapacity,t.sodiumCoolant,c.thermalEnergyPerFuel)
+  t.expectedAtMaxBurn=thermalModel.expected(t.maxBurn,
+    t.heatCapacity,t.sodiumCoolant,c.thermalEnergyPerFuel)
+  t.thermalModelCap=thermalModel.thermalCap(t.heatCapacity,
+    t.sodiumCoolant,math.min(c.tempWarn,c.tempTrip-40),
+    c.thermalModelBurnMargin,c.thermalEnergyPerFuel)
   t.heated=N(pc(r,"getHeatedCoolantFilledPercentage"))
   t.waste=N(pc(r,"getWasteFilledPercentage"))
   t.fuel=N(pc(r,"getFuelFilledPercentage"))
@@ -488,6 +508,34 @@ local function read()
   else
     steamPressureWindow={}
   end
+  -- Slow thermal physics: evaluate 12-20 second Kelvin/sec slopes.
+  if t.temp~=nil then
+    reactorTemperatureWindow[#reactorTemperatureWindow+1]={
+      ts=t.ts,value=t.temp}
+    while #reactorTemperatureWindow>1 and
+        t.ts-reactorTemperatureWindow[1].ts>c.thermalTrendSeconds do
+      table.remove(reactorTemperatureWindow,1)
+    end
+    local first=reactorTemperatureWindow[1]
+    local dt=t.ts-first.ts
+    if dt>=c.thermalMinTrendSeconds then
+      t.tempTrend=(t.temp-first.value)/dt
+      t.tempTrendSeconds=dt
+    end
+  else
+    reactorTemperatureWindow={}
+  end
+  local model=thermalModel.assess({
+    temp=t.temp,trend=t.tempTrend,
+    burn=t.actual or t.burn,heatCapacity=t.heatCapacity,
+    isSodium=t.sodiumCoolant,energyPerFuel=c.thermalEnergyPerFuel,
+    warn=c.tempWarn,trip=c.tempTrip
+  })
+  t.thermalState=model.state
+  t.thermalReason=model.reason
+  t.thermalExpectedError=model.errorK
+  t.thermalWarnEffective=model.softWarn
+  t.thermalTripEffective=model.hardTrip
   if previous then
     local dt=t.ts-previous.ts
     if dt>0.2 and dt<15 then
