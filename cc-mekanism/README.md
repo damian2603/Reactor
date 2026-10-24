@@ -13,6 +13,42 @@ Solar Neutron Activators, turbine/boiler heat handling, and sustained Fissile Fu
 production permit. When the SPS does not use added polonium, reduce unnecessary
 fission. Turbine FE is a by-product, not the controller's primary objective.
 
+### Fix: reactor stuck near 123 mB/t (2026-10-24)
+
+Real monitor screenshots showed **AUTO CAP 123.02 mB/t** and SPS output
+**0.0120 mB/t**, despite six Solar Neutron Activators producing a combined
+potential of ~280.3 mB/t Polonium and a user-recorded **20 MFE/t** Flux limit.
+
+Cause: the earlier `safeCap()` **always** applied an empirical Steam-per-Burn
+ratio against the turbine's `getMaxFlowRate()`, inherited from the FE
+controller. This treated the *secondary turbine throughput* as a hard cap on
+the primary SPS production, preventing active exploration.
+
+SPS AUTO now defaults to `spsTurbineFlowHardCap=false`. It does NOT impose
+the turbine's maximum steam flow as a hard upper bound when searching for
+higher antimatter throughput. The **FE turbine optimization mode still
+applies its turbine flow cap**. For SPS AUTO, temperature, coolant, waste,
+reactor heated-coolant buffer, boiler/turbine steam buffers, rapidly rising
+backpressure and hardware RPS continue to constrain or stop operation.
+
+This is NOT a license to exceed the installation's steam-removal capacity
+indefinitely. If steam or heated coolant accumulates, the controller will
+reduce the burn rate; persistent overload can require SCRAM. If you cannot
+safely export or dump surplus steam, set `spsTurbineFlowHardCap=true` in
+`/cc-mekanism/settings` to restore the conservative prior limitation.
+
+SCADA Reactor page and the CSV now report the exact active `spsCapReason`:
+`FLUX FE REFERENCE`, `FUEL PRODUCTION (LONG)`,
+`FUEL PRODUCTION (RAPID)`, `SOLAR ACTIVATORS`,
+`SPS PROCESSING PLATEAU`, or `REACTOR / MANUAL CEILING`.
+With **20 MFE/t entered**, the current theoretical soft FE cap is about
+**550 mB/t burn** including the configurable 10% exploratory margin,
+not a measured FE throughput guarantee.
+
+The regression scenario reproduces the screenshots, verifies that
+the controller ramps **above 123 mB/t**, and separately verifies that
+**rising steam backpressure still throttles the reactor**.
+
 ### Controller operation
 
 1. `AUTO SPS` estimates the burn needed for observed antimatter production:
