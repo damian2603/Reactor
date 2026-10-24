@@ -118,6 +118,7 @@ do
   t.fuelCap=350
   ctl.exerciseSPS(t)
   near(burnRate,315,0.01,"fuel limited burn")
+  assert(t.spsCapReason=="FUEL PRODUCTION (LONG)","show fuel as the active cap")
 end
 do
   local ctl=newController()
@@ -193,6 +194,7 @@ do
   local result=ctl.exerciseSPS(t)
   assert(result.mode=="SPS")
   near(result.cap,550,0.01,"Flux-derived SPS cap, NOT turbine cap")
+  assert(t.spsCapReason=="FLUX FE REFERENCE","show FE as the active cap")
   assert(burnRate>123.02 and burnRate<200,
     "healthy reactor should probe above 123 despite turbine flow limit")
   assert(t.spsTurbineFlowHardCap==false)
