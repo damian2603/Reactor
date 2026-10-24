@@ -311,4 +311,62 @@ do
   ctl.drawMonitor(dev,sample())
   assert(dev.clears==clearBefore+1,"page change requires one clean redraw")
 end
+-- Real installation follow-up: 525 mB/t, Flux Point at 20 MFE/t.
+-- Supplied polonium requires 21 MFE/t for maximum conversion.
+do
+  local ctl=newController()
+  for i=1,4 do ctl.command("fluxplus") end
+  data.sps.getProcessRate=0.05
+  data.sps.getInputFilledPercentage=0.12
+  data.sps.getEnergyFilledPercentage=0
+  data.sps.getEnergy=0
+  data.sps.getMaxEnergy=1000000000
+  data.turbine.getDumpingMode="DUMPING_EXCESS"
+  data.reactor.getCoolantFilledPercentage=1
+  burnRate=525
+  stored=1024000
+  local t=ctl.read()
+  near(t.spFeRequiredSetpoint,21000000,0.1,"525 burn needs 21 MFE/t")
+  near(t.spEnergyUsedFE,20000000,0.1,"0.050 AM uses 20 MFE/t")
+  assert(t.feState=="FE_LIMIT_LIKELY" or
+      t.feState=="FE_BELOW_BURN_REQUIREMENT",
+    "tell operator recorded 20M FE is less than burn energy requirement")
+  assert(t.feSuggestedLimit==23000000,"trial FE with room")
+  assert(t.dumpExcess==true,"monitor turbine Dumping Excess mode")
+  assert(ctl.safety(t)==true,"healthy coolant in excess dumping mode")
+  data.reactor.getCoolantFilledPercentage=0.91
+  local losing=ctl.read()
+  local safe,why=ctl.safety(losing)
+  assert(safe==false and why:find("water reserve",1,true),
+    "dumping steam with critically low coolant must trip")
+  data.reactor.getCoolantFilledPercentage=1
+  data.turbine.getDumpingMode="IDLE"
+  data.sps.getProcessRate=0.039
+  data.sps.getInputFilledPercentage=0.02
+end
+do
+  local ctl=newController()
+  local t=sample()
+  t.burn=525
+  t.actual=525
+  t.maxBurn=1920
+  t.snaWasteCapacity=2803
+  t.snaProduction=280.3
+  t.dumpExcess=true
+  t.coolant=0.99
+  t.coolantDelta=-0.0008
+  t.spRate=0.05
+  t.spRate120=0.05
+  t.spRateEMA=0.05
+  t.spsEfficiency=0.05/(525/10000)
+  t.fuelCapFresh=false
+  t.fuelCap=nil
+  t.fuelRapidNet=0
+  t.fuelRapidProduction=525
+  local x=ctl.exerciseSPS(t)
+  assert(x.mode=="SPS","steam dumping water loss throttles without auto-start")
+  assert(burnRate<525,"with falling coolant while venting, burn rate decreases")
+  assert(x.limit:find("THERMAL",1,true),
+    "report thermal/flow throttling when coolant falls during dump")
+end
 print("controller headless scenarios: OK")
