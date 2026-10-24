@@ -3,8 +3,18 @@
 -- NEVER silently delete saved settings, old controllers or CSV history.
 local BASE="https://raw.githubusercontent.com/damian2603/Reactor/main/cc-mekanism/"
 local DIR="/cc-mekanism"
-local SOURCES={"optimizer_math.lua","thermal_model.lua","controller.lua",
-               "probe.lua","monitor-test.lua"}
+-- Download the packed controller first and only then install its tiny
+-- launcher over the previous /cc-mekanism/controller.lua. This works even
+-- when the CC disk has less than 100KB free and preserves the old program
+-- until the verified compressed payload has been staged.
+local SOURCES={
+  {remote="optimizer_math.lua"},
+  {remote="thermal_model.lua"},
+  {remote="controller.packed.lua"},
+  {remote="controller-launcher.lua",target="controller.lua"},
+  {remote="probe.lua"},
+  {remote="monitor-test.lua"}
+}
 local MIN_HEADROOM=4096
 
 if not http then error("HTTP is disabled in CC:Tweaked config") end
@@ -102,8 +112,8 @@ local function fetch(name)
   return body
 end
 
-local function install(name,body)
-  local dest=DIR.."/"..name
+local function install(name,body,target)
+  local dest=DIR.."/"..(target or name)
   local tmp=dest..".new"
   -- Clean only a staging file left behind by an interrupted installer.
   if fs.exists(tmp) then pcall(fs.delete,tmp) end
@@ -148,11 +158,13 @@ end
 
 print("Project Infinity CC:Mekanism updater")
 print("Free disk: "..pretty(freeBytes()))
-for _,name in ipairs(SOURCES) do
-  print("Downloading "..name.."...")
+for _,item in ipairs(SOURCES) do
+  local name=item.remote
+  print("Downloading "..name.."..."..
+    (item.target and " -> "..item.target or ""))
   local body,err=fetch(name)
   if not body then error(err,0) end
-  local ok,reason=install(name,body)
+  local ok,reason=install(name,body,item.target)
   if not ok then
     print("UPDATE INCOMPLETE: "..reason)
     print("Never start AUTO on a partially updated installation.")
