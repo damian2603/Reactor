@@ -110,6 +110,16 @@ function M.new(config)
         -- fully saturated => production is at least actual, not exactly it.
         t.fuelCensored=fill and first.fill and
           (fill>=0.9985 or first.fill>=0.9985)
+        -- Once BOTH readings are below the saturation band, even the
+        -- 20s interval is a valid production measurement. This prevents
+        -- the tank from refilling before a 95s window can complete.
+        if not t.fuelCensored and t.fuelNet< -max(0.4,t.actual*0.001) and
+            valid(t.fuelProduction) and t.fuelProduction>=0 then
+          self.fuelEstimate=self.fuelEstimate and
+            (self.fuelEstimate*0.80+t.fuelProduction*0.20) or
+            t.fuelProduction
+          self.fuelSampleAge=now
+        end
       end
       -- Short window catches a serious fuel deficit quickly; long window
       -- measures sustainable production independent of setpoint ramps.
@@ -179,7 +189,15 @@ function M.new(config)
        t.fuelNet< -max(1.0,burn*0.004) and
        valid(t.fuelWindowSeconds) and t.fuelWindowSeconds>=18 then
       if t.fuelCensored then
-        limit("FUEL_DRAIN_PENDING",max(c.minimumBurn,burn-c.downwardStep))
+        -- At almost-full tank there is enough reserve to intentionally
+        -- drain a little for calibration. DO NOT slash burn by 38 mB/t
+        -- on every minor decline, otherwise we never learn true supply.
+        local reserve=(valid(t.fuelAmount) and valid(t.fuelCapacity)) and
+          max(0,t.fuelAmount-0.15*t.fuelCapacity) or 0
+        local horizon=reserve/(-t.fuelNet*c.ticksPerSecond)
+        if horizon<75 then
+          limit("FUEL_RESERVE",max(c.minimumBurn,burn-c.downwardStep))
+        end
       else
         limit("FUEL_DRAIN",max(c.minimumBurn,t.fuelProduction-0.5))
       end
