@@ -5,7 +5,10 @@ local abs,min,max=math.abs,math.min,math.max
 local function valid(x) return type(x)=="number" and x==x and x~=math.huge and x~=-math.huge end
 local function bound(x,a,b) return max(a,min(x,b)) end
 local DEFAULT={
-  userCap=550, fluxFE=22000000, ticksPerSecond=20,
+  -- Tested site-specific, closed turbine water loop: 552.06 mB/t.
+  -- This is an OPERATOR-OBSERVED cap, not a universal Mekanism limit.
+  userCap=552.06, waterLoopCap=552.06, waterLoopEnabled=1,
+  fluxFE=22000000, ticksPerSecond=20,
   softTemperature=1080, scramTemperature=1135, thermalMargin=0.985,
   -- 93-95% coolant is a normal transient on this reactor, per 104 logged
   -- readings; hold below 92% if persistent, trim below 88%, fast trim 80%.
@@ -40,7 +43,10 @@ local function defaults(o)
   end
   c.softTemperature=bound(c.softTemperature,950,1100)
   c.scramTemperature=bound(c.scramTemperature,1050,1150)
-  c.userCap=max(1,c.userCap);c.fluxFE=max(1000000,c.fluxFE)
+  c.userCap=max(1,c.userCap)
+  c.waterLoopCap=max(1,c.waterLoopCap)
+  c.waterLoopEnabled=c.waterLoopEnabled>=0.5 and 1 or 0
+  c.fluxFE=max(1000000,c.fluxFE)
   c.ticksPerSecond=bound(c.ticksPerSecond,5,20)
   return c
 end
@@ -247,6 +253,14 @@ function M.new(config)
     local cap=min(c.userCap,valid(t.maxBurn) and t.maxBurn or c.userCap)
     local caps={USER=cap}
     local function limit(k,x) if valid(x) then caps[k]=x;cap=min(cap,x) end end
+    -- Water return from the turbine is useful to this installation,
+    -- even though turbine FE generation remains a secondary objective.
+    -- 552.06 was manually stable without drawing makeup water; do not
+    -- exceed this as part of fuel/SPS seeking, unless operator *explicitly*
+    -- opts out or tunes the observed balance point.
+    if c.waterLoopEnabled==1 then
+      limit("RECIRCULATED_WATER",c.waterLoopCap)
+    end
     limit("FE_REFERENCE",c.fluxFE/40000*c.feHeadroom)
     limit("THERMAL",t.thermalCap)
     if valid(t.solarRate) and valid(t.solarCount) and t.solarCount>0 then
