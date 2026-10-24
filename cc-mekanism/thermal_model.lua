@@ -43,6 +43,8 @@ function M.assess(o)
   warn=math.min(warn,trip-25)
   local expected=M.expected(o.burn,o.heatCapacity,o.isSodium,
     o.energyPerFuel)
+  local errorTolerance=clamp(valid(o.errorTolerance) and
+    o.errorTolerance or 55,15,200)
   local out={state="UNKNOWN",reason="NO TEMPERATURE MEASUREMENT",
     expected=expected,trend=trend,softWarn=warn,hardTrip=trip,
     errorK=expected and valid(temp) and temp-expected or nil}
@@ -59,14 +61,15 @@ function M.assess(o)
   elseif temp>=warn then
     out.state="TRIM"
     out.reason="REACTOR ABOVE THERMAL SOFT CEILING"
-  elseif expected and temp>=expected+55 and
+  elseif expected and temp>=expected+errorTolerance and
       (not trend or trend>=-0.05) then
     out.state="TRIM"
     out.reason="REACTOR HOTTER THAN HEAT MODEL"
   elseif trend and trend>0.40 and temp+trend*30>=warn then
     out.state="HOLD"
     out.reason="REACTOR TEMP APPROACHING SOFT CEILING"
-  elseif expected and temp>=expected+32 and trend and trend>0.10 then
+  elseif expected and temp>=expected+errorTolerance*0.6 and
+      trend and trend>0.10 then
     out.state="HOLD"
     out.reason="REACTOR TEMP ABOVE EXPECTED AND RISING"
   else
