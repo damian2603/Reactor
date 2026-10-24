@@ -22,5 +22,7 @@ jobs:
         run: lua5.4 cc-mekanism/tests/test_thermal_model.lua
       - name: Run headless controller scenario tests
         run: lua5.4 cc-mekanism/tests/test_controller_mock.lua
+      - name: Check lossless packed controller and source parity
+        run: lua5.4 cc-mekanism/tests/test_packed_controller.lua
       - name: Run disk-full installation scenarios
         run: lua5.4 cc-mekanism/tests/test_installer_mock.lua
