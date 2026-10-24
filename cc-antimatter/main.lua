@@ -292,8 +292,9 @@ local function telemetryLoop()
           state.decision=decision
           if t.fuelAmount==nil or t.fuelCapacity==nil then
             state.info="AUTO HOLD: FISSILE FUEL TANK NOT VERIFIED"
-          elseif not P.sps or t.amRate==nil or t.poloniumFill==nil then
-            state.info="AUTO HOLD: SPS NOT VERIFIED"
+          elseif not P.sps or t.spsFormed~=true or
+              t.amRate==nil or t.poloniumFill==nil then
+            state.info="AUTO HOLD: SPS NOT FORMED / TELEMETRY MISSING"
           elseif t.solarUnknown>0 or t.solarCount==0 then
             state.info="AUTO HOLD: SOLAR PERIPHERALS MISSING"
           elseif valid(t.burn) and math.abs(decision.target-t.burn)>0.19 then
@@ -360,7 +361,8 @@ local function draw(dev,side)
     local buttons={{"AUTO",function()
       if state.latched then state.info="RESET: INSPECT REACTOR FIRST";return end
       if latest and latest.on==true and P.fuelTank and P.sps and
-        #P.solar>0 and healthySafety>=2 and not latest.fuelIsWrongGas then
+        #P.solar>0 and healthySafety>=2 and latest.spsFormed==true and
+        valid(latest.fuelAmount) and not latest.fuelIsWrongGas then
         state.mode="AUTO";state.info="AUTO ENABLED; WILL NOT START REACTOR"
       else state.info="AUTO NEEDS RUNNING REACTOR, FUEL TANK, SPS, SNA" end end},
       {"MAN",function()state.mode="MANUAL";state.info="MANUAL: NO AUTO BURN CHANGES" end},
@@ -430,6 +432,7 @@ local function inputLoop()
       local ch=a:lower()
       if ch=="a" then
         if latest and latest.on and P.fuelTank and P.sps and #P.solar>0 and
+           latest.spsFormed==true and valid(latest.fuelAmount) and
            not latest.fuelIsWrongGas and
            healthySafety>=2 and not state.latched then
           state.mode="AUTO";state.info="AUTO ON. NEVER AUTO-STARTS."
