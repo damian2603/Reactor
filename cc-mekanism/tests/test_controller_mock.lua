@@ -393,6 +393,90 @@ do
   assert(t.snaBroken==1,"missing canSeeSun reading must mark SNA telemetry broken")
   data.sna.canSeeSun=original
 end
+-- Project Infinity real-world thermal regression: 18x18x18, water,
+-- 448mB/t at 889.6K and 540mB/t near 995K are normal equilibria.
+do
+  local ctl=newController()
+  data.reactor.getHeatCapacity=1736000
+  data.reactor.getTemperature=889.6
+  burnRate=448
+  local t=ctl.read()
+  near(t.expectedTemp,889.28,0.05,"predicted user screenshot 448")
+  assert(t.heatCapacity==1736000)
+  assert(t.thermalState=="OK",
+    "889.6K must not be considered an overheat at 448mB/t")
+  assert(ctl.safety(t)==true,"889K normal, no SCRAM")
+  burnRate=540
+  data.reactor.getTemperature=995
+  epochMs=epochMs+25000
+  t=ctl.read()
+  near(t.expectedTemp,995.27,0.05,"predicted user manual 540")
+  assert(t.thermalState=="OK",
+    "995K at 540 burn must not cause the obsolete 850K warning")
+  assert(ctl.safety(t)==true,"995K below protective 1150K RPS")
+  near(t.thermalModelCap,618.3,1,
+    "thermal ceiling from actual heat capacity at 1100K")
+  data.reactor.getTemperature=1150
+  epochMs=epochMs+25000
+  t=ctl.read()
+  local good,why=ctl.safety(t)
+  assert(good==false and why:find("SCRAM",1,true),
+    "1150K must cause proactive SCRAM before 1200K damage")
+  data.reactor.getTemperature=600
+end
+do
+  local ctl=newController()
+  for i=1,10 do ctl.command("fluxplus") end
+  local t=sample()
+  t.maxBurn=1920
+  t.burn=540
+  t.actual=540
+  t.temp=995
+  t.thermalState=nil
+  t.expectedTemp=nil
+  t.heatCapacity=1736000
+  t.thermalModelCap=618.3
+  t.spRate=0.054
+  t.spRate120=0.054
+  t.spRateEMA=0.054
+  t.spsEfficiency=1
+  t.snaCount=6
+  t.snaProduction=280
+  t.snaWasteCapacity=2800
+  t.fuelCapFresh=false
+  t.fuelCap=nil
+  t.fuelRapidNet=0
+  t.fuelRapidProduction=540
+  t.fuelFillForControl=1
+  local result=ctl.exerciseSPS(t)
+  assert(t.thermalState=="OK","thermal model sees healthy 540 at 995K")
+  assert(burnRate>=540,"normal reactor 995K should not throttle")
+end
+do
+  local ctl=newController()
+  for i=1,14 do ctl.command("fluxplus") end
+  local t=sample()
+  t.maxBurn=1920
+  t.burn=600
+  t.actual=600
+  t.temp=1110
+  t.thermalState=nil
+  t.heatCapacity=1736000
+  t.thermalModelCap=618.3
+  t.snaProduction=280
+  t.snaWasteCapacity=2800
+  t.fuelCapFresh=false
+  t.fuelCap=nil
+  t.fuelFillForControl=1
+  local result=ctl.exerciseSPS(t)
+  assert(t.thermalState=="TRIM",
+    "steady 1110K is above the conservative thermal ceiling")
+  assert(burnRate<600,"above soft ceiling should trim incrementally")
+  assert(result.limit:find("THERMAL",1,true) or
+     result.limit:find("REACTOR ABOVE THERMAL",1,true),
+    "explicit thermal cause should appear")
+end
+
 -- CC:Tweaked monitor UI: +/- 1 MFE/t, touch hitboxes and no repeated
 -- whole-screen clears after the first render.
 do
