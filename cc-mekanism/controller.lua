@@ -236,6 +236,7 @@ local fuelCap=nil
 local fuelCapTimestamp=0
 local fuelLastEstimate=0
 local fuelCumulative=0
+local fuelRapidWindow={}
 local fuelSourceName=nil
 local fuelPrevTickSample=nil
 local fuelRateLimited=false
@@ -512,6 +513,7 @@ local function read()
     if fuelSourceName~=fuelName or not fuelPrevTickSample or
         (previous and previous.on~=true) then
       fuelWindow={}
+      fuelRapidWindow={}
       fuelCumulative=0
       fuelSourceName=fuelName
       fuelPrevTickSample=nil
@@ -530,6 +532,22 @@ local function read()
       ts=t.ts,amount=t.fuelAvailable,consumed=fuelCumulative,
       fill=t.fuelTankFill or t.fuel
     }
+    fuelRapidWindow[#fuelRapidWindow+1]={
+      ts=t.ts,amount=t.fuelAvailable,consumed=fuelCumulative
+    }
+    while #fuelRapidWindow>1 and
+        t.ts-fuelRapidWindow[1].ts>c.fuelRapidSeconds do
+      table.remove(fuelRapidWindow,1)
+    end
+    local rapidStart=fuelRapidWindow[1]
+    local rapidDt=t.ts-rapidStart.ts
+    if rapidDt>=c.fuelRapidSeconds*0.75 then
+      local rapidTicks=rapidDt*tpsEstimate
+      t.fuelRapidNet=(t.fuelAvailable-rapidStart.amount)/rapidTicks
+      t.fuelRapidProduction=optimizerMath.fuelProduction(
+        fuelCumulative-rapidStart.consumed,
+        t.fuelAvailable-rapidStart.amount,rapidTicks)
+    end
     while #fuelWindow>1 and t.ts-fuelWindow[1].ts>c.fuelTrendSeconds do
       table.remove(fuelWindow,1)
     end
@@ -558,6 +576,7 @@ local function read()
     end
   else
     fuelWindow={}
+    fuelRapidWindow={}
     fuelSourceName=nil
     fuelPrevTickSample=nil
     fuelCumulative=0
@@ -739,6 +758,11 @@ local function autoSPS(t)
     return
   end
 
+  if t.fuelFillForControl and t.fuelFillForControl<0.03 and
+      t.fuelRapidNet and t.fuelRapidNet< -0.001 then
+    processStop("FISSILE FUEL RESERVE EXHAUSTED")
+    return
+  end
   if t.spOutput>=c.spsStopOutput then
     processStop("ANTIMATTER OUTPUT FULL")
     return
@@ -774,9 +798,8 @@ local function autoSPS(t)
   -- The short-term falling inventory is evidence of fuel starvation,
   -- even while the long 120s estimate is still warming up.
   local tankFill=t.fuelFillForControl
-  if t.fuelRateLimited and t.fuelProducedEstimate and
-      t.fuelSampleSeconds>=c.fuelRapidSeconds then
-    cap=math.min(cap,math.max(0.01,t.fuelProducedEstimate*c.fuelMargin))
+  if t.fuelRateLimited and t.fuelRapidProduction then
+    cap=math.min(cap,math.max(0.01,t.fuelRapidProduction*c.fuelMargin))
   elseif tankFill and tankFill<c.fuelReserve and
       t.fuelNetPerTick and t.fuelNetPerTick<0 then
     cap=math.min(cap,math.max(0.01,t.actual*0.85))
@@ -838,8 +861,8 @@ local function autoSPS(t)
     else
       reason="HOLD: PROTECTION COOLDOWN"
     end
-  elseif tankFill and tankFill<c.fuelLimitStart and t.fuelNetPerTick and
-      t.fuelNetPerTick<0 and elapsed>=8 then
+  elseif tankFill and tankFill<c.fuelLimitStart and t.fuelRapidNet and
+      t.fuelRapidNet<0 and elapsed>=8 then
     target=math.min(t.burn,math.max(0.01,t.burn-downStep))
     reason="THROTTLE: FISSILE FUEL FALLING"
   elseif desired<t.burn-0.009 then
@@ -854,12 +877,12 @@ local function autoSPS(t)
         not (t.coolantDelta and t.coolantDelta< -0.002) and
         not (t.heatedDelta and t.heatedDelta>0.002) and
         not (tankFill and tankFill<c.fuelLimitStart) and
-        not (t.fuelNetPerTick and t.fuelNetPerTick< -0.005) then
+        not (t.fuelRapidNet and t.fuelRapidNet< -0.005) then
       -- Without a fuel estimate, probe only after a stable observation.
       local ready=t.fuelCapFresh or
         (tankFill and tankFill>=c.fuelLimitRelease and
           t.fuelSampleSeconds and t.fuelSampleSeconds>=c.fuelRapidSeconds and
-          t.fuelNetPerTick and t.fuelNetPerTick>=-0.001)
+          t.fuelRapidNet and t.fuelRapidNet>=-0.001)
       if ready then
         target=math.min(desired,t.burn+upStep)
         reason="RAMP: SPS PRODUCTION DEMAND"
@@ -990,7 +1013,8 @@ local fields={"ts","on","burn","actual","temp","damage","coolant","heated","wast
   "bSteam","bHot","bWater","bBoilCapacity","imEnergy","imIn",
   "imOut","imInFE","imOutFE",
   "fuelSource","fuelAvailable","reactorFuelAmount","fuelTankFill",
-  "fuelNetPerTick","fuelProducedEstimate","fuelCap","fuelCapFresh",
+  "fuelNetPerTick","fuelRapidNet","fuelRapidProduction",
+  "fuelProducedEstimate","fuelCap","fuelCapFresh",
   "fuelSampleSeconds","fuelRateLimited","tps","spsDemandBurn","spInputControlTrend",
   "spControlSeconds","feAdvice","safeCap","limit"}
 local function history(t)
@@ -1094,7 +1118,7 @@ local function scadaDraw(dev,isMonitor)
     bar(11,"Waste",current.waste,colors.yellow)
     bar(12,"Fuel",current.fuel,colors.lime)
     paint(13,"Fuel "..tostring(current.fuelSource or "MISSING").." "..p(current.fuelFillForControl)..
-      " net "..n(current.fuelNetPerTick,2).." mB/t")
+      " net "..n(current.fuelRapidNet,2).." mB/t")
     paint(14,"AUTO CAP "..n(current.safeCap,2).." mB/t")
     paint(15,"CONTROL "..tostring(current.limit or "--"),colors.yellow)
     paint(16,"Fuel estimate "..n(current.fuelCap,2).." mB/t | TPS "..n(current.tps,1))
