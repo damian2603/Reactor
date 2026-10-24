@@ -27,10 +27,20 @@ for _,case in ipairs(failFields) do
   local healthy,why=core.safety(v,nil,settings)
   assert(not healthy and why:find(case[3],1,true),why)
 end
-local v=base();v.coolant=0.95;v.ts=12
+local v=base();v.coolant=0.72;v.ts=12
 local older=base();older.ts=10;older.coolant=1
 local healthy,why=core.safety(v,older,settings)
-assert(not healthy and why=='COOLANT RAPID LOSS')
+assert(not healthy and why=='COOLANT RAPID LOSS',
+  "rapid loss to 72% coolant must trigger RPS")
+-- In the user's live world, coolant repeatedly dropped to ~92.8%.
+-- The independent RPS must NOT trip on this normal water circulation.
+local jitter=base();jitter.coolant=0.928;jitter.ts=10.5
+older.ts=10;older.coolant=1
+assert(core.safety(jitter,older,settings)==true,
+  "one-tick circulation to 92.8% must not trigger SCRAM")
+jitter.coolant=0.90;jitter.ts=10.7
+assert(core.safety(jitter,older,settings)==true,
+  "one-tick 10% coolant dip must not be mistaken for a meltdown")
 local missing=base();missing.coolant=nil
 assert(not core.safety(missing,nil,settings))
 local opt=core.new(settings)
