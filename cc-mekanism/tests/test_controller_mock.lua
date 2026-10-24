@@ -62,7 +62,8 @@ function peripheral.call(name,method,...)
   local d=data[name]
   assert(d and d[method]~=nil,"missing mock API "..tostring(name).."."..tostring(method))
   local v=d[method]
-  return type(v)=="function" and v(...) or v
+  if type(v)=="function" then return v(...) end
+  return v
 end
 fs={}
 function fs.exists(p) return p=="/cc-mekanism" end
