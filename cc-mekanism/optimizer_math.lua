@@ -85,6 +85,7 @@ function M.assessFE(o)
     res.state="REFERENCE_HEADROOM"
     res.text="FE REF ABOVE CURRENT NEED; NOT WASTED POWER"
   elseif num(o.opportunityFE) and o.opportunityFE>ref*1.10 and
+      (needed>=ref*0.78 or used>=ref*0.78) and
       num(input) and input<0.25 and
       (not num(slope) or slope<=0.000025) then
     res.state=o.fuelVerified and "FE_GROWTH_LIMIT" or
