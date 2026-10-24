@@ -96,7 +96,8 @@ local function sample()
     sodiumCoolant=false,spFormed=true,spRate=0.039,spRateEMA=0.039,
     spRate120=0.039,spWindowSeconds=120,spInput=0.02,spOutput=0.1,
     spInputTrend120=0,spsEfficiency=0.975,
-    snaCount=1,snaBroken=0,snaProduction=60,snaMaxOutputFill=0,
+    snaCount=1,snaBroken=0,snaProduction=60,snaWasteCapacity=600,
+    snaMaxOutputFill=0,
     fuelMeasured=true,fuelCapFresh=true,fuelCap=450,
     fuelFillForControl=0.8,fuelRateLimited=false,
     fuelNetPerTick=0,fuelRapidNet=0,fuelSampleSeconds=180,tps=20
