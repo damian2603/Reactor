@@ -36,7 +36,7 @@ assert(not core.safety(missing,nil,settings))
 local opt=core.new(settings)
 opt:observe(t)
 local first=opt:decide(t)
-assert(first.target>400 and first.target<=412,'ramp should be gradual')
+assert(first.target==401,'normal AUTO should ramp exactly +1 mB/t')
 local s=base();s.solarWorking=0
 local night=core.new(settings);night:observe(s)
 close(night:decide(s).target,.01,.001,'no solar conversion prevents fuel waste')
@@ -87,9 +87,9 @@ assert(out[#out].fuelEstimate and out[#out].fuelEstimate>490 and out[#out].fuelE
   ' burn='..tostring(out[#out].burn)..
   ' fuelStored='..tostring(out[#out].stored)..
   ' expected production ~500')
-local outHigh=simulate(600,70)
+local outHigh=simulate(600,170)
 assert(outHigh[#outHigh].burn>535,'surplus fuel allows max SPS/FE burn')
-local outLow=simulate(430,135)
+local outLow=simulate(430,210)
 close(outLow[#outLow].burn,430,12,'low supply; estimated '..
   tostring(outLow[#outLow].fuelEstimate)..' stored '..
   tostring(outLow[#outLow].stored)..' net '..
@@ -127,5 +127,76 @@ do
       assert(d.target>=535,"do not throttle because tank has a 535 mB cyclic gap")
     end
   end
+end
+-- 104 actual historical CSV rows from the Project Infinity Elite tank:
+-- every sample (including +-66 mB/t control swings) satisfies
+-- amount=1,024,000-actualBurn exactly. Observing this SHOULD cancel
+-- the apparent fuel drift and eliminate false fuel supply estimates.
+do
+  local controlReplay=core.new(core.defaults({userCap=575,fluxFE=25000000}))
+  local burns={546,546,550,550,550,550,550,550,550,550,550,550,550,550,534,570,556,530,566,540,564,511,535,571,557,531,567,541,575,511,547,571,557,543,567,541,575,511,547,533,557,543,567,541,575,511,547,533,557,543,567,553,537,523,547,533,557,543,567,553,537,523,547,533,557,543,567,553,499,523,547,533,569,543,529,553,499,523,547,533,569,555,529,553,537,535,559,545,569,555,529,565,499,535,559,545,531,555,541,565,511,535,559,545}
+  local coolant={1000,1000,1000,1000,1000,1000,1000,1000,1000,1000,1000,1000,1000,1000,1000,943,995,1000,976,1000,952,1000,1000,946,995,1000,978,1000,928,1000,1000,946,988,1000,960,1000,928,1000,1000,969,988,1000,960,1000,929,1000,1000,999,983,1000,942,999,949,1000,1000,998,982,1000,943,1000,949,1000,1000,998,983,1000,942,1000,1000,1000,1000,1000,961,1000,976,1000,1000,1000,1000,1000,962,997,1000,1000,1000,970,984,1000,946,997,1000,986,1000,1000,982,1000,972,995,1000,971,1000,1000,972,1000}
+  assert(#burns==104 and #coolant==104)
+  local low=0
+  for i=1,#burns do
+    local v=base()
+    v.ts=1000+i*15
+    v.burn=burns[i];v.actual=burns[i];v.fuelCapacity=1024000
+    v.fuelAmount=1024000-v.burn
+    v.coolant=coolant[i]/1000
+    v.temperature=373.15+2e6*v.actual/v.heatCapacity
+    v.amRate=v.actual/10000
+    assert(core.safety(v,nil,controlReplay.cfg),"real measured coolant must be safe")
+    controlReplay:observe(v)
+    local d=controlReplay:decide(v)
+    if i>=9 then
+      assert(v.fuelTickGapCompensated==true,
+        "detect one-tick transport gap from real historical CSV")
+      assert(v.fuelNet==0,
+        "tank=capacity-burn means zero REAL net fuel drift; got "..
+        tostring(v.fuelNet).." at sample "..i)
+      assert(v.fuelEstimate==nil,
+        "fully saturated one-tick tank snapshots must not invent production ceiling")
+      assert(d.reason~="REACTOR COOLANT/OUTPUT BACKPRESSURE" and
+        d.reason~="COOLANT SUSTAINED LOW - GENTLE TRIM",
+        "temporary 92.8-100% coolant is not failed cooling")
+    end
+    if d.target<v.burn-0.01 then
+      low=low+1
+      assert(v.burn-d.target<=2.01,
+        "normal trim cannot jump 38-66mB/t anymore")
+    end
+  end
+  assert(low<40,"should not repeatedly throttle ordinary coolant oscillations")
+end
+do
+  local cfg=core.defaults({userCap=575,fluxFE=25000000})
+  local ctl=core.new(cfg)
+  local t=base()
+  t.burn=555;t.actual=555;t.temperature=1012.5
+  for i=1,15 do
+    t.ts=2000+i*2;t.coolant=(i%3==0) and .928 or 1.0
+    ctl:observe(t)
+    local d=ctl:decide(t)
+    assert(d.target>=t.burn,
+      "repeated 92.8% coolant dips should not trim healthy reactor")
+    t.burn=d.target;t.actual=d.target
+    t.temperature=373.15+2e6*t.actual/t.heatCapacity
+  end
+  -- Sustained coolant shortage should HOLD first, then trim gradually.
+  local sawHold=false
+  local sawTrim=false
+  for i=1,12 do
+    t.ts=t.ts+2;t.coolant=.875
+    ctl:observe(t)
+    local d=ctl:decide(t)
+    if d.reason=="COOLANT DIPPING - OBSERVE BEFORE TRIM" then sawHold=true end
+    if d.reason=="COOLANT SUSTAINED LOW - GENTLE TRIM" then
+      sawTrim=true;assert(t.burn-d.target<=2.01,"coolant trim too abrupt")
+    end
+    t.burn=d.target;t.actual=d.target
+    t.temperature=373.15+2e6*t.actual/t.heatCapacity
+  end
+  assert(sawHold and sawTrim,"low coolant needs persistence then gentle trim")
 end
 print('antimatter v1 controller model regressions: OK')
