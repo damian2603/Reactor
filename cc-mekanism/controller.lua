@@ -1232,7 +1232,7 @@ local function scadaDraw(dev,isMonitor)
     paint(13,"Fission potential "..n(current.fissionAntimatterPotential,4).." AM/t (THEORY)")
     paint(14,"FE actual AM equivalent ~"..fmt(current.spEnergyUsedFE)..
       " / required for burn "..fmt(current.spFeRequiredSetpoint),colors.lightBlue)
-    paint(15,"Flux limit "..fmt(c.fluxLimitFE).." FE/t (manual)",colors.yellow)
+    paint(15,"Flux ref "..fmt(c.fluxLimitFE).." -> up to "..n(current.feLimitedRate,4).." AM/t (EST.)",colors.yellow)
     paint(16,"Control: "..lastSpsDecision,colors.orange)
     paint(18,"Polonium buffer trend "..n(current.spInputTrend120 and current.spInputTrend120*100*60,2).."%/min",colors.lightBlue)
     paint(17,"DIAG "..tostring(current.spsDiagnosis or "--"),colors.orange)
