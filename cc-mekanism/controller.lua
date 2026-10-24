@@ -1380,6 +1380,7 @@ local function scadaDraw(dev,isMonitor)
       n(current.steamTrend and current.steamTrend*100*60,3).."%/min",colors.lightBlue)
     paint(20,"Protection: "..tostring(current.protectionCause or "NONE"),colors.yellow)
     paint(16,"Fuel estimate "..n(current.fuelCap,2).." mB/t | TPS "..n(current.tps,1))
+    paint(21,"Configured AUTO ceiling "..(c.autoBurnCeiling>0 and n(c.autoBurnCeiling,2).." mB/t (C key)" or "reactor max"),colors.lightBlue)
     paint(17,"SCRAM protection: "..(latched and "LATCHED" or "ARMED"),
       latched and colors.red or colors.lime)
     paint(18,"Steam dumping "..(current.dumpExcess and "EXCESS - CHECK WATER" or
@@ -1728,7 +1729,9 @@ local function inputLoop()
       if a:match("^[1-5]$") then uiPage=tonumber(a)
       elseif a=="q" then active=false;return
       elseif a=="b" then edit="burn";buffer=tostring(current.burn or 0);info="Enter burn: "..buffer
-      elseif a=="c" then edit="cap";buffer=tostring(c.autoBurnCeiling);info="Enter ceiling (0=automatic): "..buffer
+      elseif a=="c" then edit="cap";buffer=""
+        info="Enter NEW burn ceiling mB/t (currently "..n(c.autoBurnCeiling,2)..
+          ", 0=reactor max). Type number then Enter"
       elseif a=="l" then edit="flux";buffer=""
         info="Enter NEW Flux reference FE/t (current "..fmt(c.fluxLimitFE)..")"
       elseif a=="t" then edit="target";buffer=tostring(math.floor(c.feTarget*1000+0.5)/10)
