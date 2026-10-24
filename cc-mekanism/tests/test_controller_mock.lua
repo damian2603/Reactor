@@ -143,6 +143,21 @@ do
   assert(out.mode=="MANUAL","fuel meter loss should disable automation")
   near(burnRate,400,0.01,"no unverified ramp")
 end
+-- An Elite Tank may hold >1 million mB. Never wait until 30% to
+-- reduce fuel consumption if a measured deficit is already evident.
+do
+  local ctl=newController()
+  local t=sample()
+  t.fuelCap=nil
+  t.fuelCapFresh=false
+  t.fuelFillForControl=0.88
+  t.fuelRapidNet=-40
+  t.fuelRapidProduction=360
+  local out=ctl.exerciseSPS(t)
+  near(out.cap,324,0.01,"early rapid fuel limit (360*90%)")
+  near(burnRate,324,0.01,"early deficit forces burn cap")
+  assert(t.fuelRapidLimited==true,"rapid deficit flag")
+end
 -- Integrated fuel estimate must continue across burn rate changes:
 -- 90s at 300 mB/t, then 90s at 450 mB/t, 400 mB/t production.
 do
