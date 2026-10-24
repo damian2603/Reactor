@@ -6,6 +6,8 @@ local originalDofile=dofile
 dofile=function(path)
   if path=="/cc-mekanism/optimizer_math.lua" then
     return originalDofile("cc-mekanism/optimizer_math.lua")
+  elseif path=="/cc-mekanism/thermal_model.lua" then
+    return originalDofile("cc-mekanism/thermal_model.lua")
   end
   return originalDofile(path)
 end
@@ -28,7 +30,7 @@ local data={
     getLength=5,getWidth=5,getHeight=5,getFuelAssemblies=12,
     getFuelCapacity=8000,getWasteCapacity=100000,
     getCoolantCapacity=100000,getHeatingRate=50000,
-    getBoilEfficiency=1
+    getBoilEfficiency=1,getHeatCapacity=1736000
   },
   turbine={
     getMaxFlowRate=100000,getProductionRate=100000,isFormed=true,
@@ -94,6 +96,7 @@ local function sample()
   return {
     ts=1000,on=true,burn=400,actual=400,maxBurn=1000,
     temp=600,coolant=1,heated=0.1,waste=0.1,steam=0.1,
+    heatCapacity=1736000,thermalModelCap=618.277,thermalState="OK",
     sodiumCoolant=false,spFormed=true,spRate=0.039,spRateEMA=0.039,
     spRate120=0.039,spWindowSeconds=120,spInput=0.02,spOutput=0.1,
     spInputTrend120=0,spsEfficiency=0.975,
