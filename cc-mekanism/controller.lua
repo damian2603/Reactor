@@ -190,6 +190,10 @@ local function read()
   t.temp=N(pc(r,"getTemperature"))
   t.damage=N(pc(r,"getDamagePercent"))
   t.coolant=N(pc(r,"getCoolantFilledPercentage"))
+  local coolantStack=pc(r,"getCoolant")
+  t.coolantType=type(coolantStack)=="table" and
+    tostring(coolantStack.name or coolantStack.id or "") or ""
+  t.sodiumCoolant=t.coolantType:lower():find("sodium",1,true)~=nil
   t.heated=N(pc(r,"getHeatedCoolantFilledPercentage"))
   t.waste=N(pc(r,"getWasteFilledPercentage"))
   t.fuel=N(pc(r,"getFuelFilledPercentage"))
@@ -298,7 +302,8 @@ local function safeCap(t)
   if c.autoBurnCeiling>0 then cap=math.min(cap,c.autoBurnCeiling) end
   -- Empirical steam-to-burn conversion: only direct-water-cooled fission.
   -- For sodium cooling, a separate boiler converts heat to steam.
-  if t.bFormed~=true and t.actual and t.actual>0.09 and
+  if t.bFormed~=true and not t.sodiumCoolant and
+      t.actual and t.actual>0.09 and
       t.steamMade and t.steamMade>0 then
     local observed=t.steamMade/t.actual
     if observed>50 and observed<2000000 then
@@ -308,7 +313,8 @@ local function safeCap(t)
   end
   -- The soft cap is based on usable turbine steam FLOW, not how full the
   -- steam tank is. Target up to 95% of the turbine's generation potential.
-  if t.bFormed~=true and learnedSteamPerBurn and
+  if t.bFormed~=true and not t.sodiumCoolant and
+      learnedSteamPerBurn and
       t.maxFlow and t.maxFlow>0 then
     cap=math.min(cap,t.maxFlow*c.feTarget/learnedSteamPerBurn)
     if c.returnWaterRequired and t.waterOut and t.waterOut>0 then
@@ -322,6 +328,9 @@ local function auto(t)
   if mode=="SPS" and (not names.sps or t.spFormed~=true or
       t.spInput==nil or t.spOutput==nil or t.spRate==nil) then
     mode="MANUAL";info="AUTO SPS disabled: no SPS data";return
+  end
+  if t.sodiumCoolant and not names.boiler then
+    mode="MANUAL";info="AUTO disabled: sodium cooling requires boiler telemetry";return
   end
   if c.returnWaterRequired and (not t.waterOut or t.waterOut==0) then
     mode="MANUAL";info="AUTO disabled: condenser output unavailable";return
@@ -343,27 +352,38 @@ local function auto(t)
   local now=t.ts
   local decision="HOLD"
   local target=t.burn
+  local timeSinceChange=now-lastChange
+  local canThrottle=timeSinceChange>=c.feRateStabilitySeconds or
+      (t.steam and t.steam>=c.steamTrip-0.01)
   -- A full power buffer means actual energy consumers cannot keep up.
   -- Throttle to avoid burning fissile fuel for power which cannot escape.
   if t.energy and t.energy>=c.feEnergyHigh then
-    target=math.max(0.1,t.burn-math.max(step,t.burn*0.10))
-    decision="THROTTLE: TURBINE ENERGY BLOCKED"
+    if canThrottle then
+      target=math.max(0.1,t.burn-math.max(step,t.burn*0.10))
+      decision="THROTTLE: TURBINE ENERGY BLOCKED"
+    else decision="HOLD: BUFFER PRESSURE / SETTLING" end
   elseif t.steam and t.steam>=c.feSteamThrottle and
        (t.steamDelta==nil or t.steamDelta>=-0.001) then
-    target=math.max(0.1,t.burn-math.max(step,t.burn*0.10))
-    decision="THROTTLE: STEAM BUFFER NEAR FULL"
+    if canThrottle then
+      target=math.max(0.1,t.burn-math.max(step,t.burn*0.10))
+      decision="THROTTLE: STEAM BUFFER NEAR FULL"
+    else decision="HOLD: STEAM BUFFER / SETTLING" end
   elseif t.waste and t.waste>=c.wasteWarn or
          t.heated and t.heated>=c.heatedWarn or
          t.coolant and t.coolant<c.coolantWarn or
          t.temp and t.temp>=c.tempWarn or
          t.bSteam and t.bSteam>=c.steamWarn or
          t.bHot and t.bHot>=c.heatedWarn then
-    target=math.max(0.1,t.burn-math.max(step,t.burn*0.12))
-    decision="THROTTLE: COOLING OR WASTE"
+    if canThrottle then
+      target=math.max(0.1,t.burn-math.max(step,t.burn*0.12))
+      decision="THROTTLE: COOLING OR WASTE"
+    else decision="HOLD: COOLING / WASTE / SETTLING" end
   elseif mode=="SPS" and (t.spInput and t.spInput>=c.spsInputWarn or
       t.spOutput and t.spOutput>=c.spsOutputWarn) then
-    target=math.max(0.1,t.burn-math.max(step,t.burn*0.10))
-    decision="THROTTLE: SPS BUFFER"
+    if canThrottle then
+      target=math.max(0.1,t.burn-math.max(step,t.burn*0.10))
+      decision="THROTTLE: SPS BUFFER"
+    else decision="HOLD: SPS BUFFER / SETTLING" end
   elseif t.burn>cap+0.009 then
     target=cap
     decision="CAP: TURBINE MAX FLOW"
@@ -394,7 +414,7 @@ local function auto(t)
   t.limit=decision
 end
 local fields={"ts","on","burn","actual","temp","damage","coolant","heated","waste",
-  "fuel","steamMade","rLength","rWidth","rHeight","assemblies","boilEfficiency",
+  "fuel","steamMade","coolantType","rLength","rWidth","rHeight","assemblies","boilEfficiency",
   "steam","steamIn","flow","maxFlow","power","energy","tLength","tWidth","tHeight",
   "blades","coils","vents","condensers","maxProduction","waterOut","productionFraction",
   "spInput","spOutput","spRate","spLength","spWidth","spHeight","spCoils",
@@ -476,7 +496,7 @@ local function render(dev,isMonitor)
       btn(dev,h-1,12,"SPS","sps");btn(dev,h-1,18,"SCRAM","scram")
       btn(dev,h-1,26,"START","start")
     end
-    row(dev,h,"Keyboard: +/- B burn C cap M manual F FE P SPS S stop R start Q quit",colors.lightGray)
+    row(dev,h,"Keys: +/- B burn C cap T FE target% M manual F FE P SPS S SCRAM R start Q quit",colors.lightGray)
   end)
   if not ok then
     info="Display error: "..tostring(err)
@@ -564,6 +584,16 @@ local function setTyped()
     -- Enter 0 to restore automatic cap from detected structure.
     c.autoBurnCeiling=math.floor(v*100+0.5)/100
     save();info="AUTO ceiling "..(v==0 and "DETECTED MAX" or n(v,2))
+  elseif edit=="target" then
+    if v<20 or v>100 then
+      info="Target must be between 20 and 100 percent"
+    else
+      c.feTarget=math.floor(v*10+0.5)/1000
+      smoothedPowerRatio=nil
+      lastChange=current.ts or 0
+      save()
+      info="FE generation target "..n(v,1).."%"
+    end
   elseif edit=="burn" then
     if latched then info="ALARM LATCHED";return end
     local ok,r=burn(v)
@@ -585,6 +615,8 @@ local function inputLoop()
       if a=="q" then active=false;return
       elseif a=="b" then edit="burn";buffer=tostring(current.burn or 0);info="Enter burn: "..buffer
       elseif a=="c" then edit="cap";buffer=tostring(c.autoBurnCeiling);info="Enter ceiling (0=automatic): "..buffer
+      elseif a=="t" then edit="target";buffer=tostring(math.floor(c.feTarget*1000+0.5)/10)
+        info="Target turbine output % (20..100): "..buffer
       else
         local m={["-"]="minus",["+"]="plus",["="]="plus",
           m="manual",f="fe",p="sps",s="scram",r="start"}
