@@ -245,6 +245,37 @@ If more than one chemical tank is visible, edit `/cc-mekanism/settings`
 and set `fuelTank` to its exact wired peripheral name. The probe writes
 `/cc-mekanism/probe.txt`. Fuel estimates are labelled as estimates.
 
+### Visible ComputerCraft computer keyboard editor (2026-10-24)
+
+The ComputerCraft computer connected to a large SCADA monitor previously printed
+only a short eight-line status dump. The input loop captured keyboard characters,
+but **never displayed the active edit field or typed digits**, so pressing
+**C** required entering a ceiling blind. Repeated `screen.clear()` calls also
+flickered the computer terminal.
+
+The computer now has its own readable operator console, **separate** from the
+large monitor. It shows live reactor burn, current `autoBurnCeiling`, Flux Point
+reference, cooling status, control decision and a clearly visible editing pane.
+
+- Press **C** on the **computer keyboard**: yellow
+  `EDIT: AUTO BURN CEILING (mB/t)` banner, current ceiling, and a green
+  `> _` input field appear. Typed digits update the terminal immediately.
+- Type a new limit, e.g. `550`, and press **Enter** to save; **Backspace**
+  corrects a digit and **Esc** cancels. `0` means detected reactor maximum,
+  not a conservative default. Do not use `0` for early SPS testing.
+- **B** opens a manual burn editor; **L** the recorded Flux Point FE/t value;
+  **T** the turbine FE target percentage. All numeric fields start empty,
+  show their existing value separately, and keep the editor open on invalid
+  input rather than silently discarding it.
+- Only the **small computer terminal** redraws in reaction to keystrokes.
+  It caches unchanged lines to avoid visible flashing. The **large monitor
+  remains the sole SCADA drawing surface** in the main telemetry coroutine,
+  preserving touchscreen controls and preventing render conflicts.
+
+Headless tests check current-value display, live typing, Save, invalid-input
+handling, saved cap and Flux limit, and that repeated edits do not clear the
+computer screen. Existing in-game installation remains unverified.
+
 ### Touchscreen Flux Point reference and smoother monitor (v4 UI)
 
 The full SCADA touchscreen now has two always-visible touch controls near the
