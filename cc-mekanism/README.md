@@ -13,6 +13,68 @@ Solar Neutron Activators, turbine/boiler heat handling, and sustained Fissile Fu
 production permit. When the SPS does not use added polonium, reduce unnecessary
 fission. Turbine FE is a by-product, not the controller's primary objective.
 
+### Fix: SPS AUTO hunting 414 → 330 mB/t (2026-10-24)
+
+The user's new screenshots showed a reactor falling between approximately
+**414, 378 and 330 mB/t** despite a **100% coolant buffer**,
+approximately **809 K** temperature, **full Fissile Fuel Tank**
+and a rising SPS Antimatter rate. The monitor reported
+`HOLD: PROTECTION COOLDOWN`, steam was approximately **64%**, and
+the measured fuel buffer change was only **-0.06 mB/t**.
+
+Two independent control mistakes caused excessive hesitation/hunting:
+
+1. The old SPS AUTO immediately trimmed 15% of burn every 12 seconds
+   if turbine steam was over 50% **and even a single measurement showed
+   a slight rise**. At 64% steam (with `Dumping Excess`) this was
+   unnecessarily aggressive. The new steam controller uses a ~16-second
+   rolling trend and separates `OK`, `HOLD`, `TRIM`, `TRIM_FAST`.
+   * Steady/modestly rising steam at **64%** does **not** throttle.
+   * Sustained growth at **78%+** blocks ramp increases.
+   * **88%+** trims by approximately **4.5%** with ≥28 seconds between
+     ordinary cuts.
+   * **93%+** or rapidly predicted approach to critical steam receives
+     stronger protection. Reactor RPS steam SCRAM at 95% remains intact.
+   * After a high-steam trim, ramps are held until the buffer recovers to
+     approximately **83%**. This prevents repeated 88%→87%→88% cycling.
+2. The old fuel-ramp condition refused increases for nearly *any* negative
+   fuel tank trend below **-0.005 mB/t**, despite its own safety deficit
+   estimator accepting as normal fluctuations of approximately 1% burn.
+   The new single `fuelDeficit()` predicate consistently treats tiny
+   measurements such as **-0.06 mB/t at 400 burn** as insignificant;
+   true deficits >max(1 mB/t, 1% of actual burn) prevent ramping
+   and reduce the cap with a production estimate.
+
+A **1.2% / 4 mB/t burn deadband** now prevents chase of tiny instantaneous
+SPS output fluctuations. Each protection decision writes an actual cause
+to SCADA and history, rather than a generic `PROTECTION COOLDOWN`.
+
+**Another independent limiter from the screenshot:** the user's CC
+setting `autoBurnCeiling=495.00` was still in effect. Even after
+the stability fixes, SPS AUTO cannot reach the user's manually tested
+544.1 mB/t until that setting is deliberately raised. On the CC computer
+press **C** and type a **new** ceiling in mB/t (the editor now starts
+empty); recommend trying **550 mB/t** first and verifying heat, cooling,
+SPS conversion and fuel balance before a higher cap. Setting 0 removes
+the manual ceiling and exposes the structure maximum, which is **not**
+recommended as a first automatic test.
+
+New settings include `spsPressureTrendSeconds=16`,
+`spsPressureHoldLevel=0.78`, `spsPressureTrimLevel=0.88`,
+`spsPressureCriticalLevel=0.93`, `spsPressureRecoverLevel=0.83`,
+`spsFuelDeficitFraction=0.01`, `spsFuelDeficitMinimum=1.0`,
+`spsBurnDeadbandAbs=4`, `spsBurnDeadbandFraction=0.012`.
+The revised logger writes `/cc-mekanism/history_v4_stable.csv` and
+preserves earlier CSV files.
+
+The screenshot shows **64% steam but does not contain its trend**, so this
+is a code-grounded diagnosis, not a measured causal confirmation.
+After updating, examine `steamPressureState`, `steamTrend`,
+`protectionCause`, `fuelDeficitMaterial`, and `spsCapReason`
+in the new log to validate whether the measured installation is stable.
+The controller is still a beta and independent reactor hardware
+protection is required.
+
 ### Fix: reactor stuck near 123 mB/t (2026-10-24)
 
 Real monitor screenshots showed **AUTO CAP 123.02 mB/t** and SPS output
