@@ -1575,23 +1575,100 @@ local function render(dev,isMonitor)
   end
   return true
 end
+-- Separate ComputerCraft computer console.
+-- The big monitor belongs to monitorLoop, while this small terminal is
+-- an operator panel, not just an eight-line printout that hides key input.
+local edit,buffer=nil,""
+local consoleCache={}
+local consoleSize=nil
+local function drawConsole()
+  if not screen or not screen.getSize then return end
+  local w,h=screen.getSize()
+  if not w or not h then return end
+  local resized=not consoleSize or consoleSize.w~=w or consoleSize.h~=h
+  if resized then
+    consoleSize={w=w,h=h}
+    consoleCache={}
+    screen.setBackgroundColor(colors.black)
+    screen.setTextColor(colors.white)
+    screen.clear()
+  end
+  local function line(y,message,fg,bg)
+    if y<1 or y>h then return end
+    local label=tostring(message or ""):sub(1,w)
+    local f=fg or colors.white
+    local b=bg or colors.black
+    local old=consoleCache[y]
+    if old and old.text==label and old.fg==f and old.bg==b then return end
+    screen.setBackgroundColor(b)
+    screen.setTextColor(f)
+    screen.setCursorPos(1,y)
+    screen.write(label..string.rep(" ",math.max(0,w-#label)))
+    consoleCache[y]={text=label,fg=f,bg=b}
+  end
+  line(1," PROJECT INFINITY  |  CC CONTROL  |  "..mode,
+    colors.black,colors.cyan)
+  line(2," Reactor: "..(latched and "SCRAM LATCHED" or
+    (current.on==true and "ONLINE" or "OFFLINE"))..
+    "  |  SPS "..n(current.spRate,4).." mB/t",
+    latched and colors.red or colors.lime)
+  line(3," Burn  "..n(current.burn,2).." / "..n(current.maxBurn,2)..
+    " mB/t",colors.white)
+  line(4," AUTO ceiling: "..(c.autoBurnCeiling>0 and
+    n(c.autoBurnCeiling,2).." mB/t" or "reactor max (no manual cap)"),
+    colors.yellow)
+  line(5," Flux reference: "..fmt(c.fluxLimitFE).." FE/t",colors.lightBlue)
+  line(6," Temp "..n(current.temp,1).."K | Coolant "..p(current.coolant)..
+    " | Waste "..p(current.waste),colors.white)
+  line(7," Steam "..p(current.steam).." | Fuel tank "..p(current.fuelTankFill),
+    colors.white)
+  line(8," Control: "..tostring(current.limit or lastSpsDecision),
+    colors.orange)
+  line(9,string.rep("-",math.min(w,32)),colors.gray)
+
+  local actionNames={
+    cap="AUTO BURN CEILING (mB/t)",
+    burn="MANUAL BURN RATE (mB/t)",
+    flux="FLUX POINT REFERENCE (FE/t)",
+    target="FE GENERATION TARGET (%)"
+  }
+  if edit then
+    line(10," EDIT: "..(actionNames[edit] or edit),colors.black,colors.yellow)
+    local currentValue=
+      edit=="cap" and (c.autoBurnCeiling==0 and "AUTO MAX" or n(c.autoBurnCeiling,2)) or
+      edit=="flux" and fmt(c.fluxLimitFE) or
+      edit=="burn" and n(current.burn,2) or
+      edit=="target" and n(c.feTarget*100,1).."%" or "--"
+    line(11," Current: "..currentValue,colors.lightBlue)
+    line(12," > "..(buffer~="" and buffer or "_"),colors.lime)
+    line(13," ENTER Save | BACKSPACE Delete",colors.white)
+    line(14," ESC Cancel | C: 0 = reactor max",colors.lightGray)
+  else
+    line(10," C - Edit AUTO burn ceiling",colors.yellow)
+    line(11," B - Manual burn | L - Flux FE limit",colors.lightBlue)
+    line(12," P - AUTO SPS | M - Manual | F - AUTO FE",colors.white)
+    line(13," +/- Burn step | R Start | S SCRAM",colors.white)
+    line(14," T - FE target | Q - Quit",colors.lightGray)
+  end
+  line(15," STATUS: "..tostring(info or ""),colors.yellow)
+  if h>=17 then
+    line(h-1,edit and " Type a number; input shown above." or
+      " Large monitor: charts, alarms, Flux +/-1M",colors.lightGray)
+  end
+  if h>=16 then line(h,edit and
+      " [EDITING] Enter=save, Esc=cancel" or
+      " [READY] Press C to edit AUTO ceiling",colors.black,colors.cyan)
+  end
+end
 local function display()
   if names.monitor and peripheral.isPresent(names.monitor) then
-    local success=render(peripheral.wrap(names.monitor),true)
-    if not success then render(screen,false);return end
-    screen.setBackgroundColor(colors.black);screen.setTextColor(colors.white)
-    screen.clear();screen.setCursorPos(1,1)
-    print("Project Infinity | "..mode.." | "..(latched and "ALARM" or "OK"))
-    print("Burn "..n(current.burn,2).." / actual "..n(current.actual,2))
-    print("Temp "..n(current.temp,1).." K | coolant "..p(current.coolant)..
-      " waste "..p(current.waste).." turbine steam "..p(current.steam))
-    print("SPS "..n(current.spRate,3).." AM/t | solar "..
-      tostring(current.snaActive or 0).."/"..tostring(current.snaCount or 0))
-    print("Polonium "..p(current.spInput).." antimatter "..p(current.spOutput))
-    print("Diagnosis "..tostring(current.spsDiagnosis))
-    print("Alarm "..(alarm~="" and alarm or "none"))
-    print("Keys: +/- b c m f p s r q")
-  else render(screen,false) end
+    render(peripheral.wrap(names.monitor),true)
+    drawConsole()
+  else
+    -- The small console keeps a working editor even when the large
+    -- monitor is disconnected.
+    drawConsole()
+  end
 end
 local function canStart()
   local ok,why=safety(current)
@@ -1704,10 +1781,9 @@ local function command(cmd)
     return
   end
 end
-local edit,buffer=nil,""
 local function setTyped()
   local v=tonumber(buffer)
-  if not v or v<0 then info="Invalid number";return end
+  if not v or v<0 then info="Invalid number; correct input or press ESC";return false end
   if edit=="cap" then
     -- Enter 0 to restore automatic cap from detected structure.
     c.autoBurnCeiling=math.floor(v*100+0.5)/100
@@ -1730,6 +1806,7 @@ local function setTyped()
     if ok then mode="MANUAL";info="Manual burn "..n(r,2)
     else info="Burn error: "..tostring(r) end
   end
+  return true
 end
 local function inputLoop()
   while active do
@@ -1746,7 +1823,7 @@ local function inputLoop()
       elseif ev=="key" and a==keys.backspace then buffer=buffer:sub(1,-2)
       elseif ev=="key" and a==keys.escape then edit=nil;buffer="";info="Edit cancelled"
       elseif ev=="key" and (a==keys.enter or a==keys.numPadEnter) then
-        setTyped();edit=nil;buffer=""
+        if setTyped() then edit=nil;buffer="" end
       end
     elseif ev=="char" then
       if a:match("^[1-5]$") then uiPage=tonumber(a)
@@ -1770,9 +1847,9 @@ local function inputLoop()
       monitorLayout=nil
       monitorPaintCache={}
     end
-    -- A single loop owns the display. Drawing from both inputLoop and
-    -- monitorLoop caused interleaved output and visible flickering.
-    -- Touch feedback is rendered by the next monitorLoop pass.
+    -- The input coroutine draws ONLY the computer console for instant
+    -- typing feedback. The main monitor still has a single drawing owner.
+    drawConsole()
   end
 end
 -- Independent fast reactor protection loop, inspired by cc-mek-scada RPS.
@@ -1928,6 +2005,26 @@ if rawget(_G,"CC_MEKANISM_TEST")==true then
       current=t or current
       local ok=render(dev,true)
       return buttons,ok
+    end,
+    drawConsole=drawConsole,
+    consoleEdit=function(kind,typed)
+      edit=kind
+      buffer=tostring(typed or "")
+      drawConsole()
+    end,
+    consoleType=function(char)
+      buffer=buffer..tostring(char)
+      drawConsole()
+    end,
+    consoleSave=function()
+      if not edit then return false end
+      local ok=setTyped()
+      if ok then edit=nil;buffer="" end
+      drawConsole()
+      return ok
+    end,
+    consoleState=function()
+      return {edit=edit,buffer=buffer,info=info,ceiling=c.autoBurnCeiling}
     end,
   }
 end
