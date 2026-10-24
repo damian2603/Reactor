@@ -4,7 +4,7 @@
 -- fail-safe alarm philosophy. Not a copy of upstream code.
 -- IMPORTANT: independent Fission Logic Adapters are still required.
 local ROOT = "/cc-mekanism"
-local CONF, CSV = ROOT.."/settings", ROOT.."/history_v4.csv"
+local CONF, CSV = ROOT.."/settings", ROOT.."/history_v4_fe.csv"
 if not fs.exists(ROOT) then fs.makeDir(ROOT) end
 local optimizerMath=dofile(ROOT.."/optimizer_math.lua")
 local defaults = {
@@ -968,6 +968,9 @@ local function autoSPS(t)
     target=cap
     reason="CAP: SOLAR / FUEL / FE / COOLING"
   elseif t.temp>=c.tempWarn or t.coolant<c.coolantWarn or
+      (t.dumpExcess and t.coolantDelta and
+       t.coolantDelta < -c.spsDumpCoolantDropWarn and
+       t.coolant<c.spsDumpCoolantWarn) or
       (t.steam and t.steam>c.spsSteamEarlyWarn and
        t.steamDelta and t.steamDelta>c.spsSteamGrowthWarn) or
       (t.heated and t.heated>c.spsSteamEarlyWarn and
@@ -997,6 +1000,9 @@ local function autoSPS(t)
     if elapsed>=c.spsRampSeconds and
         t.coolant>=c.coolantWarn and
         not (t.coolantDelta and t.coolantDelta< -0.002) and
+        not (t.dumpExcess and t.coolantDelta and
+          t.coolantDelta< -c.spsDumpCoolantDropWarn) and
+        not (t.bWater and t.dumpExcess and t.bWater<0.20) and
         not (t.steam and t.steam>c.spsSteamEarlyWarn and
           t.steamDelta and t.steamDelta>c.spsSteamGrowthWarn) and
         not (t.heated and t.heated>c.spsSteamEarlyWarn and
@@ -1117,12 +1123,16 @@ local function auto(t)
 end
 local fields={"ts","on","burn","actual","temp","damage","coolant","heated","waste",
   "fuel","steamMade","coolantType","rLength","rWidth","rHeight","assemblies","boilEfficiency",
-  "steam","steamIn","flow","maxFlow","power","energy","tLength","tWidth","tHeight",
+  "steam","steamIn","flow","maxFlow","power","energy","dump","dumpExcess",
+  "tLength","tWidth","tHeight",
   "blades","coils","vents","condensers","maxProduction",
   "powerFE","maxProductionFE","waterOut","productionFraction",
   "spInput","spOutput","spRate","spEnergyFill","spEnergyStored",
   "spMaxEnergy","spInputAmount","spOutputAmount",
-  "spEnergyUsedFE","snaCount","snaActive","snaSun","snaProduction",
+  "spEnergyUsedFE","spFeRequiredBurn","spFeRequiredSetpoint",
+  "feEquivalentObserved","feLimitedRate","feDeliveryInferred",
+  "feState","feSuggestedLimit","feShortfall",
+  "snaCount","snaActive","snaSun","snaProduction",
   "snaWasteCapacity","snaAntimatterPotential","snaMaxOutputFill",
   "snaMaxInputFill","snaTotalInput","snaTotalOutput",
   "fissionAntimatterPotential","spsEfficiency","spsTargetRate","spsTargetFE","spsDiagnosis",
@@ -1220,7 +1230,8 @@ local function scadaDraw(dev,isMonitor)
     paint(12,"Solar "..tostring(current.snaActive or 0).."/"..tostring(current.snaCount or 0)..
       "  potential "..fmt(current.snaProduction).." polonium/t")
     paint(13,"Fission potential "..n(current.fissionAntimatterPotential,4).." AM/t (THEORY)")
-    paint(14,"SPS FE demand ~"..fmt(current.spEnergyUsedFE).." FE/t (EST.)")
+    paint(14,"FE actual AM equivalent ~"..fmt(current.spEnergyUsedFE)..
+      " / required for burn "..fmt(current.spFeRequiredSetpoint),colors.lightBlue)
     paint(15,"Flux limit "..fmt(c.fluxLimitFE).." FE/t (manual)",colors.yellow)
     paint(16,"Control: "..lastSpsDecision,colors.orange)
     paint(18,"Polonium buffer trend "..n(current.spInputTrend120 and current.spInputTrend120*100*60,2).."%/min",colors.lightBlue)
@@ -1265,6 +1276,8 @@ local function scadaDraw(dev,isMonitor)
     paint(16,"Fuel estimate "..n(current.fuelCap,2).." mB/t | TPS "..n(current.tps,1))
     paint(17,"SCRAM protection: "..(latched and "LATCHED" or "ARMED"),
       latched and colors.red or colors.lime)
+    paint(18,"Steam dumping "..(current.dumpExcess and "EXCESS - CHECK WATER" or
+      tostring(current.dump or "unknown")),current.dumpExcess and colors.yellow or colors.lightBlue)
   elseif uiPage==3 then
     title("TURBINE / ENERGY")
     paint(6,"FE output "..fmt(current.powerFE).." / "..fmt(current.maxProductionFE).." FE/t")
@@ -1273,10 +1286,15 @@ local function scadaDraw(dev,isMonitor)
     bar(10,"FE buffer",current.energy,colors.lime)
     paint(12,"Matrix IN "..fmt(current.imInFE).." FE/t")
     paint(13,"Matrix OUT "..fmt(current.imOutFE).." FE/t")
-    paint(15,"FE delivery to SPS: NOT MEASURED",colors.yellow)
-    paint(16,"Flux limit "..fmt(c.fluxLimitFE).." FE/t (key L)",colors.yellow)
-    paint(17,"Advice "..tostring(current.feAdvice or "--"),colors.lime)
-    paint(18,"L: record new FE limit, then adjust Flux Point manually",colors.lightBlue)
+    paint(14,"SPS FE equiv "..fmt(current.feEquivalentObserved)..
+      " | estimate from antimatter",colors.lightBlue)
+    paint(15,"FE required at burn "..n(current.burn,2)..": "..
+      fmt(current.spFeRequiredSetpoint).." FE/t",colors.yellow)
+    paint(16,"Flux ref "..fmt(c.fluxLimitFE).." | suggested test "..
+      fmt(current.feSuggestedLimit).." FE/t",colors.yellow)
+    paint(17,"FE STATUS "..tostring(current.feState or "UNKNOWN"),colors.lime)
+    paint(18,tostring(current.feAdvice or "--"),colors.lightBlue)
+    paint(19,"Only reference, NOT actual Flux Point measurement.",colors.orange)
   elseif uiPage==4 then
     title("DIAGNOSTICS / ALARMS")
     paint(6,"SPS: "..tostring(current.spsDiagnosis or "--"),colors.yellow)
@@ -1299,7 +1317,7 @@ local function scadaDraw(dev,isMonitor)
     paint(8,"AM EMA "..n(current.spRateEMA,4).." | 120s "..n(current.spRate120,4))
     paint(9,"SPS diagnosis: "..tostring(current.spsDiagnosis))
     paint(11,"Control: "..info,colors.yellow)
-    paint(13,"CSV log: /cc-mekanism/history_v4.csv")
+    paint(13,"CSV log: /cc-mekanism/history_v4_fe.csv")
     paint(15,"Note: 'potential' is not confirmed optimality.",colors.orange)
   end
   if isMonitor then
