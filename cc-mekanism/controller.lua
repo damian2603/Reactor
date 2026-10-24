@@ -157,6 +157,10 @@ local uiPage=1
 local rateHistory={}
 local alarmHistory={}
 local lastAlarmText=""
+local spsEMA=nil
+local spsWindow={}
+local lastSpsDecision="WAITING FOR SAMPLES"
+local lastSpsChange=0
 local latched=false
 local alarm,info="","Boot: MANUAL, auto-start disabled"
 local current, previous = {}, nil
@@ -358,6 +362,15 @@ local function read()
     rateHistory[#rateHistory+1]={time=t.ts,rate=t.spRate,input=t.spInput}
     if #rateHistory>300 then table.remove(rateHistory,1) end
   end
+  if t.spRate then
+    spsEMA=spsEMA and (0.18*t.spRate+0.82*spsEMA) or t.spRate
+    t.spRateEMA=spsEMA
+    spsWindow[#spsWindow+1]={time=t.ts,rate=t.spRate}
+    while #spsWindow>0 and t.ts-spsWindow[1].time>120 do table.remove(spsWindow,1) end
+    local sum=0
+    for _,v in ipairs(spsWindow) do sum=sum+v.rate end
+    t.spRate120=sum/#spsWindow
+  end
   if #rateHistory>=2 then
     local first=rateHistory[1]
     local total=0
@@ -482,6 +495,9 @@ local function autoSPS(t)
     clamp(c.spsRampFraction,0.0001,0.05)*100+0.5)/100)
   local target=t.burn
   local reason="HOLD: SPS THROUGHPUT"
+  local solarCeiling=t.snaWasteCapacity*clamp(c.spsSolarUtilization,0.5,1)
+  local poloniumSurplus=t.spInputDelta and t.spInputDelta>0.0005
+  local poloniumDepletion=t.spInputDelta and t.spInputDelta< -0.0005
   local now=t.ts
   local stabilized=(now-lastChange)>=c.spsRateChangeSeconds
   local solarAvailable=t.snaCount>0 and t.snaBroken==0 and
@@ -528,10 +544,16 @@ local function autoSPS(t)
     if t.spInputDelta and t.spInputDelta>0.003 then
       target=math.max(0,t.burn-step)
     end
+  elseif poloniumSurplus and t.spInput>=0.65 and t.spRate120 and t.spRate120>0 then
+    target=math.max(0,t.burn-step)
+    reason="TRIM: POLONIUM BUFFER GROWING"
   elseif t.snaMaxOutputFill>=0.75 then
     reason="HOLD: SNA OUTPUT TRANSFER SLOW"
   elseif t.steam and t.steam>=c.feSteamHold then
     reason="HOLD: STEAM SAFETY HEADROOM"
+  elseif poloniumDepletion and t.spInput<0.03 and t.burn<cap-0.009 then
+    target=math.min(cap,t.burn+step)
+    reason="RAMP: SPS POLONIUM BUFFER FALLING"
   elseif t.burn<cap-0.009 then
     target=math.min(cap,t.burn+step)
     reason="RAMP: MAXIMIZING ANTIMATTER / TICK"
@@ -551,6 +573,8 @@ local function autoSPS(t)
     lastChange=now
   end
   t.limit=reason
+  lastSpsDecision=reason
+  if math.abs(target-t.burn)>=0.009 then lastSpsChange=now end
   info=reason.." | AM "..n(t.spRate,3).."/"..n(t.spsTargetRate,3).." mB/t"
 end
 local function auto(t)
@@ -717,18 +741,19 @@ local function scadaDraw(dev,isMonitor)
   if uiPage==1 then
     title("SPS / ANTIMATTER")
     paint(6,"OUTPUT "..n(current.spRate,4).." mB/t  |  "..n((current.spRate or 0)*1200,2).." mB/min",colors.lime)
-    paint(7,"AVG "..n(current.spRateAverage,4).." mB/t | DELTA "..n(current.spRateTrend,4))
+    paint(7,"EMA "..n(current.spRateEMA,4).." | 120s AVG "..n(current.spRate120,4).." mB/t")
     bar(9,"Polonium",current.spInput,colors.yellow)
     bar(10,"Antimatter",current.spOutput,colors.lime)
     paint(12,"Solar "..tostring(current.snaActive or 0).."/"..tostring(current.snaCount or 0)..
       "  potential "..fmt(current.snaProduction).." polonium/t")
     paint(13,"Fission potential "..n(current.fissionAntimatterPotential,4).." AM/t")
     paint(14,"SPS FE demand ~"..fmt(current.spEnergyUsedFE).." FE/t (EST.)")
-    paint(15,"Flux Point: manual limit / FE supply unmeasured",colors.yellow)
+    paint(15,"Flux Point: MANUAL | SPS FE supply unmeasured",colors.yellow)
+    paint(16,"Control: "..lastSpsDecision,colors.orange)
     paint(17,"DIAG "..tostring(current.spsDiagnosis or "--"),colors.orange)
-    if h>=27 then
+    if h>=30 then
       paint(19,"AM PRODUCTION HISTORY ("..#rateHistory.." samples)",colors.cyan)
-      local gh=math.min(5,h-24)
+      local gh=math.min(5,h-27)
       if gh>0 and #rateHistory>0 then
         local graphWidth=math.min(w,#rateHistory)
         local peak=0
@@ -785,6 +810,7 @@ local function scadaDraw(dev,isMonitor)
     title("HISTORY / CONTROL STATUS")
     paint(6,"AM average "..n(current.spRateAverage,4).." mB/t")
     paint(7,"AM latest "..n(current.spRate,4).." mB/t")
+    paint(8,"AM EMA "..n(current.spRateEMA,4).." | 120s "..n(current.spRate120,4))
     paint(9,"SPS diagnosis: "..tostring(current.spsDiagnosis))
     paint(11,"Control: "..info,colors.yellow)
     paint(13,"CSV log: /cc-mekanism/history.csv")
@@ -792,23 +818,34 @@ local function scadaDraw(dev,isMonitor)
   end
   if isMonitor then
     local nav={"SPS","REACTOR","FE","DIAG","LOG"}
+    local yNav=h-5
     local width=math.floor(w/5)
     for i,label in ipairs(nav) do
       local x=(i-1)*width+1
       local txt="["..label.."]"
       if x+#txt-1<=w then
-        dev.setCursorPos(x,h-3)
+        dev.setCursorPos(x,yNav)
         dev.setBackgroundColor(i==uiPage and colors.blue or colors.gray)
         dev.setTextColor(colors.white)
         dev.write(txt)
-        buttons[#buttons+1]={x=x,last=x+#txt-1,y=h-3,id="page"..i}
+        buttons[#buttons+1]={x=x,last=x+#txt-1,y=yNav,id="page"..i}
       end
     end
-    btn(dev,h-2,1,"MAN","manual")
-    btn(dev,h-2,7,"FE","fe")
-    btn(dev,h-2,12,"SPS","sps")
-    btn(dev,h-2,18,"SCRAM","scram")
-    btn(dev,h-2,26,"START","start")
+    local actions={{"MAN","manual"},{"FE","fe"},{"AUTO SPS","sps"},
+      {"SCRAM","scram"},{"START","start"}}
+    local ax=1
+    for _,a in ipairs(actions) do
+      local label="["..a[1].."]"
+      if ax+#label-1<=w then
+        dev.setCursorPos(ax,h-3)
+        dev.setBackgroundColor(a[2]=="scram" and colors.red or colors.gray)
+        dev.setTextColor(colors.white)
+        dev.write(label)
+        buttons[#buttons+1]={x=ax,last=ax+#label-1,y=h-3,id=a[2]}
+      end
+      ax=ax+#label+2
+    end
+    paint(h-2,"STATUS "..info,colors.yellow)
   end
   paint(h,"1-5 pages | +/- burn | C cap | M manual | P SPS | S SCRAM",colors.lightGray)
   return true
