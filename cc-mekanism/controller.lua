@@ -4,7 +4,7 @@
 -- fail-safe alarm philosophy. Not a copy of upstream code.
 -- IMPORTANT: independent Fission Logic Adapters are still required.
 local ROOT = "/cc-mekanism"
-local CONF, CSV = ROOT.."/settings", ROOT.."/history_v4_stable.csv"
+local CONF, CSV = ROOT.."/settings", ROOT.."/history_v5_thermal.csv"
 if not fs.exists(ROOT) then fs.makeDir(ROOT) end
 local optimizerMath=dofile(ROOT.."/optimizer_math.lua")
 local thermalModel=dofile(ROOT.."/thermal_model.lua")
@@ -1557,7 +1557,7 @@ local function scadaDraw(dev,isMonitor)
     paint(8,"AM EMA "..n(current.spRateEMA,4).." | 120s "..n(current.spRate120,4))
     paint(9,"SPS diagnosis: "..tostring(current.spsDiagnosis))
     paint(11,"Control: "..info,colors.yellow)
-    paint(13,"CSV log: /cc-mekanism/history_v4_stable.csv")
+    paint(13,"CSV log: /cc-mekanism/history_v5_thermal.csv")
     paint(15,"Note: 'potential' is not confirmed optimality.",colors.orange)
   end
   if isMonitor then
