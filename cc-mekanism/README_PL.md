@@ -1,6 +1,6 @@
 # Sterownik reaktora Mekanism — Project Infinity
 
-Wersja 2.1 (eksperymentalna). Wymaga CC:Tweaked oraz połączenia **Wired Modem** z blokami: **Fission Reactor Logic Adapter**, **Turbine Valve** i opcjonalnie **SPS Port**, **Boiler Valve**, **Induction Matrix Port**. Do sterowania dotykiem można dołączyć Advanced Monitor.
+Wersja 2.2 (eksperymentalna, regulator produkcji FE). Wymaga CC:Tweaked oraz połączenia **Wired Modem** z blokami: **Fission Reactor Logic Adapter**, **Turbine Valve** i opcjonalnie **SPS Port**, **Boiler Valve**, **Induction Matrix Port**. Do sterowania dotykiem można dołączyć Advanced Monitor.
 
 ## Instalacja i aktualizacja
 
@@ -35,6 +35,21 @@ AUTO ma domyślnie **autoBurnCeiling=0**, co oznacza dostosowanie do odczytanego
 - **Q** — wyjście z próbą SCRAM.
 
 Ustawienia: **/cc-mekanism/settings**. Historia: **/cc-mekanism/history.csv**.
+
+
+## AUTO FE 2.2 — regulacja według produkcji energii
+
+Najważniejszy odczyt to **Turbine Production Rate / Max Production**. Podczas AUTO FE komputer dąży do **95% maksymalnej mocy turbiny** (zmiana klawiszem **T**, zakres 20–100%), porównuje zmierzoną produkcję z celem i zwiększa burn rate stopniowo. Stosuje wygładzanie pomiarów i **co najmniej 12 sekund stabilizacji po zmianie nastawy**. Maksymalny burn rate nadal pochodzi z reaktora, a przy chłodzeniu wodą dodatkowy pułap szacowany jest z faktycznego stosunku Steam/Burn i maksymalnego przepływu turbiny.
+
+**Zwykły wzrost pary oraz jej zapełnienie np. 72,5% nie powodują już throttlingu.** Steam to sygnał bezpieczeństwa: przy około 89% program wstrzymuje zwiększanie burn rate; przy około 93% i braku spadku bufora ostrożnie obniża burn; przy 95% wykonuje SCRAM (domyślne progi nowej wersji). Takie progi NIE oznaczają gwarantowanego bezpieczeństwa — kontroluj przepływ chłodziwa i fizyczne zabezpieczenia.
+
+Program **nie zwiększa spalania w nieskończoność**, jeżeli energia z turbiny nie jest odbierana: napełnienie bufora energii >93% oznacza ograniczony odbiór i powoduje wyhamowanie burn rate. Jeśli podłączysz Induction Matrix, jego odczyty są również pokazywane na panelu. Produkcja turbiny a energia faktycznie dostarczona odbiornikom to różne wielkości.
+
+AUTO SPS nadal uwzględnia zapełnienie zbiorników Polonium / Antimatter, ale stosuje ten sam bazowy regulator mocy; połączenie z maszynami produkującymi Polonium nie jest jeszcze źródłem szczegółowej telemetrii przepustowości.
+
+**Skróty:** `F` AUTO FE, `P` AUTO SPS, `M` MANUAL, `B` burn rate, `C` dodatkowy limit burn, **`T` procent docelowej produkcji turbiny**, `S` awaryjny SCRAM.
+
+Jeśli przechodzisz z wersji 2.1, instalator zachowuje istniejący plik `settings`. Automatycznie zmienia tylko dawne, oryginalne wartości domyślne `steamTrip=0.86` i `steamWarn=0.65`, pozostawiając indywidualnie zmienione progi.
 
 ## Ważne ograniczenia
 
