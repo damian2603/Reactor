@@ -7,10 +7,17 @@ local function bound(x,a,b) return max(a,min(x,b)) end
 local DEFAULT={
   userCap=550, fluxFE=22000000, ticksPerSecond=20,
   softTemperature=1080, scramTemperature=1135, thermalMargin=0.985,
-  coolantWarn=0.95, coolantTrip=0.65, heatedWarn=0.55, heatedTrip=0.88,
+  -- 93-95% coolant is a normal transient on this reactor, per 104 logged
+  -- readings; hold below 92% if persistent, trim below 88%, fast trim 80%.
+  coolantWarn=0.88, coolantHold=0.92, coolantReset=0.97,
+  coolantHoldSeconds=8, coolantTrimSeconds=10,
+  coolantRecoverySeconds=8, coolantFastTrim=0.80,
+  coolantTrip=0.65, heatedWarn=0.55, heatedTrip=0.88,
   wasteWarn=0.65, wasteTrip=0.91,
   sampleMinSeconds=18, sampleLongSeconds=95, fuelMargin=0.4,
-  changeIntervalSeconds=6, rampStep=12, downwardStep=38,
+  -- Small actuator steps avoid the old 575 -> 537 -> 561 hunting cycle.
+  changeIntervalSeconds=2, rampStep=1, downwardStep=2,
+  thermalDownwardStep=5, emergencyDownwardStep=12,
   minimumBurn=0.01, spsFull=0.90, spsLow=0.035,
   spsPlateauWindow=70, spsPlateauDelta=0.008,
   solarUtilization=0.95, feHeadroom=1.04
@@ -81,6 +88,8 @@ function M.new(config)
   local self={cfg=c,fuel={},rates={},lastFuel=nil,consumed=0,
     fuelEstimate=nil,fuelSampleAge=0,baseline=nil,lastChange=-1e10,
     lastProbe=nil,plateau=false,plateauUntil=0,prev=nil,
+    tickGapSamples=0,tickGapCompensation=false,
+    coolantLowSince=nil,coolantRecoverUntil=0,
     result={reason="INITIALIZING",target=0,cap=0}}
   function self:observe(t)
     local now=t.ts
@@ -99,15 +108,41 @@ function M.new(config)
       t.fuelFill=fill
       t.fuelMissing=t.fuelCapacity and max(0,t.fuelCapacity-t.fuelAmount) or nil
       t.fuelNearFull=fill~=nil and fill>=0.995
-      -- A fixed near-full gap (e.g. 1,023,465/1,024,000 mB) can reflect
-      -- the tank's normal transport/tick ordering, not actual starvation.
-      -- Saturation hides spare incoming supply; treat it as a LOWER BOUND.
-      addWindow(self.fuel,{ts=now,amount=t.fuelAmount,consumed=self.consumed,fill=fill},150)
+      -- Real 104-row history: tank=1024000-actualBurn exactly EVERY row.
+      -- This is a persistent 1-tick transport gap, NOT an upstream shortage.
+      -- Lock on only after several corroborating snapshots, so a different
+      -- tank layout does not get an unjustified correction from one sample.
+      t.fuelGap=t.fuelCapacity and t.fuelCapacity-t.fuelAmount or nil
+      local tickGap=t.fuelNearFull and valid(t.actual) and
+        valid(t.fuelGap) and abs(t.fuelGap-t.actual)<=max(5,t.actual*0.01)
+      if tickGap then
+        self.tickGapSamples=min(20,self.tickGapSamples+1)
+      elseif not self.tickGapCompensation then
+        self.tickGapSamples=max(0,self.tickGapSamples-2)
+      end
+      if not self.tickGapCompensation and self.tickGapSamples>=5 then
+        self.tickGapCompensation=true
+        -- Never mix pre-compensation raw samples with corrected samples:
+        -- doing so would create artificial positive/negative fuel trends.
+        self.fuel={}
+      end
+      t.fuelTickGapCompensated=self.tickGapCompensation
+      local effective=t.fuelAmount
+      if self.tickGapCompensation and valid(t.actual) then
+        -- Accumulated shortage is the part of tank depletion BEYOND one
+        -- burn tick. This value remains full at healthy 500-575 mB/t.
+        effective=min(t.fuelCapacity,t.fuelAmount+t.actual)
+      end
+      t.fuelEffective=effective
+      fill= t.fuelCapacity and t.fuelCapacity>0 and effective/t.fuelCapacity or nil
+      t.fuelNearFull=fill~=nil and fill>=0.995
+      -- Saturation hides additional fuel supply, thus is lower-bound only.
+      addWindow(self.fuel,{ts=now,amount=effective,consumed=self.consumed,fill=fill},150)
       local first=findWindow(self.fuel,c.sampleMinSeconds,now)
       if first then
         local dt=now-first.ts
         local ticks=dt*c.ticksPerSecond
-        local delta=t.fuelAmount-first.amount
+        local delta=effective-first.amount
         t.fuelNet=delta/ticks
         t.fuelProduction=(self.consumed-first.consumed+delta)/ticks
         t.fuelWindowSeconds=dt
@@ -137,7 +172,7 @@ function M.new(config)
         local longFill=fill and longStart.fill and
           (fill>=0.9985 or longStart.fill>=0.9985)
         local produced=(self.consumed-longStart.consumed+
-          t.fuelAmount-longStart.amount)/longTicks
+          effective-longStart.amount)/longTicks
         t.fuelLongWindow=longDt
         t.fuelLongCensored=longFill
         if not longFill and valid(produced) and produced>=0 then
@@ -157,9 +192,10 @@ function M.new(config)
         math.abs(t.fuelNet)<=jitter then
       -- This demonstrates current demand is being met, NOT the maximum
       -- production of the upstream Isotopic Centrifuge line.
-      t.fuelStatus="NEAR FULL: BURN SUPPORTED, MAX UNKNOWN"
-      t.fuelSupplyFloor=valid(t.fuelProduction) and
-        max(0,t.fuelProduction) or nil
+      t.fuelStatus=self.tickGapCompensation and
+        "1-TICK GAP: BURN SUPPORTED, MAX UNKNOWN" or
+        "NEAR FULL: BURN SUPPORTED, MAX UNKNOWN"
+      t.fuelSupplyFloor=valid(t.actual) and t.actual or nil
     elseif t.fuelNearFull then
       t.fuelStatus="NEAR FULL: TRANSIENT / CHECK TREND"
     elseif valid(t.fuelNet) and t.fuelNet< -jitter then
@@ -233,27 +269,65 @@ function M.new(config)
       end
     end
     local reason="SEEK FUEL/SPS LIMIT"
+    local urgent=false
     -- A full turbine is not the same thing as a blocked reactor.
     -- React to actual reactor cooling/waste state instead.
     if not(valid(t.coolant) and valid(t.heated) and valid(t.waste) and valid(t.temperature)) then
       cap=min(cap,burn);reason="WAITING FOR REACTOR HEALTH SENSORS"
     elseif not t.thermalCap then
       cap=min(cap,burn);reason="HEAT CAPACITY UNKNOWN - HOLD"
-    elseif t.coolant<c.coolantWarn or t.heated>c.heatedWarn or t.waste>c.wasteWarn then
-      cap=min(cap,burn-c.downwardStep)
-      reason="REACTOR COOLANT/OUTPUT BACKPRESSURE"
-    elseif t.temperature>c.softTemperature or
+    elseif t.heated>c.heatedWarn or t.waste>c.wasteWarn then
+      cap=min(cap,burn-c.emergencyDownwardStep)
+      reason="REACTOR OUTPUT BACKPRESSURE"
+      urgent=true
+    elseif t.coolant<c.coolantFastTrim then
+      cap=min(cap,burn-c.emergencyDownwardStep)
+      reason="COOLANT LOW - RAPID TRIM"
+      urgent=true
+    elseif t.coolant<c.coolantWarn then
+      self.coolantLowSince=self.coolantLowSince or now
+      self.coolantRecoverUntil=now+c.coolantRecoverySeconds
+      if now-self.coolantLowSince>=c.coolantTrimSeconds then
+        cap=min(cap,burn-c.thermalDownwardStep)
+        reason="COOLANT SUSTAINED LOW - GENTLE TRIM"
+      else
+        cap=min(cap,burn)
+        reason="COOLANT DIPPING - OBSERVE BEFORE TRIM"
+      end
+    elseif t.coolant<c.coolantHold then
+      self.coolantLowSince=self.coolantLowSince or now
+      self.coolantRecoverUntil=now+c.coolantRecoverySeconds
+      cap=min(cap,burn)
+      reason="COOLANT SMALL DIP - HOLD, NOT TRIM"
+    elseif now<self.coolantRecoverUntil then
+      cap=min(cap,burn)
+      reason="COOLANT RECOVERING - NO HUNTING"
+    else
+      self.coolantLowSince=nil
+      t.coolantStabilized=true
+    end
+    if t.coolant>=c.coolantReset and now>=self.coolantRecoverUntil then
+      self.coolantLowSince=nil
+    end
+    if t.temperature>c.softTemperature or
       (t.expectedTemp and t.temperature>t.expectedTemp+60 and
        valid(t.tempSlope) and t.tempSlope>0.15) then
-      cap=min(cap,burn-c.downwardStep)
+      cap=min(cap,burn-c.thermalDownwardStep)
       reason="REACTOR TEMPERATURE ABOVE MODEL"
+      urgent=true
     elseif valid(t.tempSlope) and t.temperature>1050 and t.tempSlope>1.0 then
-      cap=min(cap,burn);reason="TEMPERATURE RISING - HOLD"
+      cap=min(cap,burn)
+      reason="TEMPERATURE RISING - HOLD"
     end
+    -- Cooled reactor alone may recover from a 7-10% coolant fluctuation
+    -- without any reduction. Independent RPS still trips at 65%.
+
     if valid(t.fuelAmount) and valid(t.fuelCapacity) and t.fuelCapacity>0 then
       local fill=t.fuelAmount/t.fuelCapacity
       if fill<0.05 and valid(t.fuelNet) and t.fuelNet<0 then
-        cap=min(cap,max(c.minimumBurn,burn-c.downwardStep*2));reason="FUEL TANK NEAR EMPTY"
+        cap=min(cap,max(c.minimumBurn,burn-c.emergencyDownwardStep))
+        reason="FUEL TANK NEAR EMPTY"
+        urgent=true
       end
     elseif not valid(t.reactorFuelAmount) then
       cap=min(cap,burn);reason="NO FISSILE FUEL INVENTORY - HOLD"
@@ -263,6 +337,7 @@ function M.new(config)
       cap=min(cap,burn);reason="SOLAR TELEMETRY INCOMPLETE - HOLD"
     elseif t.solarCount==0 or t.solarWorking==0 then
       cap=min(cap,c.minimumBurn);reason="NO SOLAR POLONIUM CONVERSION"
+      urgent=true
     end
     -- SPS energy/transfer plateau: if AM did not improve after a controlled
     -- upward trial, yet Polonium is accumulating, reduce to useful demand.
@@ -284,10 +359,14 @@ function M.new(config)
     local interval=now-self.lastChange
     local target=burn
     if cap<burn-0.2 then
-      target=max(cap,burn-c.downwardStep)
+      -- Normal limits change by 1-2 mB/t per command, not 38-66 in one
+      -- go. Fast intervention is reserved for clearly dangerous readings.
+      local step=urgent and c.emergencyDownwardStep or c.downwardStep
+      if interval>=c.changeIntervalSeconds or urgent then
+        target=max(cap,burn-step)
+      end
       reason=reason=="SEEK FUEL/SPS LIMIT" and "TRIM TO REAL LIMIT" or reason
-      if cap<burn-70 then target=cap end -- cooling or severe fuel shortage
-    elseif cap>burn+1 and interval>=c.changeIntervalSeconds then
+    elseif cap>burn+0.2 and interval>=c.changeIntervalSeconds then
       target=min(cap,burn+c.rampStep)
       if not self.lastProbe and valid(t.amRate) and t.poloniumFill and t.poloniumFill>0 then
         self.lastProbe={ts=now,amRate=t.amRate,input=t.poloniumFill,burn=burn}
