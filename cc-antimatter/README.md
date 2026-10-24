@@ -27,6 +27,37 @@ Thermal model: expected_K ~ 373.15 + actual_burn * (2 * 1,000,000 / reactor_heat
 
 The manually set Flux Point reference (default 22 MFE/t) is NOT a real SPS power measurement. The theoretical energy cap is approximately 0.055 mB antimatter per tick at 22 MFE/t, if the coils are actually supplied. Changes to burn are judged by actual SPS AM production and Polonium fill. With 430 mB/t actual fissile production, stable operation around 430 is preferable to setting 550 and draining the fuel tank.
 
+## Near-full Elite Chemical Tank: oscillating but steady is normal
+
+The user's observed tank reading **1,023,465 / 1,024,000 mB** is
+**99.9478% full**: its gap is only **535 mB**. That gap is comparable
+to one tick of a ~535 mB/t Fission Reactor burn rate, suggesting
+a tick/transfer-cycle offset, not a sustained deficit. This is a
+diagnostic possibility, not proof of the precise pipe transfer order.
+
+With healthy supply, the amount can settle at a slightly different
+near-full equilibrium for *every burn rate*, moving up and down by
+tens or hundreds of mB as adjacent inventory transfers occur.
+A different stable level after changing burn is NOT evidence that
+the maximum Fissile Fuel production rate was found.
+
+The new diagnostic line reads:
+`Fuel: NEAR FULL: BURN SUPPORTED, MAX UNKNOWN | gap 535 mB`.
+It means the amount stayed near full across a sampled window and
+its net drift was smaller than a small noise deadband. The tank
+can sustain current burn, but actual maximal centrifuge throughput
+is still unknown because incoming supply may be throttled by
+backpressure. AUTO remains free to probe higher while SPS and
+reactor safety permit. A sustained negative slope with clearly
+falling tank inventory and enough time below the full-tank
+censoring band is required to infer a true production limit.
+
+`fuelNet` should be judged over multi-second windows, not from
+the raw GUI number every tick. Individual positive and negative
+samples do not establish sustained fuel surplus or starvation.
+The former controller's assumption that zero tank trend meant
+an exact fuel-production ceiling would be incorrect here.
+
 ## Installation
 
 **A fresh CC computer is recommended.** The old one had only ~2–6KB free. The new controller needs ~32KB for program modules, plus a free reserve for settings and history. This installer refuses to delete or overwrite old cc-mekanism files.
