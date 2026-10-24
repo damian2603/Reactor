@@ -302,6 +302,34 @@ local function read()
   t.spsEfficiency=t.spRate and t.fissionAntimatterPotential and
       t.fissionAntimatterPotential>0 and
       t.spRate/t.fissionAntimatterPotential or nil
+  -- This is the equivalent SPS FE spent on observed processing;
+  -- it is NOT a direct measurement of incoming FE at the SPS coils.
+  t.spsDiagnosis="DATA INCOMPLETE"
+  if t.spOutput and t.spOutput>=c.spsOutputWarn then
+    t.spsDiagnosis="EMPTY ANTIMATTER OUTPUT"
+  elseif t.snaCount==0 then
+    t.spsDiagnosis="CONNECT SNA MODEMS"
+  elseif t.snaBroken>0 then
+    t.spsDiagnosis="SOLAR TELEMETRY LOST"
+  elseif t.snaProduction<=0 then
+    t.spsDiagnosis="SNA OFFLINE / NIGHT / WEATHER"
+  elseif t.snaMaxOutputFill>=0.90 then
+    t.spsDiagnosis="POLONIUM PIPE / EXTRACTION"
+  elseif t.waste and t.waste>=0.25 and t.wasteDelta and
+       t.wasteDelta>0.001 then
+    t.spsDiagnosis="SNA TOO SLOW / WASTE TRANSFER"
+  elseif t.spInput and t.spInput>=0.40 and t.spRate and
+       t.fissionAntimatterPotential and
+       t.spRate<t.fissionAntimatterPotential*0.75 then
+    t.spsDiagnosis="SPS COIL FE / PROCESSING LIMIT"
+  elseif t.spInput and t.spInput<0.07 and t.spsEfficiency and
+       t.spsEfficiency<0.75 then
+    t.spsDiagnosis="SPS POLONIUM STARVED"
+  elseif t.steam and t.steam>=c.feSteamHold then
+    t.spsDiagnosis="TURBINE STEAM FLOW LIMIT"
+  else
+    t.spsDiagnosis="SPS RUNNING / BALANCED"
+  end
   t.imEnergy=N(pc(im,"getEnergyFilledPercentage"))
   t.imIn=N(pc(im,"getLastInput"));t.imOut=N(pc(im,"getLastOutput"))
   if previous then
@@ -597,7 +625,7 @@ local fields={"ts","on","burn","actual","temp","damage","coolant","heated","wast
   "spEnergyUsedFE","snaCount","snaActive","snaSun","snaProduction",
   "snaWasteCapacity","snaAntimatterPotential","snaMaxOutputFill",
   "snaMaxInputFill","snaTotalInput","snaTotalOutput",
-  "fissionAntimatterPotential","spsEfficiency","spsTargetRate",
+  "fissionAntimatterPotential","spsEfficiency","spsTargetRate","spsDiagnosis",
   "spLength","spWidth","spHeight","spCoils",
   "bSteam","bHot","bWater","bBoilCapacity","imEnergy","imIn","imOut"}
 local function history(t)
@@ -666,8 +694,8 @@ local function render(dev,isMonitor)
     row(dev,13,"Steam flow "..fmt(current.flow).."/"..fmt(current.maxFlow)..
       " | boiler "..(names.boiler and "connected" or "none")..
       " | sodium "..(current.sodiumCoolant and "YES" or "NO"))
-    row(dev,14,"Bottleneck: "..(current.limit or bottleneck(current)))
-    row(dev,15,"Info: "..info,colors.yellow)
+    row(dev,14,"SPS diagnosis: "..(current.spsDiagnosis or "not connected"))
+    row(dev,15,"Control: "..info,colors.yellow)
     row(dev,16,"Alarm: "..(alarm~="" and alarm or "none"),latched and colors.red or colors.lime)
     if not isMonitor then
       row(dev,17,"Monitor: "..(names.monitor or
@@ -703,6 +731,7 @@ local function display()
     print("SPS "..n(current.spRate,3).." AM/t | solar "..
       tostring(current.snaActive or 0).."/"..tostring(current.snaCount or 0))
     print("Polonium "..p(current.spInput).." antimatter "..p(current.spOutput))
+    print("Diagnosis "..tostring(current.spsDiagnosis))
     print("Alarm "..(alarm~="" and alarm or "none"))
     print("Keys: +/- b c m f p s r q")
   else render(screen,false) end
@@ -841,7 +870,9 @@ local function monitorLoop()
     if latched and current.on==true then trip(alarm) end
     if good and not latched then auto(current) end
     if current.safeCap==nil then current.safeCap=safeCap(current) end
-    current.limit=bottleneck(current)
+    -- Preserve the chosen control action instead of overwriting it
+    -- with a generic list of warnings on every display refresh.
+    if not current.limit then current.limit=bottleneck(current) end
     history(current)
     display()
     sleep(math.max(0.2,c.sampleSeconds))
