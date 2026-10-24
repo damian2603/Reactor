@@ -2,7 +2,118 @@
 
 Standalone ComputerCraft / CC:Tweaked controller for **Mekanism Fission Reactor + Industrial Turbine + SPS**, developed for Minecraft 1.20.1 / Project Infinity 0.1. The separate NuclearCraft optimizer in this repository is untouched.
 
-**Status: Beta 1 experimental (autodetection of multiblock sizes).** Tested against inspected Mekanism API source, **not yet validated in an actual running Project Infinity world**. Do not rely on this program as your only reactor safety mechanism.
+**Status: v4 beta experimental (autodetection of multiblock sizes).** Tested against inspected Mekanism API source, **not yet validated in an actual running Project Infinity world**. Do not rely on this program as your only reactor safety mechanism.
+
+## v4 beta — SPS-first adaptive controller (2026-10-24)
+
+This section supersedes the older v2/v3 and Beta 1 descriptions below where they conflict.
+
+**Objective:** raise antimatter production as far as the measured SPS processing,
+Solar Neutron Activators, turbine/boiler heat handling, and sustained Fissile Fuel
+production permit. When the SPS does not use added polonium, reduce unnecessary
+fission. Turbine FE is a by-product, not the controller's primary objective.
+
+### Controller operation
+
+1. `AUTO SPS` estimates the burn needed for observed antimatter production:
+   **1 mB/t antimatter ≈ 10,000 mB/t fission burn** at default Mekanism
+   polonium/waste ratios. It adds restrained buffer-trend feedback.
+2. If the SPS is actually consuming nearly all incoming polonium and inventory
+   is not growing, it probes a higher burn rate in limited steps to discover
+   additional output. If processing plateaus and buffers grow, it learns a
+   temporary throughput cap and backs off.
+3. Fuel is measured from the connected `fuelTank` (preferred), or the
+   Fission Reactor's `getFuel()` inventory as a fallback. Integrated burn
+   consumption plus tank inventory change estimates sustained fuel production.
+   It runs a faster ~30s depletion monitor and a longer ~120–180s estimate.
+   A 30%/40% fuel-fill hysteresis enables more restrictive limiting.
+4. Caps from observed fuel supply, SNA capacity, heat/steam limits, reactor
+   physical maximum, and *manually recorded* Flux Point FE/t are combined.
+   Increased burn is allowed only with sufficient fuel reserve/calibration,
+   valid sensors and healthy coolant. Cuts are rate-limited except hard limits
+   and process stops.
+5. Parallel, independent rapid RPS telemetry checks temperature, coolant,
+   damage, waste, hot coolant, turbine/boiler buffers and sensor failures.
+   The main SCADA collects peripheral readings in parallel and caches static
+   machine geometry for 30 seconds.
+6. The program deliberately **SCRAMs and switches to MANUAL** after sustained
+   loss of SNA production, at ≥98% antimatter output fill, or critically
+   draining fuel reserve. It **never auto-restarts** the reactor.
+
+**Important:** Exact *instantaneous* `burn ≤ fuel production` cannot be
+mathematically guaranteed from buffered inventories alone. Estimates lag supply
+changes, and tank transport may be bottlenecked. The automatic mode aims for
+sustained balance with margin, rapid depletion detection and conservative
+manual commissioning. It is **not a replacement for hardware fission safety**.
+
+### Fuel wiring and measurements
+
+Connect an Isotopic Centrifuge output to a Mekanism Chemical Tank, and the tank
+to the reactor fuel input with Mekanism chemical pipes. The tank should be in
+the main flow path (not a parallel side branch). The user reports that the
+pipes normally fill first and the tank drains before the pipe buffers.
+
+**Make sure the tank output throughput is sufficient for the planned burn rate.**
+A very small/basic Chemical Tank may become the transfer bottleneck. Check
+the `getStored()` / `getCapacity()` data with:
+
+```lua
+cc-mekanism/probe
+```
+
+If more than one chemical tank is visible, edit `/cc-mekanism/settings`
+and set `fuelTank` to its exact wired peripheral name. The probe writes
+`/cc-mekanism/probe.txt`. Fuel estimates are labelled as estimates.
+
+### FE Advisor — manual A/B comparison
+
+Flux Point is **not** directly adjustable or measured through the current
+peripherals. `fluxLimitFE` is an operator-entered reference, not measured power.
+
+- Start with an unchanged Flux Point limit; leave the SPS stable ≥60s.
+- Press **L** in the CC computer, enter the proposed *new* FE/t cap.
+- **Immediately after recording** the new reference, change the Flux Point
+  itself to that limit manually.
+- After ≥180s the advisor compares stabilized before/after antimatter and
+  records the result to `/cc-mekanism/fe_trials.csv`. Unrelated changes in
+  weather, fuel supply or machines can invalidate the comparison.
+
+The FE-timed test may suggest maintaining or reverting a changed limit. It
+does not infer an actual SPS electricity meter from Induction Matrix totals.
+
+### Installation and testing
+
+```text
+wget run https://raw.githubusercontent.com/damian2603/Reactor/main/cc-mekanism/install.lua
+cc-mekanism/probe
+cc-mekanism/controller
+```
+
+Installer now also downloads `optimizer_math.lua`. Old settings survive.
+Telemetry history is now stored in `/cc-mekanism/history_v4.csv`; previous
+`history.csv` is preserved.
+
+Tests: `.github/workflows/cc-mekanism-checks.yml` performs Lua syntax checks
+and independent calculation tests. It is not an in-world integration test.
+Use a conservative manual `autoBurnCeiling`, keep independent reactor
+hardware protection, and first verify the tank API/throughput in your pack.
+
+Useful v4 settings: `fuelRapidSeconds=30`,
+`fuelMinSampleSeconds=120`, `fuelTrendSeconds=180`,
+`fuelMargin=0.90`, `fuelLimitStart=0.30`,
+`fuelLimitRelease=0.40`, `spsRampSeconds=5`,
+`spsRampMaxFraction=0.02`, `spsSettleSeconds=60`,
+`fastSafetySeconds=0.2`, `safetyBadReads=3`. Modify cautiously.
+
+**Conceptual inspirations:** the independent RPS, EMA fuel limiting,
+hysteresis, ramp states and cooldown monitoring in
+[cc-mek-scada](https://github.com/MikaylaFischler/cc-mek-scada),
+particularly `reactor-plc/plc.lua`, `reactor-plc/spctl.lua`,
+`reactor-plc/threads.lua`, `supervisor/facility_update.lua`, and
+`supervisor/unit.lua`. The SPS objective, feed-forward, fuel balance and
+implementation here are independent and tailored for Project Infinity.
+
+---
 
 ## Install in ComputerCraft
 
