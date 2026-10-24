@@ -624,6 +624,38 @@ local function read()
   local observedFE=optimizerMath.feForAntimatter(
     t.spRate120 or t.spRate,SPS_POLONIUM_PER_ANTIMATTER,
     SPS_JOULES_PER_POLONIUM,JOULES_PER_FE)
+  -- Opportunity is the physical/Solar ceiling with known fuel constraints.
+  -- At full tank, Fissile Fuel output is NOT proven: mark opportunity
+  -- conditional rather than claiming an obtainable optimum.
+  local opportunityBurn=t.maxBurn or 0
+  if c.autoBurnCeiling>0 then
+    opportunityBurn=math.min(opportunityBurn,c.autoBurnCeiling)
+  end
+  if t.snaWasteCapacity and t.snaCount>0 then
+    opportunityBurn=math.min(opportunityBurn,
+      t.snaWasteCapacity*c.spsSolarUtilization)
+  else
+    opportunityBurn=0
+  end
+  local verifiedFuel=t.fuelCapFresh and t.fuelCap~=nil
+  if verifiedFuel then
+    opportunityBurn=math.min(opportunityBurn,t.fuelCap*c.fuelMargin)
+  end
+  if t.fuelRapidProduction and t.fuelRapidNet and t.actual and
+      t.fuelRapidNet < -math.max(1,t.actual*0.01) then
+    opportunityBurn=math.min(opportunityBurn,
+      t.fuelRapidProduction*c.fuelMargin)
+    verifiedFuel=true
+  end
+  t.feOpportunityBurn=opportunityBurn
+  t.fePotentialRequired=optimizerMath.feForBurn(opportunityBurn,
+    JOULES_PER_FE,WASTE_PER_POLONIUM,SPS_JOULES_PER_POLONIUM)
+  local feOpportunitySafe=t.temp and t.temp<c.tempWarn and
+    t.coolant and t.coolant>=c.coolantWarn and
+    t.heated and t.heated<c.heatedWarn and
+    t.waste and t.waste<c.wasteWarn and
+    t.spOutput and t.spOutput<c.spsOutputWarn and
+    t.snaProduction and t.snaProduction>0
   local assessment=optimizerMath.assessFE({
     limitFE=c.fluxLimitFE,
     neededFE=t.spFeRequiredSetpoint,
@@ -631,7 +663,9 @@ local function read()
     poloniumFill=t.spInput,
     poloniumTrend=t.spInputTrend120,
     energyFill=t.spEnergyFill,
-    outputFill=t.spOutput
+    outputFill=t.spOutput,
+    opportunityFE=feOpportunitySafe and t.fePotentialRequired or nil,
+    fuelVerified=verifiedFuel
   })
   t.feState=assessment.state
   t.feAdvice=assessment.text
@@ -1130,6 +1164,7 @@ local fields={"ts","on","burn","actual","temp","damage","coolant","heated","wast
   "spInput","spOutput","spRate","spEnergyFill","spEnergyStored",
   "spMaxEnergy","spInputAmount","spOutputAmount",
   "spEnergyUsedFE","spFeRequiredBurn","spFeRequiredSetpoint",
+  "feOpportunityBurn","fePotentialRequired",
   "feEquivalentObserved","feLimitedRate","feDeliveryInferred",
   "feState","feSuggestedLimit","feShortfall",
   "snaCount","snaActive","snaSun","snaProduction",
@@ -1286,6 +1321,7 @@ local function scadaDraw(dev,isMonitor)
     bar(10,"FE buffer",current.energy,colors.lime)
     paint(12,"Matrix IN "..fmt(current.imInFE).." FE/t")
     paint(13,"Matrix OUT "..fmt(current.imOutFE).." FE/t")
+    paint(11,"Tech FE opportunity ~"..fmt(current.fePotentialRequired).." (fuel/heat not assured)")
     paint(14,"SPS FE equiv "..fmt(current.feEquivalentObserved)..
       " | estimate from antimatter",colors.lightBlue)
     paint(15,"FE required at burn "..n(current.burn,2)..": "..
