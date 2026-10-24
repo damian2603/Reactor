@@ -4,7 +4,7 @@ local BASE="https://raw.githubusercontent.com/damian2603/Reactor/main/cc-mekanis
 local DIR="/cc-mekanism"
 if not http then error("HTTP is disabled in CC:Tweaked config") end
 if not fs.exists(DIR) then fs.makeDir(DIR) end
-local sources={"optimizer_math.lua","controller.lua","probe.lua","monitor-test.lua"}
+local sources={"optimizer_math.lua","thermal_model.lua","controller.lua","probe.lua","monitor-test.lua"}
 for _,name in ipairs(sources) do
   print("Downloading "..name.." ...")
   local url=BASE..name.."?v="..tostring(os.epoch("utc"))
