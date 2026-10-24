@@ -416,6 +416,10 @@ local function read()
   local ft=names.fuelTank
   t.fuelStored=N(pc(ft,"getStored")) or N(pc(ft,"getStoredGas")) or N(pc(ft,"getStoredChemical"))
   t.fuelTankCapacity=N(pc(ft,"getCapacity")) or N(pc(ft,"getTankCapacity"))
+  t.reactorFuelAmount=N(pc(r,"getFuel"))
+  t.fuelSource=t.fuelStored~=nil and "TANK" or
+    (t.reactorFuelAmount~=nil and "REACTOR" or nil)
+  t.fuelAvailable=t.fuelStored or t.reactorFuelAmount
   t.fuelTankFill=t.fuelStored and t.fuelTankCapacity and t.fuelTankCapacity>0 and
     clamp(t.fuelStored/t.fuelTankCapacity,0,1) or nil
   t.imEnergy=N(pc(im,"getEnergyFilledPercentage"))
@@ -456,6 +460,7 @@ local function read()
   else
     t.spsDiagnosis="SPS RUNNING / BALANCED"
   end
+  t.tps=tpsEstimate
   if t.spRate then
     rateHistory[#rateHistory+1]={time=t.ts,rate=t.spRate,input=t.spInput}
     if #rateHistory>300 then table.remove(rateHistory,1) end
@@ -496,38 +501,77 @@ local function read()
     t.spRateAverage=total/#rateHistory
     t.spRateTrend=t.spRate-first.rate
   end
-  -- Measure tank depletion only after the burn setting has been stable.
-  -- The user's pipes normally remain full; the tank is the first buffer to drain.
-  if t.fuelStored~=nil and t.actual~=nil and t.burn~=nil then
-    if fuelSampleBurn==nil or math.abs(t.burn-fuelSampleBurn)>0.009 or
-        (previous and previous.on~=t.on) then
+  -- Integrate actual fuel use across setpoint changes. This avoids the
+  -- calibration never completing when SPS AUTO is actively ramping.
+  -- Tank is preferred: the user's Mekanism pipes remain filled first.
+  local fuelName=t.fuelSource
+  if t.fuelAvailable~=nil and t.actual~=nil and t.on==true then
+    if fuelSourceName~=fuelName or not fuelPrevTickSample or
+        (previous and previous.on~=true) then
       fuelWindow={}
-      fuelSampleBurn=t.burn
-      fuelSampleStart=t.ts
+      fuelCumulative=0
+      fuelSourceName=fuelName
+      fuelPrevTickSample=nil
+      fuelCap=nil
+      fuelCapTimestamp=0
     end
-    fuelWindow[#fuelWindow+1]={ts=t.ts,stored=t.fuelStored}
+    if fuelPrevTickSample then
+      local seconds=t.ts-fuelPrevTickSample.ts
+      if seconds>0 and seconds<60 then
+        fuelCumulative=fuelCumulative+
+          ((t.actual+fuelPrevTickSample.actual)/2)*seconds*tpsEstimate
+      end
+    end
+    fuelPrevTickSample={ts=t.ts,actual=t.actual}
+    fuelWindow[#fuelWindow+1]={
+      ts=t.ts,amount=t.fuelAvailable,consumed=fuelCumulative,
+      fill=t.fuelTankFill or t.fuel
+    }
     while #fuelWindow>1 and t.ts-fuelWindow[1].ts>c.fuelTrendSeconds do
       table.remove(fuelWindow,1)
     end
     local first=fuelWindow[1]
-    local dt=t.ts-first.ts
-    if dt>=c.fuelMinSampleSeconds and t.on==true then
-      t.fuelNetPerTick=(t.fuelStored-first.stored)/dt/20
-      if t.fuelTankFill and t.fuelTankFill>0.10 and t.fuelTankFill<0.90 and
-          t.actual>0 then
-        local estimate=t.actual+t.fuelNetPerTick
-        if estimate>0 then
-          fuelCap=fuelCap and (fuelCap*0.75+estimate*0.25) or estimate
-          fuelCapTimestamp=t.ts
-        end
+    local seconds=t.ts-first.ts
+    local ticks=seconds*tpsEstimate
+    if seconds>=c.fuelRapidSeconds and ticks>0 then
+      t.fuelNetPerTick=(t.fuelAvailable-first.amount)/ticks
+      t.fuelProducedEstimate=(fuelCumulative-first.consumed+
+        (t.fuelAvailable-first.amount))/ticks
+      t.fuelSampleSeconds=seconds
+      -- A full or empty tank hides true inflow: do not treat it as
+      -- a reliable calibrated production cap near either boundary.
+      local fill=t.fuelTankFill or t.fuel
+      if seconds>=c.fuelMinSampleSeconds and
+          t.ts-fuelLastEstimate>=c.fuelEstimateInterval and
+          first.fill and first.fill>0.04 and first.fill<0.96 and
+          fill and fill>0.04 and fill<0.96 and
+          t.fuelProducedEstimate>0 then
+        fuelCap=fuelCap and
+          (0.65*fuelCap+0.35*t.fuelProducedEstimate) or
+          t.fuelProducedEstimate
+        fuelCapTimestamp=t.ts
+        fuelLastEstimate=t.ts
       end
     end
   else
     fuelWindow={}
-    fuelSampleBurn=nil
+    fuelSourceName=nil
+    fuelPrevTickSample=nil
+    fuelCumulative=0
   end
   t.fuelCap=fuelCap
   t.fuelCapFresh=fuelCapTimestamp>0 and t.ts-fuelCapTimestamp<300
+  t.fuelMeasured=t.fuelAvailable~=nil
+  t.fuelFillForControl=t.fuelTankFill or t.fuel
+  if t.fuelFillForControl and t.fuelFillForControl<c.fuelLimitStart then
+    fuelRateLimited=true
+  elseif t.fuelFillForControl and t.fuelFillForControl>=c.fuelLimitRelease then
+    fuelRateLimited=false
+  end
+  t.fuelRateLimited=fuelRateLimited
+  if t.fuelMeasured then fuelUnknownSince=0
+  elseif fuelUnknownSince==0 then fuelUnknownSince=t.ts end
+  t.fuelMeterLostFor=fuelUnknownSince>0 and t.ts-fuelUnknownSince or 0
   if t.spWindowSeconds and t.spWindowSeconds>=45 and t.spInputTrend120 then
     if t.spInput<c.spsBufferLow and t.spInputTrend120< -c.spsTrendDeadband then
       t.feAdvice="HOLD FE: POLONIUM SHORTAGE"
