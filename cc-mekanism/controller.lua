@@ -59,7 +59,8 @@ end
 local function pc(name,method,...)
   if not name or not peripheral.isPresent(name) then return nil end
   local ok,v=pcall(peripheral.call,name,method,...)
-  return ok and v or nil
+  if ok then return v end
+  return nil
 end
 local function has(name,method)
   local ok,methods=pcall(peripheral.getMethods,name)
@@ -122,11 +123,11 @@ local function trip(reason)
   latched=true;alarm=tostring(reason)
   mode="MANUAL"
   redstoneAlarm(true)
-  if names.reactor and pc(names.reactor,"getStatus")==true then
+  if names.reactor and peripheral.isPresent(names.reactor) then
     local ok,err=pcall(peripheral.call,names.reactor,"scram")
-    info=ok and "SCRAM: "..alarm or "SCRAM FAILED: "..tostring(err)
+    info=ok and "SCRAM: "..alarm or "SCRAM attempted: "..tostring(err)
   else
-    info="ALARM: "..alarm
+    info="ALARM: "..alarm.." (reactor unreachable)"
   end
 end
 local function burn(rate)
@@ -451,6 +452,7 @@ local function inputLoop()
           m="manual",f="fe",p="sps",s="scram",r="start"}
         if m[a] then command(m[a]) end
       end
+      if edit then info="Editing "..edit..": "..buffer.." (Enter saves, Esc cancels)" end
     elseif ev=="monitor_touch" and a==names.monitor then
       for _,v in ipairs(buttons) do
         if d==v.y and b>=v.x and b<=v.last then command(v.id);break end
@@ -466,7 +468,7 @@ local function monitorLoop()
     current=read()
     local good,reason=safety(current)
     if good then recentValid=recentValid+1 else recentValid=0 end
-    if not good and current.on==true then trip(reason) end
+    if not good and current.on~=false then trip(reason) end
     if latched and current.on==true then trip(alarm) end
     if good and not latched then auto(current) end
     if current.safeCap==nil then current.safeCap=safeCap(current) end
@@ -478,7 +480,7 @@ local function monitorLoop()
 end
 local ok,err=xpcall(function() parallel.waitForAny(monitorLoop,inputLoop) end,
   function(e) return tostring(e) end)
-if names.reactor and pc(names.reactor,"getStatus")==true then
+if names.reactor and peripheral.isPresent(names.reactor) then
   pcall(peripheral.call,names.reactor,"scram")
 end
 redstoneAlarm(not ok or latched)
