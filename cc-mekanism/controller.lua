@@ -159,6 +159,8 @@ local alarmHistory={}
 local lastAlarmText=""
 local spsEMA=nil
 local spsWindow={}
+local spsInputWindow={}
+local spsBaseline=nil
 local lastSpsDecision="WAITING FOR SAMPLES"
 local lastSpsChange=0
 local latched=false
@@ -370,6 +372,16 @@ local function read()
     local sum=0
     for _,v in ipairs(spsWindow) do sum=sum+v.rate end
     t.spRate120=sum/#spsWindow
+    t.spWindowSeconds=t.ts-spsWindow[1].time
+    if t.spInput~=nil then
+      spsInputWindow[#spsInputWindow+1]={time=t.ts,value=t.spInput}
+      while #spsInputWindow>0 and t.ts-spsInputWindow[1].time>120 do table.remove(spsInputWindow,1) end
+      if #spsInputWindow>=2 then
+        local oldest=spsInputWindow[1]
+        local elapsed=t.ts-oldest.time
+        if elapsed>=20 then t.spInputTrend120=(t.spInput-oldest.value)/elapsed end
+      end
+    end
   end
   if #rateHistory>=2 then
     local first=rateHistory[1]
@@ -495,9 +507,9 @@ local function autoSPS(t)
     clamp(c.spsRampFraction,0.0001,0.05)*100+0.5)/100)
   local target=t.burn
   local reason="HOLD: SPS THROUGHPUT"
-  local solarCeiling=t.snaWasteCapacity*clamp(c.spsSolarUtilization,0.5,1)
-  local poloniumSurplus=t.spInputDelta and t.spInputDelta>0.0005
-  local poloniumDepletion=t.spInputDelta and t.spInputDelta< -0.0005
+  -- Use a 20+ second buffer trend; single-tick fill changes are noisy.
+  local poloniumSurplus=t.spInputTrend120 and t.spInputTrend120>0.00008
+  local poloniumDepletion=t.spInputTrend120 and t.spInputTrend120< -0.00008
   local now=t.ts
   local stabilized=(now-lastChange)>=c.spsRateChangeSeconds
   local solarAvailable=t.snaCount>0 and t.snaBroken==0 and
@@ -536,7 +548,7 @@ local function autoSPS(t)
     reason="CAP: AVAILABLE SOLAR / TURBINE CAPACITY"
   elseif not stabilized then
     reason="STABILIZING SPS / SOLAR PROCESSING"
-  elseif t.spInput>=0.50 and t.spsEfficiency and
+  elseif t.spInput>=0.30 and t.spsEfficiency and
       t.spsEfficiency<0.70 then
     -- Polonium is present but SPS is not processing it at the
     -- theoretical rate. Additional fission cannot fix that.
@@ -544,19 +556,24 @@ local function autoSPS(t)
     if t.spInputDelta and t.spInputDelta>0.003 then
       target=math.max(0,t.burn-step)
     end
-  elseif poloniumSurplus and t.spInput>=0.65 and t.spRate120 and t.spRate120>0 then
+  elseif poloniumSurplus and t.spInput>=0.45 and t.spRate120 and t.spRate120>0 then
     target=math.max(0,t.burn-step)
     reason="TRIM: POLONIUM BUFFER GROWING"
   elseif t.snaMaxOutputFill>=0.75 then
     reason="HOLD: SNA OUTPUT TRANSFER SLOW"
   elseif t.steam and t.steam>=c.feSteamHold then
     reason="HOLD: STEAM SAFETY HEADROOM"
-  elseif poloniumDepletion and t.spInput<0.03 and t.burn<cap-0.009 then
+  elseif poloniumDepletion and t.spInput<0.10 and t.burn<cap-0.009 then
     target=math.min(cap,t.burn+step)
     reason="RAMP: SPS POLONIUM BUFFER FALLING"
   elseif t.burn<cap-0.009 then
-    target=math.min(cap,t.burn+step)
-    reason="RAMP: MAXIMIZING ANTIMATTER / TICK"
+    if t.spInput>=0.20 and t.spRate120 and t.spWindowSeconds>=45 and
+        t.spRate120<t.spsTargetRate*0.75 then
+      reason="HOLD: SPS PROCESSING LIMITED / CHECK FE"
+    else
+      target=math.min(cap,t.burn+step)
+      reason="RAMP: SEEKING SUSTAINABLE POLONIUM SUPPLY"
+    end
   else
     reason="HOLD: SUPPLY CAP (FE LIMIT NOT VERIFIED)"
   end
@@ -741,7 +758,7 @@ local function scadaDraw(dev,isMonitor)
   if uiPage==1 then
     title("SPS / ANTIMATTER")
     paint(6,"OUTPUT "..n(current.spRate,4).." mB/t  |  "..n((current.spRate or 0)*1200,2).." mB/min",colors.lime)
-    paint(7,"EMA "..n(current.spRateEMA,4).." | 120s AVG "..n(current.spRate120,4).." mB/t")
+    paint(7,"EMA "..n(current.spRateEMA,4).." | AVG "..n(current.spRate120,4).." mB/t ("..n(current.spWindowSeconds,0).."s)")
     bar(9,"Polonium",current.spInput,colors.yellow)
     bar(10,"Antimatter",current.spOutput,colors.lime)
     paint(12,"Solar "..tostring(current.snaActive or 0).."/"..tostring(current.snaCount or 0)..
@@ -750,10 +767,11 @@ local function scadaDraw(dev,isMonitor)
     paint(14,"SPS FE demand ~"..fmt(current.spEnergyUsedFE).." FE/t (EST.)")
     paint(15,"Flux Point: MANUAL | SPS FE supply unmeasured",colors.yellow)
     paint(16,"Control: "..lastSpsDecision,colors.orange)
+    paint(18,"Polonium buffer trend "..n(current.spInputTrend120 and current.spInputTrend120*100*60,2).."%/min",colors.lightBlue)
     paint(17,"DIAG "..tostring(current.spsDiagnosis or "--"),colors.orange)
-    if h>=32 then
-      paint(19,"AM PRODUCTION HISTORY ("..#rateHistory.." samples)",colors.cyan)
-      local gh=math.min(5,h-30)
+    if h>=33 then
+      paint(20,"AM PRODUCTION HISTORY ("..#rateHistory.." samples)",colors.cyan)
+      local gh=math.min(5,h-31)
       if gh>0 and #rateHistory>0 then
         local graphWidth=math.min(w,#rateHistory)
         local peak=0
@@ -763,7 +781,7 @@ local function scadaDraw(dev,isMonitor)
           local v=rateHistory[#rateHistory-graphWidth+x].rate or 0
           local level=math.floor(v/peak*gh+0.5)
           for yy=0,level-1 do
-            dev.setCursorPos(x,20+gh-1-yy)
+            dev.setCursorPos(x,21+gh-1-yy)
             dev.setTextColor(colors.lime)
             dev.write("|")
           end
