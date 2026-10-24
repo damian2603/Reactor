@@ -10,6 +10,8 @@ local selected={
   "getTemperature","getDamagePercent","getCoolantFilledPercentage",
   "getHeatedCoolantFilledPercentage","getWasteFilledPercentage",
   "getFuelFilledPercentage","getHeatingRate","isForceDisabled",
+  "canSeeSun","getPeakProductionRate","getProductionRate",
+  "getInput","getOutput","getInputNeeded","getOutputNeeded",
   "getFlowRate","getMaxFlowRate","getLastSteamInputRate",
   "getSteamFilledPercentage","getEnergyFilledPercentage","getProductionRate",
   "getMaxProduction","getMaxWaterOutput","getWaterFilledPercentage",
