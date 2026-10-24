@@ -19,3 +19,5 @@ jobs:
         run: find cc-antimatter -name '*.lua' -type f -print -exec luac5.4 -p '{}' \;
       - name: Simulate independent RPS and fuel/SPS optimizer
         run: lua5.4 cc-antimatter/tests/test_control.lua
+      - name: Mock physical Mekanism peripherals and safe startup
+        run: lua5.4 cc-antimatter/tests/test_main_mock.lua
