@@ -90,5 +90,9 @@ assert(out[#out].fuelEstimate and out[#out].fuelEstimate>490 and out[#out].fuelE
 local outHigh=simulate(600,70)
 assert(outHigh[#outHigh].burn>535,'surplus fuel allows max SPS/FE burn')
 local outLow=simulate(430,135)
-close(outLow[#outLow].burn,430,12,'lower fuel supply must constrain reactor')
+close(outLow[#outLow].burn,430,12,'low supply; estimated '..
+  tostring(outLow[#outLow].fuelEstimate)..' stored '..
+  tostring(outLow[#outLow].stored)..' net '..
+  tostring(outLow[#outLow].fuelNet)..' reason '..
+  tostring(outLow[#outLow].reason))
 print('antimatter v1 controller model regressions: OK')
