@@ -722,6 +722,9 @@ local function read()
   else
     opportunityBurn=0
   end
+  if t.thermalModelCap then
+    opportunityBurn=math.min(opportunityBurn,t.thermalModelCap)
+  end
   local verifiedFuel=t.fuelCapFresh and t.fuelCap~=nil
   if verifiedFuel then
     opportunityBurn=math.min(opportunityBurn,t.fuelCap*c.fuelMargin)
@@ -1490,6 +1493,13 @@ local function scadaDraw(dev,isMonitor)
     paint(20,"Protection: "..tostring(current.protectionCause or "NONE"),colors.yellow)
     paint(16,"Fuel estimate "..n(current.fuelCap,2).." mB/t | TPS "..n(current.tps,1))
     paint(21,"Configured AUTO ceiling "..(c.autoBurnCeiling>0 and n(c.autoBurnCeiling,2).." mB/t (C key)" or "reactor max"),colors.lightBlue)
+    paint(22,"THERMAL actual "..n(current.temp,1).."K | expected "..
+      n(current.expectedTemp,1).."K | error "..n(current.thermalExpectedError,1).."K",colors.lightBlue)
+    paint(23,"THERMAL "..tostring(current.thermalState or "--")..
+      " | dT "..n(current.tempTrend,2).." K/s | model cap "..
+      n(current.thermalModelCap,2).." mB/t",colors.yellow)
+    paint(24,"Temperature soft "..n(current.thermalWarnEffective,0)..
+      "K / SCRAM "..n(current.thermalTripEffective,0).."K",colors.orange)
     paint(17,"SCRAM protection: "..(latched and "LATCHED" or "ARMED"),
       latched and colors.red or colors.lime)
     paint(18,"Steam dumping "..(current.dumpExcess and "EXCESS - CHECK WATER" or
@@ -1526,6 +1536,12 @@ local function scadaDraw(dev,isMonitor)
     paint(17,"Steam pressure: "..tostring(current.steamPressureState or "--")..
       " / "..tostring(current.steamPressureReason or "--"),colors.lightBlue)
     paint(18,"Protection: "..tostring(current.protectionCause or "NONE"),colors.yellow)
+    paint(19,"Thermal: "..tostring(current.thermalState or "--")..
+      " / "..tostring(current.thermalReason or "--"),colors.lightBlue)
+    paint(20,"Model "..n(current.expectedTemp,1).."K | actual "..
+      n(current.temp,1).."K | trend "..n(current.tempTrend,2).."K/s")
+    paint(21,"Heat capacity "..fmt(current.heatCapacity)..
+      " J/K | safe burn ~"..n(current.thermalModelCap,2).." mB/t")
     paint(9,"Data: SPS "..tostring(names.sps or "MISSING")..
       " | SNA "..tostring(current.snaCount or 0))
     paint(11,"Recent alarms:",colors.cyan)
@@ -1710,7 +1726,9 @@ local function drawConsole()
     colors.white)
   line(8," Control: "..tostring(current.limit or lastSpsDecision),
     colors.orange)
-  line(9,string.rep("-",math.min(w,32)),colors.gray)
+  line(9," Thermal "..tostring(current.thermalState or "--")..
+    " | predicted "..n(current.expectedTemp,0).."K | safe ~"..
+    n(current.thermalModelCap,0),colors.lightBlue)
 
   local actionNames={
     cap="AUTO BURN CEILING (mB/t)",
