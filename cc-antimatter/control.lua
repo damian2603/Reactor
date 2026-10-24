@@ -50,7 +50,14 @@ function M.safety(t,prior,c)
   if t.disabled==true then return false,"REACTOR DISABLED" end
   if prior and valid(prior.ts) and valid(t.ts) and t.ts-prior.ts>0.25 and t.ts-prior.ts<15 then
     local dt=t.ts-prior.ts
-    if valid(prior.coolant) and (prior.coolant-t.coolant)/dt>0.022 and t.coolant<0.98 then
+    -- A *fast* 7-10% cooling-tank change near 100% can be normal
+    -- Mekanism flow timing; the 104 real samples repeatedly show ~93%
+    -- without heated-coolant buildup or rising reactor heat. Do not
+    -- confuse transport jitter with a dangerous wholesale loss.
+    -- Rapid-loss SCRAM requires coolant already below 80%, or the
+    -- independent absolute trip at 65% is reached.
+    if valid(prior.coolant) and t.coolant<0.80 and
+        (prior.coolant-t.coolant)/dt>0.035 then
       return false,"COOLANT RAPID LOSS" end
     if valid(prior.temperature) and t.temperature>1090 and
       (t.temperature-prior.temperature)/dt>3 and
