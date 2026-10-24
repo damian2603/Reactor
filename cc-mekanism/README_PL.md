@@ -1,6 +1,6 @@
 # Sterownik reaktora Mekanism — Project Infinity
 
-Wersja 2.2 (eksperymentalna, regulator produkcji FE). Wymaga CC:Tweaked oraz połączenia **Wired Modem** z blokami: **Fission Reactor Logic Adapter**, **Turbine Valve** i opcjonalnie **SPS Port**, **Boiler Valve**, **Induction Matrix Port**. Do sterowania dotykiem można dołączyć Advanced Monitor.
+Wersja 3.0 (eksperymentalna, regulator SPS/Antimatter z monitorowaniem Solar Neutron Activatorów). Wymaga CC:Tweaked oraz połączenia **Wired Modem** z blokami: **Fission Reactor Logic Adapter**, **Turbine Valve**, **SPS Port** oraz **wszystkimi Solar Neutron Activatorami**, **Boiler Valve**, **Induction Matrix Port**. Do sterowania dotykiem można dołączyć Advanced Monitor.
 
 ## Instalacja i aktualizacja
 
@@ -21,7 +21,8 @@ Program wykrywa maszyny na sieci modemowej, jeżeli danej klasy maszyny jest tyl
 Nie podajesz ręcznie wielkości reaktora, turbiny ani SPS. Program odczytuje:
 - reaktor: długość/szerokość/wysokość, Fuel Assemblies, maksymalny burn rate, boil efficiency i zbiorniki;
 - turbina: wymiary, liczbę łopatek, cewek, kondensatorów, wentylatorów, limit przepływu pary i maksymalną produkcję;
-- SPS: wymiary, liczbę cewek, poziom Polonium/Antimatter, przetwarzanie;
+- SPS: wymiary, liczbę cewek, poziom Polonium/Antimatter, rzeczywistą produkcję Antimatter/t;
+- wszystkie Solar Neutron Activatory: aktualny potencjał produkcyjny Polonium/t (z uwzględnieniem pogody i słońca), maksymalne tempo oraz zapełnienie zbiorników;
 - opcjonalnie boiler i Induction Matrix.
 
 AUTO ma domyślnie **autoBurnCeiling=0**, co oznacza dostosowanie do odczytanego maksimum reaktora, z dodatkowym ograniczeniem wynikającym z **realnej wydajności turbiny**, o ile program zebrał już odpowiednie próbki. Regulacja narasta stopniowo (domyślnie 0,5% max burn rate co 15 sekund, min. 0,1 mB/t). Na początku brak wyuczonych parametrów przepływu, dlatego działanie w AUTO wymaga obserwacji.
@@ -36,6 +37,33 @@ AUTO ma domyślnie **autoBurnCeiling=0**, co oznacza dostosowanie do odczytanego
 
 Ustawienia: **/cc-mekanism/settings**. Historia: **/cc-mekanism/history.csv**.
 
+
+
+## AUTO SPS — domyślnie najważniejszy tryb optymalizacji
+
+**Kluczowa zależność w Project Infinity:**
+
+- Fission Reactor spala 1 mB Fissile Fuel i tworzy 1 mB Nuclear Waste.
+- Receptura Solar Neutron Activatora: **10 mB Nuclear Waste → 1 mB Polonium**.
+- SPS wymaga **1000 mB Polonium → 1 mB Antimatter**, przy koszcie **1 000 000 J za 1 mB przetworzonego Polonium**.
+- Paczka ma konwersję **2,5 J = 1 FE**, więc uzyskanie 1 mB Antimatter to około **400 milionów FE**.
+
+Przykład: burn rate 400 mB/t umożliwia 0,040 mB Antimatter/t, pod warunkiem że aktywatory i SPS mają odpowiednią wydajność. Dla burn 1920 mB/t potencjał wynosi 0,192 mB/t, ale najczęściej ograniczają go transport odpadów, aktywatory, turbina lub FE dostarczane do cewek SPS.
+
+Tryb **P / AUTO SPS**:
+
+1. Skanuje wszystkie Solar Neutron Activatory widoczne w sieci CC. Każdy aktywator musi mieć **Wired Modem** przyczepiony do boku (nie zasłaniaj miejsca nad nim); wszystkie modemy połącz Networking Cable z komputerem.
+2. Sumuje `getProductionRate()`, uwzględniając słońce/pogodę/biom, i oblicza przepustowość odpadów: `10 × sum(getProductionRate())` mB/t. Przyjmuje 92% tej wartości, żeby pozostawić niewielki zapas.
+3. Uwzględnia `getMaxBurnRate()`, wydajność przepływu pary/ograniczenia chłodzenia oraz opcjonalny limit ustawiony przez użytkownika.
+4. Zwiększa burn rate stopniowo w odstępach 12 s, dopóki pozwalają na to realne warunki. Ogranicza spalanie, gdy rosną odpady, blokują się zbiorniki Polonium, SPS przetwarza za wolno lub nie można już odprowadzić pary.
+5. Gdy Solar Neutron Activatory mają `getProductionRate()=0` (np. noc) — obniża burn rate do 0, aby nie produkować Nuclear Waste bez możliwości przerobienia.
+6. Pokazuje `getProcessRate()` SPS jako faktyczną produkcję antimaterii/tick, potencjalne wartości i diagnozę wąskiego gardła: `SPS COIL FE / PROCESSING LIMIT`, `POLONIUM PIPE`, `SNA TOO SLOW`, `TURBINE STEAM FLOW LIMIT`, itd.
+
+Program nie może sam zmieniać ilości energii dostarczanej przez kable do SPS, ale z szybkości produkcji i poziomu Polonium identyfikuje prawdopodobny problem z zasilaniem albo transferem. **Nie interpretuje samej produkcji turbiny jako wystarczającej ilości FE w SPS** — to oddzielne systemy.
+
+**Wymagane:** podłączenie wszystkich Solar Neutron Activatorów do sieci CC. W razie braku telemetrycznych odczytów opcja P odmówi rozpoczęcia automatyzacji (domyślne `spsNoSolarHold=true`). Tryb MANUAL i AUTO FE nadal są dostępne. Zabezpieczenia termiczne i poziomu Nuclear Waste pozostają aktywne. Nie ma automatycznego restartu wyłączonego reaktora.
+
+**Dane na panelu:** liczba aktywnych aktywatorów, potencjał Polonium/t, prawdziwe Antimatter/t, szacowane zużycie FE SPS i produkcja turbiny poprawnie przekonwertowana z dżuli na FE. Wartości w FE/t są szacunkowe dla SPS (wynikają z produkcji), ponieważ standardowe API SPS nie udostępnia bezpośredniego odczytu energii doprowadzonej do cewek.
 
 ## AUTO FE 2.2 — regulacja według produkcji energii
 
