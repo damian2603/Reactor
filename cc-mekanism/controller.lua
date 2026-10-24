@@ -519,7 +519,8 @@ local function inputLoop()
 end
 local function monitorLoop()
   while active do
-    if not names.reactor or not peripheral.isPresent(names.reactor) then discover() end
+    if not names.reactor or not peripheral.isPresent(names.reactor) or
+        (c.requireTurbine and not names.turbine) then discover() end
     current=read()
     local good,reason=safety(current)
     if good then recentValid=recentValid+1 else recentValid=0 end
