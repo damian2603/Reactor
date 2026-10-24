@@ -102,7 +102,10 @@ the *cause* (tick/pipe transfer order) remains an inference.
   drops burn. At/below **92%**, AUTO pauses an increase and
   observes for several seconds. Persistent coolant below **88%**
   leads to controlled reductions; below **80%** accelerates
-  reduction. Independent software SCRAM at **65% coolant**,
+  reduction. The independent rapid-loss SCRAM now checks whether
+  coolant actually falls **below 80% while rapidly declining**,
+  instead of treating a brief 7–10% fluctuation near full as a
+  meltdown. Absolute software SCRAM at **65% coolant**,
   1135K temperature, true outlet backing-up or reactor damage
   remains in effect.
 - After **5 separate corroborating observations**, the controller
@@ -119,6 +122,14 @@ the *cause* (tick/pipe transfer order) remains an inference.
 - The monitor explicitly says
   `1-TICK GAP: BURN SUPPORTED, MAX UNKNOWN` for a
   stable corrected tank.
+
+**Existing installations:** The previous version saved its old
+aggressive defaults (`rampStep=12`, `downwardStep=38`,
+`changeIntervalSeconds=6`, `coolantWarn=0.95`) alongside manual
+FE/CAP changes. The new source detects that exact old set and
+automatically migrates it to +1/-2, 2-second intervals and 88%
+coolant trim warning. Custom-tuned settings are untouched and
+the operator's FE and burn limits are preserved.
 
 The tests now include a **104-row replay** of the user's exact
 burn/coolant pattern, a sustained 87.5% coolant case that
