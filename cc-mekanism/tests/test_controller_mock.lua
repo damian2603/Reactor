@@ -68,6 +68,7 @@ function peripheral.call(name,method,...)
   return v
 end
 local mockFiles={}
+local mockCapacity=1048576
 fs={}
 function fs.exists(p) return p=="/cc-mekanism" or mockFiles[p]~=nil end
 function fs.makeDir() end
@@ -86,7 +87,7 @@ function fs.getSize(p) return #(mockFiles[p] or "") end
 function fs.getFreeSpace()
   local used=0
   for _,s in pairs(mockFiles) do used=used+#s end
-  return math.max(0,1048576-used)
+  return math.max(0,mockCapacity-used)
 end
 function fs.delete(p) mockFiles[p]=nil end
 function fs.move(from,to)
@@ -113,6 +114,7 @@ local function newController()
   epochMs=1000000
   burnRate=400
   mockFiles={}
+  mockCapacity=1048576
   return originalDofile("cc-mekanism/controller.lua")
 end
 local function sample()
@@ -668,6 +670,43 @@ do
   assert(ctl.consoleSave(),"flux reference can also be edited")
   assert(ctl.getFluxReference()==22000000)
   term.current=oldCurrent
+end
+
+-- Disk budget: logging never terminates or SCRAMs the controller.
+do
+  local ctl=newController()
+  local p="/cc-mekanism/history_v5_thermal.csv"
+  local old=p:gsub("%.csv$",".previous.csv")
+  local t=sample()
+  t.ts=1000
+  ctl.logOnce(t)
+  assert(mockFiles[p] and #mockFiles[p]>0,"initial CSV created")
+  mockFiles[p]=string.rep("A",140010)
+  ctl.logOnce({ts=1020,spRate=0.04,temp=995})
+  assert(mockFiles[old] and #mockFiles[old]==140010,
+    "history rotation preserves previous segment")
+  assert(mockFiles[p] and #mockFiles[p]<140000,
+    "current CSV fresh after reaching 140KB limit")
+  mockCapacity=4000
+  local latest={ts=1050,spRate=0.04,temp=995}
+  local ok,err=pcall(ctl.logOnce,latest)
+  assert(ok,"running out of disk must never throw in history(): "..tostring(err))
+  assert(latest.storageWarning and latest.storageWarning:find("LOW DISK",1,true),
+    "disk full should warn and skip telemetry, not exit")
+end
+
+-- Operator settings must NOT claim successful save if disk cannot hold
+-- the temporary copy. Existing values remain in memory and on disk.
+do
+  local ctl=newController()
+  mockCapacity=500
+  local oldValue=ctl.getFluxReference()
+  local savedBefore=mockFiles["/cc-mekanism/settings"]
+  ctl.command("fluxplus")
+  assert(ctl.getFluxReference()==oldValue,"unsaved FE limit must revert")
+  assert(ctl.getInfo():find("NOT SAVED",1,true),"visible disk warning")
+  assert(mockFiles["/cc-mekanism/settings"]==savedBefore,
+    "settings file must remain intact on save failure")
 end
 
 print("controller headless scenarios: OK")
