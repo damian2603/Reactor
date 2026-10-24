@@ -1,0 +1,20 @@
+name: CC Mekanism Lua checks
+on:
+  push:
+    paths:
+      - "cc-mekanism/**"
+      - ".github/workflows/cc-mekanism-checks.yml"
+  pull_request:
+    paths:
+      - "cc-mekanism/**"
+jobs:
+  lua:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Lua 5.4
+        run: sudo apt-get update && sudo apt-get install -y lua5.4
+      - name: Check Lua syntax
+        run: find cc-mekanism -type f -name '*.lua' -print -exec luac5.4 -p '{}' \;
+      - name: Run optimizer math tests
+        run: lua5.4 cc-mekanism/tests/test_optimizer_math.lua
