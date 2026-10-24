@@ -1,0 +1,21 @@
+name: Fresh Antimatter Controller tests
+on:
+  push:
+    paths:
+      - "cc-antimatter/**"
+      - ".github/workflows/cc-antimatter-tests.yml"
+  pull_request:
+    paths:
+      - "cc-antimatter/**"
+      - ".github/workflows/cc-antimatter-tests.yml"
+jobs:
+  lua:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Lua 5.4
+        run: sudo apt-get update && sudo apt-get install -y lua5.4
+      - name: Syntax check all NEW controller sources
+        run: find cc-antimatter -name '*.lua' -type f -print -exec luac5.4 -p '{}' \;
+      - name: Simulate independent RPS and fuel/SPS optimizer
+        run: lua5.4 cc-antimatter/tests/test_control.lua
