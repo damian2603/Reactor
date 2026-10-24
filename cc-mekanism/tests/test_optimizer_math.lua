@@ -79,4 +79,20 @@ do
   assert(f.state=="REFERENCE_HEADROOM",
     "at burn 123 and 20M FE, unused FE capacity is not waste")
 end
+-- Real-world 64% steam after Dumping Excess must not induce a 15%
+-- burn-rate cut just because instantaneous steam fill rises slightly.
+do
+  local p=m.spsPressure({steam=0.64,slope=0.003})
+  assert(p.state=="OK","stable/modest 64% steam should not throttle")
+  local w=m.spsPressure({steam=0.80,slope=0.002})
+  assert(w.state=="HOLD","sustained steam rise at 80% blocks more burn")
+  local h=m.spsPressure({steam=0.89,slope=0})
+  assert(h.state=="TRIM","steam 89% should trim, even when stable")
+  local danger=m.spsPressure({steam=0.94,slope=0.002})
+  assert(danger.state=="TRIM_FAST","near RPS trip trim quickly")
+  local fast=m.spsPressure({steam=0.70,slope=0.01})
+  assert(fast.state=="HOLD","predicted steam overflow in 23s blocks new ramp")
+  local missing=m.spsPressure({steam=nil})
+  assert(missing.state=="UNKNOWN")
+end
 print("optimizer math tests: OK")
