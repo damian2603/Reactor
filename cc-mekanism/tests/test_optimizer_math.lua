@@ -91,7 +91,7 @@ do
   local danger=m.spsPressure({steam=0.94,slope=0.002})
   assert(danger.state=="TRIM_FAST","near RPS trip trim quickly")
   local fast=m.spsPressure({steam=0.70,slope=0.01})
-  assert(fast.state=="HOLD","predicted steam overflow in 23s blocks new ramp")
+  assert(fast.state=="TRIM_FAST","predicted overflow in 23s needs proactive trim")
   local missing=m.spsPressure({steam=nil})
   assert(missing.state=="UNKNOWN")
 end
