@@ -1792,7 +1792,7 @@ local function setTyped()
     setFluxReference(v)
   elseif edit=="target" then
     if v<20 or v>100 then
-      info="Target must be between 20 and 100 percent"
+      info="Target must be between 20 and 100 percent";return false
     else
       c.feTarget=math.floor(v*10+0.5)/1000
       smoothedPowerRatio=nil
@@ -1828,14 +1828,14 @@ local function inputLoop()
     elseif ev=="char" then
       if a:match("^[1-5]$") then uiPage=tonumber(a)
       elseif a=="q" then active=false;return
-      elseif a=="b" then edit="burn";buffer=tostring(current.burn or 0);info="Enter burn: "..buffer
+      elseif a=="b" then edit="burn";buffer="";info="Enter new manual burn mB/t"
       elseif a=="c" then edit="cap";buffer=""
         info="Enter NEW burn ceiling mB/t (currently "..n(c.autoBurnCeiling,2)..
           ", 0=reactor max). Type number then Enter"
       elseif a=="l" then edit="flux";buffer=""
         info="Enter NEW Flux reference FE/t (current "..fmt(c.fluxLimitFE)..")"
-      elseif a=="t" then edit="target";buffer=tostring(math.floor(c.feTarget*1000+0.5)/10)
-        info="Target turbine output % (20..100): "..buffer
+      elseif a=="t" then edit="target";buffer=""
+        info="Enter new turbine FE target % (20..100)"
       else
         local m={["-"]="minus",["+"]="plus",["="]="plus",
           m="manual",f="fe",p="sps",s="scram",r="start"}
