@@ -4,7 +4,7 @@ local BASE="https://raw.githubusercontent.com/damian2603/Reactor/main/cc-mekanis
 local DIR="/cc-mekanism"
 if not http then error("HTTP is disabled in CC:Tweaked config") end
 if not fs.exists(DIR) then fs.makeDir(DIR) end
-local sources={"controller.lua","probe.lua"}
+local sources={"controller.lua","probe.lua","monitor-test.lua"}
 for _,name in ipairs(sources) do
   print("Downloading "..name.." ...")
   local url=BASE..name.."?v="..tostring(os.epoch("utc"))
@@ -27,6 +27,7 @@ for _,name in ipairs(sources) do
 end
 print("")
 print("Installation complete. Existing settings and history preserved.")
-print("1) Run: cc-mekanism/probe")
-print("2) Run: cc-mekanism/controller")
+print("1) Test monitor: cc-mekanism/monitor-test")
+print("2) Run: cc-mekanism/probe")
+print("3) Run: cc-mekanism/controller")
 print("For README: https://github.com/damian2603/Reactor/tree/main/cc-mekanism")
