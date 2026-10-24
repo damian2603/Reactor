@@ -8,6 +8,8 @@ dofile=function(path)
     return originalDofile("cc-mekanism/optimizer_math.lua")
   elseif path=="/cc-mekanism/thermal_model.lua" then
     return originalDofile("cc-mekanism/thermal_model.lua")
+  elseif path=="/cc-mekanism/controller.packed.lua" then
+    return originalDofile("cc-mekanism/controller.packed.lua")
   end
   return originalDofile(path)
 end
@@ -108,13 +110,17 @@ local function near(a,b,eps,label)
   assert(type(a)=="number" and math.abs(a-b)<=(eps or 0.01),
     (label or "rate").." got "..tostring(a)..", expected "..tostring(b))
 end
-local function newController()
+local function newController(packed)
   active=true
   calls={}
   epochMs=1000000
   burnRate=400
   mockFiles={}
   mockCapacity=1048576
+  if packed then
+    mockFiles["/cc-mekanism/controller.packed.lua"]="installed"
+    return originalDofile("cc-mekanism/controller-launcher.lua")
+  end
   return originalDofile("cc-mekanism/controller.lua")
 end
 local function sample()
@@ -709,4 +715,80 @@ do
     "settings file must remain intact on save failure")
 end
 
+-- Real 2026-10-24 turbine: Mekanism DUMPING_EXCESS retains 90%,
+-- so 82-90% steam climb is not an emergency or protection cooldown.
+do
+  local ctl=newController(true) -- ACTUAL deployed packed payload + RAM patch
+  local t=sample()
+  t.dumpExcess=true
+  t.steam=0.834
+  t.steamTrend=0.00433 -- screenshot: 26 percentage points per minute
+  t.fuelCapFresh=false;t.fuelCap=nil
+  t.fuelFillForControl=1;t.fuelRapidNet=0;t.fuelRapidProduction=400
+  local out=ctl.exerciseSPS(t)
+  assert(t.steamPressureState=="OK",
+    "83.4% + 26%/min below 90% dump keep target is NORMAL")
+  assert(not out.limit:find("STEAM",1,true),
+    "AUTO should not pause simply while filling to dump keep level: "..out.limit)
+  assert(burnRate>=400,"do not unnecessarily throttle antimatter production")
+end
+do
+  local ctl=newController(true)
+  local t=sample()
+  t.dumpExcess=true;t.steam=0.905;t.steamTrend=0.006
+  t.fuelCapFresh=false;t.fuelCap=nil
+  local result=ctl.exerciseSPS(t)
+  assert(t.steamPressureState=="OK",
+    "90.5% temporary overshoot remains below 93% pressure guard")
+  assert(burnRate>=400)
+end
+do
+  local ctl=newController(true)
+  local t=sample()
+  t.dumpExcess=true;t.steam=0.935;t.steamTrend=0.002
+  t.fuelCapFresh=false;t.fuelCap=nil
+  local result=ctl.exerciseSPS(t)
+  assert(t.steamPressureState=="HOLD",
+    "growing buffer above 93% is an early pressure warning")
+  near(burnRate,400,0.01,"hold at 93.5%, no immediate cut")
+  assert(result.limit:find("STEAM BUFFER GROWING",1,true))
+end
+do
+  local ctl=newController(true)
+  local t=sample()
+  t.dumpExcess=true;t.steam=0.96;t.steamTrend=0
+  t.fuelCapFresh=false;t.fuelCap=nil
+  local result=ctl.exerciseSPS(t)
+  assert(t.steamPressureState=="TRIM")
+  near(burnRate,382,0.01,"above 95.5% dumping steam trim 4.5%")
+end
+do
+  local ctl=newController(true)
+  local t=sample()
+  t.dumpExcess=true;t.steam=0.978;t.steamTrend=0
+  t.fuelCapFresh=false;t.fuelCap=nil
+  ctl.exerciseSPS(t)
+  assert(t.steamPressureState=="TRIM_FAST")
+  near(burnRate,360,0.01,"97.8% actively reduce burn")
+end
+do
+  local ctl=newController(true)
+  data.turbine.getDumpingMode="DUMPING_EXCESS"
+  data.turbine.getSteamFilledPercentage=0.96
+  local t=ctl.read()
+  assert(t.dumpExcess==true and t.steamTripEffective==0.985)
+  assert(ctl.safety(t)==true,
+    "with Dumping Excess, 96% alone is NOT immediate reactor SCRAM")
+  data.turbine.getSteamFilledPercentage=0.985
+  local t2=ctl.read()
+  local okay,why=ctl.safety(t2)
+  assert(okay==false and why:find("turbine steam",1,true),
+    "98.5% with Dumping Excess remains a reactor SCRAM condition")
+  data.turbine.getDumpingMode="IDLE"
+  data.turbine.getSteamFilledPercentage=0.95
+  local t3=ctl.read()
+  assert(t3.steamTripEffective==0.95,
+    "IDLE turbine retains conservative 95% SCRAM")
+  data.turbine.getSteamFilledPercentage=0.1
+end
 print("controller headless scenarios: OK")
