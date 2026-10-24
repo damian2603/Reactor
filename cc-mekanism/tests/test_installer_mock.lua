@@ -4,7 +4,8 @@ local hostRead=assert(io.open)
 local realPrint=print
 local filesOnHost={}
 for _,name in ipairs({"optimizer_math.lua","thermal_model.lua",
-                       "controller.lua","probe.lua","monitor-test.lua"}) do
+                       "controller.packed.lua","controller-launcher.lua",
+                       "probe.lua","monitor-test.lua"}) do
   local f=assert(io.open("cc-mekanism/"..name,"rb"))
   filesOnHost[name]=f:read("*a")
   f:close()
@@ -81,7 +82,7 @@ os.epoch=function() return 1234567890 end
 
 -- Clean only older history files by explicit consent, not settings or
 -- unrelated user data. Test old controller safely replaced in full.
-newDisk(350000,true)
+newDisk(325000,true)
 local oldController=string.rep("-",92000)
 local savedSettings="{autoBurnCeiling=550,fluxLimitFE=22000000}"
 disk["/cc-mekanism/controller.lua"]=oldController
@@ -92,8 +93,10 @@ local succeeded,errorText=pcall(runSource)
 assert(succeeded,tostring(errorText))
 assert(prompts==1,"low disk prompts once for explicit consent")
 assert(disk["/cc-mekanism/settings"]==savedSettings,"settings preserved")
-assert(disk["/cc-mekanism/controller.lua"]==filesOnHost["controller.lua"],
-  "installed full current controller without partial writes")
+assert(disk["/cc-mekanism/controller.lua"]==filesOnHost["controller-launcher.lua"],
+  "installed tiny launcher after safely staging packed source")
+assert(disk["/cc-mekanism/controller.packed.lua"]==filesOnHost["controller.packed.lua"],
+  "correct compressed controller installed and staged")
 assert(disk["/cc-mekanism/history_v4.csv"]==nil,
   "one older history freed after confirmation")
 assert(disk["/cc-mekanism/history_v4_stable.csv"]~=nil,
@@ -101,7 +104,7 @@ assert(disk["/cc-mekanism/history_v4_stable.csv"]~=nil,
 assert(not disk["/cc-mekanism/controller.lua.new"],"no leftover staging files")
 
 -- Refusing cleanup must NOT replace the old controller or erase settings.
-newDisk(350000,false)
+newDisk(325000,false)
 disk["/cc-mekanism/controller.lua"]=oldController
 disk["/cc-mekanism/settings"]=savedSettings
 disk["/cc-mekanism/history_v4.csv"]=string.rep("H",100000)
@@ -115,6 +118,20 @@ assert(disk["/cc-mekanism/settings"]==savedSettings)
 assert(disk["/cc-mekanism/history_v4.csv"]~=nil)
 assert(disk["/cc-mekanism/history_v4_stable.csv"]~=nil)
 
+-- Exact 2026-10-24 screenshot: 78,827 bytes free but a full readable
+-- controller needs ~101,003 bytes of duplicated staging space.
+-- Compressed 72KB payload MUST install without deleting user histories
+-- or demanding space that does not exist.
+newDisk(92000+#savedSettings+78827,false)
+disk["/cc-mekanism/controller.lua"]=oldController
+disk["/cc-mekanism/settings"]=savedSettings
+local screenshotOkay,screenshotError=pcall(runSource)
+assert(screenshotOkay,"78,827 B free must install compressed: "..tostring(screenshotError))
+assert(prompts==0,"no history cleanup is required with packed installation")
+assert(disk["/cc-mekanism/controller.lua"]==filesOnHost["controller-launcher.lua"])
+assert(disk["/cc-mekanism/controller.packed.lua"]==filesOnHost["controller.packed.lua"])
+assert(disk["/cc-mekanism/settings"]==savedSettings)
+
 -- Fully up-to-date installation should not duplicate large files,
 -- even when less than 4K remains free.
 local total=#savedSettings
@@ -122,7 +139,8 @@ for _,body in pairs(filesOnHost) do total=total+#body end
 newDisk(total+2000,false)
 disk["/cc-mekanism/settings"]=savedSettings
 for name,body in pairs(filesOnHost) do
-  disk["/cc-mekanism/"..name]=body
+  local installed=name=="controller-launcher.lua" and "controller.lua" or name
+  disk["/cc-mekanism/"..installed]=body
 end
 local unchanged,unchangedError=pcall(runSource)
 assert(unchanged,tostring(unchangedError))
