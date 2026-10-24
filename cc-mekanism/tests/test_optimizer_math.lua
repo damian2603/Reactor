@@ -48,4 +48,35 @@ do
   })
   assert(f.state=="SPS_INPUT_BACKLOG","warn about delivery despite adequate set limit")
 end
+-- At 500 burn and 20 MFE/t we are balanced now, but 1920 possible
+-- by reactor/Solar hardware. A higher FE limit may unlock more AM,
+-- conditional on production of enough Fissile Fuel.
+do
+  local f=m.assessFE({
+    limitFE=20000000,neededFE=20000000,usedFE=20000000,
+    poloniumFill=0.02,poloniumTrend=0,
+    opportunityFE=76800000,fuelVerified=false
+  })
+  assert(f.state=="FE_GROWTH_POSSIBLE",
+    "should notice FE can be future throughput bottleneck")
+  eq(f.trialFE,21000000,"next small +1M FE trial")
+end
+do
+  local f=m.assessFE({
+    limitFE=20000000,neededFE=20000000,usedFE=20000000,
+    poloniumFill=0.02,poloniumTrend=0,
+    opportunityFE=26000000,fuelVerified=true
+  })
+  assert(f.state=="FE_GROWTH_LIMIT","verified fuel supports higher target")
+end
+-- Not near the 20M FE boundary yet: raise burn first, not Flux Point.
+do
+  local f=m.assessFE({
+    limitFE=20000000,neededFE=4900000,usedFE=4800000,
+    poloniumFill=0.007,poloniumTrend=0,
+    opportunityFE=76800000,fuelVerified=false
+  })
+  assert(f.state=="REFERENCE_HEADROOM",
+    "at burn 123 and 20M FE, unused FE capacity is not waste")
+end
 print("optimizer math tests: OK")
