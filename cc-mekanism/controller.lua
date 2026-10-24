@@ -1,4 +1,4 @@
--- Project Infinity / Mekanism Fission-Turbine-SPS Controller 2.0
+-- Project Infinity / Mekanism Fission-Turbine-SPS Controller 2.1 (adaptive geometry)
 -- CC:Tweaked 1.20.1. Standalone, no dependencies.
 -- Adapted from analysis of Mekanism's CC API; inspired by cc-mek-scada's
 -- fail-safe alarm philosophy. Not a copy of upstream code.
@@ -10,6 +10,8 @@ local defaults = {
   reactor="", turbine="", sps="", boiler="", matrix="", monitor="",
   sampleSeconds=1, logSeconds=10,
   maxAutoBurn=1.0, step=0.1, stepSeconds=15,
+  autoBurnCeiling=0, -- 0=use detected reactor maximum; manual override only
+  autoRampFraction=0.005, -- 0.5% of detected max burn per ramp interval
   tempTrip=1000, tempWarn=850, damageTrip=0,
   coolantTrip=0.60, coolantWarn=0.85, coolantDropTrip=0.08,
   wasteTrip=0.85, wasteWarn=0.68, heatedTrip=0.85, heatedWarn=0.68,
@@ -29,6 +31,12 @@ if fs.exists(CONF) then
     if ok and type(loaded)=="table" then
       for k,v in pairs(defaults) do
         if type(loaded[k])==type(v) then c[k]=loaded[k] end
+      end
+      -- v2 used a hard default 1 mB/t; new AUTO is capped by actual
+      -- structure telemetry, not the old fixed starter cap.
+      if type(loaded.autoBurnCeiling)~="number" and
+          type(loaded.maxAutoBurn)=="number" and loaded.maxAutoBurn>1.0 then
+        c.autoBurnCeiling=loaded.maxAutoBurn
       end
     end
   end
@@ -146,6 +154,14 @@ local function read()
   t.burn=N(pc(r,"getBurnRate"))
   t.actual=N(pc(r,"getActualBurnRate"))
   t.maxBurn=N(pc(r,"getMaxBurnRate"))
+  t.rLength=N(pc(r,"getLength"))
+  t.rWidth=N(pc(r,"getWidth"))
+  t.rHeight=N(pc(r,"getHeight"))
+  t.assemblies=N(pc(r,"getFuelAssemblies"))
+  t.boilEfficiency=N(pc(r,"getBoilEfficiency"))
+  t.fuelCapacity=N(pc(r,"getFuelCapacity"))
+  t.wasteCapacity=N(pc(r,"getWasteCapacity"))
+  t.coolantCapacity=N(pc(r,"getCoolantCapacity"))
   t.temp=N(pc(r,"getTemperature"))
   t.damage=N(pc(r,"getDamagePercent"))
   t.coolant=N(pc(r,"getCoolantFilledPercentage"))
@@ -158,6 +174,16 @@ local function read()
   t.steam=N(pc(u,"getSteamFilledPercentage"))
   t.flow=N(pc(u,"getFlowRate"))
   t.maxFlow=N(pc(u,"getMaxFlowRate"))
+  t.tLength=N(pc(u,"getLength"))
+  t.tWidth=N(pc(u,"getWidth"))
+  t.tHeight=N(pc(u,"getHeight"))
+  t.blades=N(pc(u,"getBlades"))
+  t.coils=N(pc(u,"getCoils"))
+  t.vents=N(pc(u,"getVents"))
+  t.condensers=N(pc(u,"getCondensers"))
+  t.dispersers=N(pc(u,"getDispersers"))
+  t.maxProduction=N(pc(u,"getMaxProduction"))
+  t.steamCapacity=N(pc(u,"getSteamCapacity"))
   t.steamIn=N(pc(u,"getLastSteamInputRate"))
   t.power=N(pc(u,"getProductionRate"))
   t.energy=N(pc(u,"getEnergyFilledPercentage"))
@@ -167,10 +193,17 @@ local function read()
   t.bSteam=N(pc(b,"getSteamFilledPercentage"))
   t.bHot=N(pc(b,"getHeatedCoolantFilledPercentage"))
   t.bWater=N(pc(b,"getWaterFilledPercentage"))
+  t.bBoilCapacity=N(pc(b,"getBoilCapacity"))
   t.spFormed=pc(sp,"isFormed")
   t.spInput=N(pc(sp,"getInputFilledPercentage"))
   t.spOutput=N(pc(sp,"getOutputFilledPercentage"))
   t.spRate=N(pc(sp,"getProcessRate"))
+  t.spLength=N(pc(sp,"getLength"))
+  t.spWidth=N(pc(sp,"getWidth"))
+  t.spHeight=N(pc(sp,"getHeight"))
+  t.spCoils=N(pc(sp,"getCoils"))
+  t.spInputCapacity=N(pc(sp,"getInputCapacity"))
+  t.spOutputCapacity=N(pc(sp,"getOutputCapacity"))
   t.imEnergy=N(pc(im,"getEnergyFilledPercentage"))
   t.imIn=N(pc(im,"getLastInput"));t.imOut=N(pc(im,"getLastOutput"))
   if previous then
@@ -233,18 +266,22 @@ local function bottleneck(t)
   return table.concat(reasons,", ")
 end
 local function safeCap(t)
-  local cap=math.min(t.maxBurn or c.maxAutoBurn,c.maxAutoBurn)
+  local cap=t.maxBurn or 0
+  -- Max burn is calculated by Mekanism from the actual Fuel Assemblies.
+  if c.autoBurnCeiling>0 then cap=math.min(cap,c.autoBurnCeiling) end
+  -- For sodium + boiler the reactor heating rate cannot be equated
+  -- to steam production. Boiler/turbine pressure must drive feedback.
   -- Learn empirical steam generated per 1 mB of actual fissile fuel.
   -- This works for direct water cooling. On sodium, boiler telemetry is
   -- also required and heated coolant/steam accumulation governs safety.
-  if t.actual and t.actual>0.09 and t.steamMade and t.steamMade>0 then
+  if t.bFormed~=true and t.actual and t.actual>0.09 and t.steamMade and t.steamMade>0 then
     local value=t.steamMade/t.actual
     if value>50 and value<2000000 then
       learnedSteamPerBurn=learnedSteamPerBurn and
         (learnedSteamPerBurn*0.8+value*0.2) or value
     end
   end
-  if learnedSteamPerBurn and t.maxFlow and t.maxFlow>0 then
+  if t.bFormed~=true and learnedSteamPerBurn and t.maxFlow and t.maxFlow>0 then
     cap=math.min(cap,t.maxFlow*c.safetyFlowFactor/learnedSteamPerBurn)
     if c.returnWaterRequired and t.waterOut and t.waterOut>0 then
       cap=math.min(cap,t.waterOut*c.safetyFlowFactor/learnedSteamPerBurn)
@@ -263,16 +300,17 @@ local function auto(t)
   end
   if not t.burn or not t.maxBurn then return end
   local cap=safeCap(t)
+  local dynamicStep=math.max(0.1,math.floor(t.maxBurn*clamp(c.autoRampFraction,0.0001,0.05)*100+0.5)/100)
   local problem=bottleneck(t)
   local target=t.burn
   if t.burn>cap then
     target=cap; info="AUTO cap reached"
   elseif problem~="" then
-    target=math.max(0,math.min(cap,t.burn-math.max(c.step*2,t.burn*0.25)))
+    target=math.max(0,math.min(cap,t.burn-math.max(dynamicStep*2,t.burn*0.25)))
     info="Throttle: "..problem
     lastChange=t.ts
   elseif t.ts-lastChange>=c.stepSeconds then
-    target=math.min(cap,t.burn+c.step)
+    target=math.min(cap,t.burn+dynamicStep)
     lastChange=t.ts
     info="AUTO ramp toward safe cap"
   end
@@ -284,8 +322,11 @@ local function auto(t)
   t.limit=problem
 end
 local fields={"ts","on","burn","actual","temp","damage","coolant","heated","waste",
-  "fuel","steamMade","steam","steamIn","flow","maxFlow","power","energy",
-  "spInput","spOutput","spRate","bSteam","bHot","bWater","imEnergy","imIn","imOut"}
+  "fuel","steamMade","rLength","rWidth","rHeight","assemblies","boilEfficiency",
+  "steam","steamIn","flow","maxFlow","power","energy","tLength","tWidth","tHeight",
+  "blades","coils","vents","condensers","maxProduction","waterOut",
+  "spInput","spOutput","spRate","spLength","spWidth","spHeight","spCoils",
+  "bSteam","bHot","bWater","bBoilCapacity","imEnergy","imIn","imOut"}
 local function history(t)
   if t.ts-lastLog<c.logSeconds then return end
   lastLog=t.ts
@@ -327,19 +368,24 @@ local function render(dev,isMonitor)
     dev.setBackgroundColor(colors.black);dev.setTextColor(colors.white);dev.clear()
     row(dev,1,"PROJECT INFINITY / MEKANISM | "..mode..
         (latched and " | ALARM LATCHED" or (current.on and " | ACTIVE" or " | OFF")),latched and colors.red or colors.cyan)
-    row(dev,2,"Reactor: "..(names.reactor or "MISSING").." | Turbine: "..(names.turbine or "MISSING"))
+    row(dev,2,"Reactor "..(tostring(current.rLength or "?").."x"..tostring(current.rWidth or "?").."x"..tostring(current.rHeight or "?"))..
+        " | Assemblies "..fmt(current.assemblies).." | Turbine "..tostring(current.tLength or "?").."x"..
+        tostring(current.tWidth or "?").."x"..tostring(current.tHeight or "?"))
     row(dev,3,"Burn: "..n(current.burn,2).." actual: "..n(current.actual,2).." max: "..n(current.maxBurn,2).." mB/t")
-    row(dev,4,"AUTO cap: "..n(c.maxAutoBurn,2).."  learned safe: "..n(current.safeCap,2).." mB/t")
+    row(dev,4,"AUTO ceiling: "..(c.autoBurnCeiling>0 and n(c.autoBurnCeiling,2) or "DETECTED MAX")..
+      "  effective cap: "..n(current.safeCap,2).." mB/t")
     row(dev,5,"Temperature: "..n(current.temp,1).." K  Damage: "..n(current.damage,0).."%")
     row(dev,6,"Coolant "..p(current.coolant).."  Hot "..p(current.heated).."  Waste "..p(current.waste))
     row(dev,7,"Fuel "..p(current.fuel).."  Steam created "..fmt(current.steamMade).." mB/t")
     row(dev,8,"Turbine steam "..p(current.steam).."  energy "..p(current.energy))
     row(dev,9,"Turbine flow "..fmt(current.flow).."/"..fmt(current.maxFlow).."  input "..fmt(current.steamIn))
-    row(dev,10,"Turbine generation "..fmt(current.power).."  water return limit "..fmt(current.waterOut))
+    row(dev,10,"Turbine gen "..fmt(current.power).."/"..fmt(current.maxProduction)..
+      " | blades "..fmt(current.blades).." | condensers "..fmt(current.condensers))
     row(dev,11,"Boiler: "..(names.boiler and ("steam "..p(current.bSteam).." hot "..p(current.bHot)..
         " water "..p(current.bWater)) or "not connected"))
     row(dev,12,"SPS: "..(names.sps and ("polonium "..p(current.spInput)..
-        " antimatter "..p(current.spOutput).." rate "..n(current.spRate,3)) or "not connected"))
+        " antimatter "..p(current.spOutput).." rate "..n(current.spRate,3)..
+        " | coils "..fmt(current.spCoils)) or "not connected"))
     row(dev,13,"Induction Matrix "..p(current.imEnergy).."  FE in "..fmt(current.imIn).." out "..fmt(current.imOut))
     row(dev,14,"Bottleneck: "..(current.limit or bottleneck(current)))
     row(dev,15,"Info: "..info,colors.yellow)
@@ -402,9 +448,16 @@ local function command(cmd)
     return
   end
   if cmd=="capminus" or cmd=="capplus" then
-    c.maxAutoBurn=math.max(0.1,math.floor((c.maxAutoBurn+
-      (cmd=="capplus" and c.step or -c.step))*100+0.5)/100)
-    save();info="Auto cap "..n(c.maxAutoBurn,2);return
+    local max=current.maxBurn or 0
+    if max<=0 then info="Waiting for reactor size";return end
+    local step=math.max(0.1,math.floor(max*0.05*100+0.5)/100)
+    local cap=c.autoBurnCeiling>0 and c.autoBurnCeiling or max
+    if cmd=="capplus" then cap=cap+step else cap=cap-step end
+    if cap>=max then c.autoBurnCeiling=0
+    else c.autoBurnCeiling=math.max(0.1,math.floor(cap*100+0.5)/100) end
+    save()
+    info="Auto ceiling: "..(c.autoBurnCeiling==0 and "DETECTED MAX" or n(c.autoBurnCeiling,2))
+    return
   end
   if cmd=="start" then
     local ok,reason=canStart()
@@ -424,8 +477,10 @@ local edit,buffer=nil,""
 local function setTyped()
   local v=tonumber(buffer)
   if not v or v<0 then info="Invalid number";return end
-  if edit=="cap" then c.maxAutoBurn=math.floor(v*100+0.5)/100
-    save();info="AUTO cap "..n(c.maxAutoBurn,2)
+  if edit=="cap" then
+    -- Enter 0 to restore automatic cap from detected structure.
+    c.autoBurnCeiling=math.floor(v*100+0.5)/100
+    save();info="AUTO ceiling "..(v==0 and "DETECTED MAX" or n(v,2))
   elseif edit=="burn" then
     if latched then info="ALARM LATCHED";return end
     local ok,r=burn(v)
@@ -446,7 +501,7 @@ local function inputLoop()
     elseif ev=="char" then
       if a=="q" then active=false;return
       elseif a=="b" then edit="burn";buffer=tostring(current.burn or 0);info="Enter burn: "..buffer
-      elseif a=="c" then edit="cap";buffer=tostring(c.maxAutoBurn);info="Enter cap: "..buffer
+      elseif a=="c" then edit="cap";buffer=tostring(c.autoBurnCeiling);info="Enter ceiling (0=automatic): "..buffer
       else
         local m={["-"]="minus",["+"]="plus",["="]="plus",
           m="manual",f="fe",p="sps",s="scram",r="start"}
