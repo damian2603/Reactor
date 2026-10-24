@@ -4,6 +4,60 @@ Standalone ComputerCraft / CC:Tweaked controller for **Mekanism Fission Reactor 
 
 **Status: v4 beta experimental (autodetection of multiblock sizes).** Tested against inspected Mekanism API source, **not yet validated in an actual running Project Infinity world**. Do not rely on this program as your only reactor safety mechanism.
 
+## Fix: `install.lua: Out of space` on ComputerCraft (2026-10-24)
+
+After multiple beta upgrades, the user's CC computer ran out of storage while
+downloading `controller.lua` (~93 KiB). Previous versions retained five
+separate historical CSV log schemas, each growing without a size cap.
+The older installer duplicated each new file to `*.new` before replacing it;
+with little disk headroom it could not complete.
+
+**Recovery on the same computer:**
+
+```text
+wget run https://raw.githubusercontent.com/damian2603/Reactor/main/cc-mekanism/install.lua
+```
+
+The new installer checks current free space, avoids rewriting identical files,
+removes only stale `*.new` staging files, and safely stages changed program
+files before activating them. If free space is insufficient, it lists
+`/cc-mekanism/history*.csv` diagnostic logs and requests explicit
+confirmation: type **`CLEAN`** to delete **only enough previous CSV history**
+to complete the update, prioritizing old versions. **Enter** alone cancels.
+The old `controller.lua`, `settings`, `fe_trials.csv`, peripherals and
+other unrelated files are never cleanup candidates. If historical measurements
+matter, back them up before choosing `CLEAN`; deleting them is permanent.
+
+The installer does **not** automatically overwrite the old controller with a
+partial download or silently erase histories. If there is insufficient space
+even after cleaning the listed logs, it stops with an explicit error. The
+operator should then back up files and free space manually or increase the
+computer's configured disk quota. A partially completed installation should
+not be used to run automatic reactor control.
+
+**Prevention in the controller:**
+- Current `history_v5_thermal.csv` is bounded to approximately **140,000
+  bytes**, then rotated to `history_v5_thermal.previous.csv` for recent
+  diagnostics. On subsequent rotations, the older `.previous.csv` is
+  replaced. This is a deliberate rolling retention policy; copy off logs
+  before rotation if you need long-term history.
+- A **16 KiB free-disk reserve** is maintained before recording new telemetry.
+  Logging pauses with a warning on low space instead of crashing the
+  controller or triggering SCRAM solely because of a CSV write error.
+- Operator `settings` are written through a validated temporary file.
+  Insufficient space refuses to save, preserves the prior settings, and
+  informs the user rather than claiming success.
+- `fe_trials.csv` recording is error-isolated and cannot cause a control
+  loop exit simply because storage is full.
+- Legacy `history*.csv` files are **not** silently removed by the
+  controller; the operator must approve cleanup via the installer.
+
+Settings: `historyMaxBytes=140000`, `historyMinFreeBytes=16000`,
+`historyKeepPrevious=true`, and `logSeconds=10`. GitHub Actions now
+tests the actual installer against simulated nearly-full disks (cleanup
+accepted/refused/unchanged files) as well as log rollover and setting-save
+failures in the real controller's headless runtime.
+
 ## v4 beta — SPS-first adaptive controller (2026-10-24)
 
 This section supersedes the older v2/v3 and Beta 1 descriptions below where they conflict.
