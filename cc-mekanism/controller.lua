@@ -36,6 +36,9 @@ local defaults = {
   spsTurbineFlowHardCap=false, -- SPS prioritizes antimatter; turbine FE is secondary
   spsSteamEarlyWarn=0.50, -- fraction where rising steam buffer prevents further ramp
   spsSteamGrowthWarn=0.0004, -- rising steam fill per second at high occupancy
+  spsDumpCoolantWarn=0.995, -- dumping excess vents steam: guard coolant reserve
+  spsDumpCoolantTrip=0.92, -- require reliable makeup water when venting steam
+  spsDumpCoolantDropWarn=0.0002,
   spsRateChangeSeconds=12,
   spsRampFraction=0.01, -- fraction of actual max burn rate per step
   spsNoSolarHold=true, -- require Solar Neutron Activator telemetry
@@ -364,6 +367,7 @@ local function read()
   end
   t.waterOut=N(pc(u,"getMaxWaterOutput"))
   t.dump=pc(u,"getDumpingMode")
+  t.dumpExcess=t.dump~=nil and tostring(t.dump):lower():find("excess",1,true)~=nil
   t.bFormed=pc(b,"isFormed")
   t.bSteam=N(pc(b,"getSteamFilledPercentage"))
   t.bHot=N(pc(b,"getHeatedCoolantFilledPercentage"))
@@ -378,9 +382,12 @@ local function read()
   t.spMaxEnergy=N(pc(sp,"getMaxEnergy"))
   t.spInputAmount=N(pc(sp,"getInput"))
   t.spOutputAmount=N(pc(sp,"getOutput"))
-  t.spEnergyUsedFE=t.spRate and
-    t.spRate*SPS_POLONIUM_PER_ANTIMATTER*
-    SPS_JOULES_PER_POLONIUM/JOULES_PER_FE or nil
+  t.spEnergyUsedFE=optimizerMath.feForAntimatter(t.spRate,
+    SPS_POLONIUM_PER_ANTIMATTER,SPS_JOULES_PER_POLONIUM,JOULES_PER_FE)
+  t.spFeRequiredBurn=optimizerMath.feForBurn(t.actual or t.burn,
+    JOULES_PER_FE,WASTE_PER_POLONIUM,SPS_JOULES_PER_POLONIUM)
+  t.spFeRequiredSetpoint=optimizerMath.feForBurn(t.burn,
+    JOULES_PER_FE,WASTE_PER_POLONIUM,SPS_JOULES_PER_POLONIUM)
   t.spLength=N(pc(sp,"getLength"))
   t.spWidth=N(pc(sp,"getWidth"))
   t.spHeight=N(pc(sp,"getHeight"))
@@ -614,15 +621,34 @@ local function read()
   if t.fuelMeasured then fuelUnknownSince=0
   elseif fuelUnknownSince==0 then fuelUnknownSince=t.ts end
   t.fuelMeterLostFor=fuelUnknownSince>0 and t.ts-fuelUnknownSince or 0
-  if t.spWindowSeconds and t.spWindowSeconds>=45 and t.spInputTrend120 then
-    if t.spInput<c.spsBufferLow and t.spInputTrend120< -c.spsTrendDeadband then
-      t.feAdvice="HOLD FE: POLONIUM SHORTAGE"
-    elseif t.spInput>c.spsBufferHigh and t.spInputTrend120>c.spsTrendDeadband then
-      t.feAdvice="TRY +FE; CHECK AM GAIN"
-    else
-      t.feAdvice="HOLD FE: NO PROVEN BENEFIT"
-    end
-  else t.feAdvice="WAIT: COLLECTING BASELINE" end
+  local observedFE=optimizerMath.feForAntimatter(
+    t.spRate120 or t.spRate,SPS_POLONIUM_PER_ANTIMATTER,
+    SPS_JOULES_PER_POLONIUM,JOULES_PER_FE)
+  local assessment=optimizerMath.assessFE({
+    limitFE=c.fluxLimitFE,
+    neededFE=t.spFeRequiredSetpoint,
+    usedFE=observedFE,
+    poloniumFill=t.spInput,
+    poloniumTrend=t.spInputTrend120,
+    energyFill=t.spEnergyFill,
+    outputFill=t.spOutput
+  })
+  t.feState=assessment.state
+  t.feAdvice=assessment.text
+  t.feSuggestedLimit=assessment.trialFE
+  t.feShortfall=assessment.shortfallFE
+  t.feEquivalentObserved=assessment.observedEquivalentFE
+  t.feLimitedRate=c.fluxLimitFE>0 and
+    c.fluxLimitFE*JOULES_PER_FE/
+    (SPS_POLONIUM_PER_ANTIMATTER*SPS_JOULES_PER_POLONIUM) or nil
+  -- A change in SPS buffered energy + theoretical processing energy estimates
+  -- input to SPS. This is NOT a Flux Point throughput measurement.
+  if previous and t.spEnergyStored and previous.spEnergyStored and
+      t.spRate and t.ts>previous.ts and t.ts-previous.ts<30 then
+    local energyDeltaFE=(t.spEnergyStored-previous.spEnergyStored)/
+      ((t.ts-previous.ts)*tpsEstimate*JOULES_PER_FE)
+    t.feDeliveryInferred=math.max(0,(t.spEnergyUsedFE or 0)+energyDeltaFE)
+  end
   if feTrial then
     local age=t.ts-feTrial.started
     if age<180 then
@@ -684,6 +710,9 @@ local function safety(t)
   if t.temp>=c.tempTrip then return false,"critical temperature" end
   if t.damage>c.damageTrip then return false,"reactor damage" end
   if t.coolant<c.coolantTrip then return false,"coolant too low" end
+  if t.dumpExcess and t.coolant<c.spsDumpCoolantTrip then
+    return false,"water reserve critical while turbine dumps steam"
+  end
   if t.waste>=c.wasteTrip then return false,"nuclear waste full" end
   if t.heated>=c.heatedTrip then return false,"heated coolant full" end
   if t.steam and t.steam>=c.steamTrip then return false,"turbine steam full" end
@@ -700,6 +729,8 @@ local function bottleneck(t)
   add(t.temp and t.temp>=c.tempWarn,"TEMP")
   add(t.coolant and t.coolant<c.coolantWarn,"COOLANT")
   add(t.coolantDelta and t.coolantDelta< -0.004,"COOLANT FALL")
+  add(t.dumpExcess and t.coolant and t.coolant<c.spsDumpCoolantWarn,
+    "DUMPING STEAM: WATCH MAKEUP WATER")
   add(t.waste and t.waste>=c.wasteWarn,"WASTE OUT")
   add(t.wasteDelta and t.wasteDelta>0.001,"WASTE GROWTH")
   add(t.heated and t.heated>=c.heatedWarn,"HOT COOLANT")
@@ -1608,6 +1639,7 @@ local function fastSafetyLoop()
     ask("heated",r,"getHeatedCoolantFilledPercentage")
     ask("waste",r,"getWasteFilledPercentage")
     ask("disabled",r,"isForceDisabled")
+    if u then ask("dump",u,"getDumpingMode") end
     if c.requireTurbine then ask("steam",u,"getSteamFilledPercentage") end
     if b then
       ask("bSteam",b,"getSteamFilledPercentage")
@@ -1623,6 +1655,9 @@ local function fastSafetyLoop()
     elseif q.temp and q.temp>=c.tempTrip then reason="RPS: high temperature"
     elseif q.damage and q.damage>c.damageTrip then reason="RPS: reactor damage"
     elseif q.coolant and q.coolant<c.coolantTrip then reason="RPS: low coolant"
+    elseif q.dump and tostring(q.dump):lower():find("excess",1,true) and
+        q.coolant and q.coolant<c.spsDumpCoolantTrip then
+      reason="RPS: coolant lost while venting steam"
     elseif q.heated and q.heated>=c.heatedTrip then reason="RPS: heated coolant full"
     elseif q.waste and q.waste>=c.wasteTrip then reason="RPS: nuclear waste full"
     elseif q.steam and q.steam>=c.steamTrip then reason="RPS: turbine steam full"
