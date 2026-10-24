@@ -122,9 +122,20 @@ assert(disk["/cc-mekanism/history_v4_stable.csv"]~=nil)
 -- controller needs ~101,003 bytes of duplicated staging space.
 -- Compressed 72KB payload MUST install without deleting user histories
 -- or demanding space that does not exist.
-newDisk(92000+#savedSettings+78827,false)
+-- Optimizer and thermal_model were already downloaded on the user's
+-- screenshot (both reported UNCHANGED). Count their existing disk use,
+-- but only 78,827 bytes of remaining free space.
+local already=92000+#savedSettings+
+  #filesOnHost["optimizer_math.lua"]+#filesOnHost["thermal_model.lua"]+
+  #filesOnHost["probe.lua"]+#filesOnHost["monitor-test.lua"]
+newDisk(already+78827,false)
 disk["/cc-mekanism/controller.lua"]=oldController
 disk["/cc-mekanism/settings"]=savedSettings
+for _,name in ipairs({"optimizer_math.lua","thermal_model.lua",
+                       "probe.lua","monitor-test.lua"}) do
+  disk["/cc-mekanism/"..name]=filesOnHost[name]
+end
+assert(fs.getFreeSpace()==78827,"mock reproduces exact screenshot free space")
 local screenshotOkay,screenshotError=pcall(runSource)
 assert(screenshotOkay,"78,827 B free must install compressed: "..tostring(screenshotError))
 assert(prompts==0,"no history cleanup is required with packed installation")
