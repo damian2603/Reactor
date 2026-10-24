@@ -15,6 +15,8 @@ local defaults = {
   spsRampSeconds=5, spsRampMaxFraction=0.02,
   spsOutputResume=0.75, spsStopOutput=0.98,
   fastSafetySeconds=0.2, safetyBadReads=3,
+  spsFeedbackGain=0.50, spsFeedForwardMargin=0.01,
+  spsManualFeCapMargin=1.10,
   sampleSeconds=1, logSeconds=10,
   maxAutoBurn=1.0, step=0.1, stepSeconds=15,
   autoBurnCeiling=0, -- 0=use detected reactor maximum; manual override only
@@ -661,127 +663,181 @@ local function safeCap(t,flowFraction)
   end
   return math.floor(math.max(0,cap)*100+0.5)/100
 end
+-- Deliberate process stop. No automatic reactor re-start.
+local function processStop(reason)
+  if mode=="MANUAL" then return end
+  mode="MANUAL"
+  stopReason=reason
+  local ok,err=pcall(peripheral.call,names.reactor,"scram")
+  info=ok and ("SPS STOP: "..reason.." | manual START required") or
+    ("SPS STOP SCRAM FAILED: "..tostring(err))
+end
+
 local function autoSPS(t)
-  -- First objective: maximize mB antimatter/t without filling waste,
-  -- Polonium or Antimatter buffers. Turbine FE is a by-product.
   if not names.sps or t.spFormed~=true or t.spRate==nil or
       t.spInput==nil or t.spOutput==nil then
-    mode="MANUAL"
-    info="SPS AUTO unavailable: missing SPS telemetry"
-    return
+    mode="MANUAL";info="SPS AUTO paused: SPS telemetry lost";return
   end
   if t.snaCount==0 or t.snaBroken>0 then
-    if c.spsNoSolarHold then
-      mode="MANUAL"
-      info="SPS AUTO needs ALL Solar Neutron Activators connected"
-      return
-    end
+    t.limit="HOLD: INCOMPLETE SOLAR TELEMETRY"
+    info=t.limit
+    return
   end
   if t.sodiumCoolant and not names.boiler then
-    mode="MANUAL";info="SPS AUTO requires sodium boiler telemetry";return
+    mode="MANUAL";info="SPS AUTO requires sodium boiler";return
   end
-  if c.returnWaterRequired and (not t.waterOut or t.waterOut==0) then
-    mode="MANUAL";info="SPS AUTO requires return-water telemetry";return
+  if t.burn==nil or t.maxBurn==nil or t.actual==nil then return end
+  if not t.fuelMeasured then
+    t.limit="HOLD: NO FISSILE FUEL INVENTORY READ"
+    info=t.limit
+    if t.fuelMeterLostFor>=c.fuelGraceSeconds then
+      mode="MANUAL";info="SPS AUTO disabled: no fuel measurement"
+    end
+    return
   end
-  if t.burn==nil or t.maxBurn==nil then return end
-  local baseCap=safeCap(t,c.spsSteamFlowFraction)
-  local cap=baseCap
-  if t.snaCount>0 and t.snaBroken==0 then
+  if not fastSafetyHealthy or t.ts-fastSafetyLast>8 then
+    t.limit="HOLD: SAFETY TELEMETRY UNAVAILABLE"
+    info=t.limit
+    return
+  end
+
+  if t.spOutput>=c.spsStopOutput then
+    processStop("ANTIMATTER OUTPUT FULL")
+    return
+  end
+  if t.snaProduction<=0 then
+    if not spsNoSolarSince then spsNoSolarSince=t.ts end
+    if t.ts-spsNoSolarSince>=20 then
+      processStop("NO SOLAR POLONIUM SUPPLY")
+      return
+    end
+  else
+    spsNoSolarSince=nil
+  end
+  if t.spOutput>=c.spsOutputWarn then spsOutputHold=true
+  elseif t.spOutput<=c.spsOutputResume then spsOutputHold=false end
+
+  -- Three independent constraints: physics/heat, solar conversion,
+  -- available fissile fuel. Manual Flux Point cap is a soft estimate.
+  local cap=safeCap(t,c.spsSteamFlowFraction)
+  if t.snaProduction>0 then
     cap=math.min(cap,t.snaWasteCapacity*
       clamp(c.spsSolarUtilization,0.5,1))
   end
-  if t.fuelCapFresh and t.fuelCap then cap=math.min(cap,t.fuelCap*c.fuelMargin) end
-  if t.fuelTankFill and t.fuelTankFill<c.fuelReserve then
-    cap=math.min(cap,math.max(0,(t.actual or t.burn)*0.8))
+  if c.fluxLimitFE>0 then
+    local feBurn=c.fluxLimitFE*JOULES_PER_FE*
+      WASTE_PER_POLONIUM/(SPS_JOULES_PER_POLONIUM)
+    -- FE/t * 2.5 J/FE * 10 waste/polonium / 1MJ = burn mB/t
+    cap=math.min(cap,feBurn*c.spsManualFeCapMargin)
   end
-  cap=math.max(0,math.floor(cap*100+0.5)/100)
+  if t.fuelCapFresh and t.fuelCap then
+    cap=math.min(cap,t.fuelCap*c.fuelMargin)
+  end
+  -- The short-term falling inventory is evidence of fuel starvation,
+  -- even while the long 120s estimate is still warming up.
+  local tankFill=t.fuelFillForControl
+  if t.fuelRateLimited and t.fuelProducedEstimate and
+      t.fuelSampleSeconds>=c.fuelRapidSeconds then
+    cap=math.min(cap,math.max(0.01,t.fuelProducedEstimate*c.fuelMargin))
+  elseif tankFill and tankFill<c.fuelReserve and
+      t.fuelNetPerTick and t.fuelNetPerTick<0 then
+    cap=math.min(cap,math.max(0.01,t.actual*0.85))
+  end
+  cap=math.max(0.01,math.floor(cap*100+0.5)/100)
   t.safeCap=cap
   t.spsTargetRate=cap/(WASTE_PER_POLONIUM*SPS_POLONIUM_PER_ANTIMATTER)
   t.spsTargetFE=t.spsTargetRate*SPS_POLONIUM_PER_ANTIMATTER*
     SPS_JOULES_PER_POLONIUM/JOULES_PER_FE
-  local step=math.max(0.1,math.floor(t.maxBurn*
-    clamp(c.spsRampFraction,0.0001,0.05)*100+0.5)/100)
-  local target=t.burn
-  local reason="HOLD: SPS THROUGHPUT"
-  -- Use a 20+ second buffer trend; single-tick fill changes are noisy.
-  local now=t.ts
-  local stabilized=(now-lastChange)>=c.spsRateChangeSeconds
-  local solarAvailable=t.snaCount>0 and t.snaBroken==0 and
-    t.snaProduction>0
-  local outputBlocked=t.spOutput>=c.spsOutputWarn
-  -- Do not waste fissile fuel when solar activation is impossible:
-  -- e.g. night or rain reducing net available throughput to zero.
-  if not solarAvailable and t.snaCount>0 and t.snaBroken==0 then
-    target=0
-    reason="PAUSE: NO SOLAR POLONIUM PRODUCTION"
-  elseif outputBlocked then
-    target=0
-    reason="PAUSE: ANTIMATTER OUTPUT FULL"
-  elseif t.snaMaxOutputFill>=0.94 then
-    target=math.max(0,t.burn-math.max(step*3,t.burn*0.25))
-    reason="THROTTLE: SOLAR OUTPUT BACKPRESSURE"
-  elseif t.spInput>=c.spsInputWarn then
-    target=math.max(0,t.burn-math.max(step*3,t.burn*0.20))
-    reason="THROTTLE: SPS POLONIUM FULL"
-  elseif t.waste>=c.wasteWarn or
-      t.wasteDelta and t.wasteDelta>0.002 and t.waste>=0.30 then
-    target=math.max(0,t.burn-math.max(step*2,t.burn*0.15))
-    reason="THROTTLE: NUCLEAR WASTE BACKLOG"
-  elseif t.heated>=c.heatedWarn or
-      t.coolant<c.coolantWarn or t.temp>=c.tempWarn or
-      t.bSteam and t.bSteam>=c.steamWarn or
-      t.bHot and t.bHot>=c.heatedWarn then
-    target=math.max(0,t.burn-math.max(step*2,t.burn*0.10))
-    reason="THROTTLE: REACTOR COOLING"
-  elseif t.steam and t.steam>=c.feSteamThrottle and
-      (t.steamDelta==nil or t.steamDelta>=-0.001) then
-    target=math.max(0,t.burn-math.max(step,t.burn*0.10))
-    reason="THROTTLE: TURBINE STEAM BACKPRESSURE"
-  elseif t.burn>cap+0.009 then
-    target=cap
-    reason="CAP: AVAILABLE SOLAR / TURBINE CAPACITY"
-  elseif not stabilized then
-    reason="STABILIZING SPS / SOLAR PROCESSING"
-  elseif t.spControlSeconds==nil or t.spControlSeconds<c.spsMinTrendSeconds*0.9 or
-      t.spInputControlTrend==nil then
-    reason="HOLD: COLLECTING SPS BUFFER TREND"
-  elseif t.snaMaxOutputFill>=0.75 then
-    reason="HOLD: SNA OUTPUT TRANSFER SLOW"
-  elseif t.steam and t.steam>=c.feSteamHold then
-    reason="HOLD: STEAM SAFETY HEADROOM"
-  elseif t.spInput>=c.spsBufferHigh and
-      t.spInputControlTrend>c.spsTrendDeadband then
-    target=math.max(0,t.burn-step)
-    reason="TRIM: POLONIUM SURPLUS / SAVE FUEL"
-  elseif t.spInput>=c.spsBufferHigh and
-      math.abs(t.spInputControlTrend)<=c.spsTrendDeadband then
-    -- Probe downward only when there is a comfortable stored reserve.
-    target=math.max(0,t.burn-step)
-    reason="PROBE: MINIMUM SUSTAINABLE BURN"
-  elseif t.spInput<c.spsBufferLow and
-      t.spInputControlTrend< -c.spsTrendDeadband and t.burn<cap-0.009 then
-    target=math.min(cap,t.burn+step)
-    reason="RAMP: POLONIUM BUFFER DEPLETING"
-  elseif t.spInput<c.spsBufferLow and t.burn<cap-0.009 and
-      t.spRate120 and t.spRate120>0 then
-    target=math.min(cap,t.burn+step)
-    reason="RAMP: RESTORE POLONIUM RESERVE"
-  elseif t.spInputControlTrend>c.spsTrendDeadband and t.spInput>=c.spsBufferLow then
-    target=math.max(0,t.burn-step)
-    reason="TRIM: BUFFER RISING"
-  elseif t.spInputControlTrend< -c.spsTrendDeadband and
-      t.spInput<c.spsBufferHigh and t.burn<cap-0.009 then
-    target=math.min(cap,t.burn+step)
-    reason="RAMP: BUFFER FALLING"
-  elseif t.spInput>=c.spsBufferLow and t.spInput<=c.spsBufferHigh then
-    reason="HOLD: POLONIUM SUPPLY BALANCED"
-  else
-    reason="HOLD: SUPPLY CAP (FE LIMIT NOT VERIFIED)"
+
+  -- Feed-forward: SPS produces AM from Polonium generated by nuclear waste.
+  -- Burn 10,000 mB/t sustains 1 mB/t AM at standard Mekanism ratios.
+  -- Critically, a low-but-stable 2% Polonium buffer is NOT starvation.
+  local amRate=(t.spWindowSeconds and t.spWindowSeconds>=45 and t.spRate120)
+      or t.spRateEMA or t.spRate or 0
+  local base=math.max(0,amRate*WASTE_PER_POLONIUM*
+    SPS_POLONIUM_PER_ANTIMATTER)
+  local bootstrap=math.min(cap,math.max(2,math.min(25,cap*0.06)))
+  local desired=base>0 and base*(1+c.spsFeedForwardMargin) or bootstrap
+  local trend=t.spInputControlTrend
+  if trend and t.spControlSeconds and t.spControlSeconds>=c.spsMinTrendSeconds*0.9 then
+    local correction
+    if t.spInputCapacity and t.spInputCapacity>0 then
+      correction= -trend*t.spInputCapacity/
+        math.max(1,t.tps or 20)*WASTE_PER_POLONIUM*c.spsFeedbackGain
+    else
+      correction= -math.max(-0.05,math.min(0.05,trend*250))*
+        math.max(10,base)
+    end
+    correction=clamp(correction,-math.max(2,base*0.10),math.max(2,base*0.10))
+    desired=desired+correction
   end
-  -- Prevent twitchy feedback on every tick; pauses and cap drops
-  -- bypass the timer, but normal increases cannot.
-  if not stabilized and target>t.burn then target=t.burn end
-  target=math.max(0,math.min(target,cap))
+  -- Small depleted-buffer reserve can be rebuilt, but only after actual
+  -- depletion is observed. No fixed 8% Polonium fill target.
+  if t.spInput<0.01 and t.spInputControlTrend and
+      t.spInputControlTrend< -c.spsTrendDeadband then
+    desired=math.max(desired,base*1.05)
+  end
+  if spsOutputHold then desired=math.min(desired,math.max(0.01,base*0.25)) end
+  if t.snaProduction<=0 then desired=0.01 end
+  t.spsDemandBurn=desired
+  desired=clamp(desired,0.01,cap)
+
+  local now=t.ts
+  local elapsed=now-lastChange
+  local upStep=math.max(0.1,math.min(
+    math.max(1,t.maxBurn*c.spsRampMaxFraction),
+    math.max(2,t.burn*0.25)))
+  local downStep=math.max(upStep*2,t.burn*0.15)
+  local target=t.burn
+  local reason="HOLD: SPS DEMAND BALANCED"
+  local urgent=t.burn>cap+0.009
+
+  if urgent then
+    target=cap
+    reason="CAP: SOLAR / FUEL / FE / COOLING"
+  elseif t.temp>=c.tempWarn or t.coolant<c.coolantWarn or
+      t.heated>=c.heatedWarn or t.waste>=c.wasteWarn or
+      t.bSteam and t.bSteam>=c.steamWarn or
+      t.bHot and t.bHot>=c.heatedWarn or
+      t.steam and t.steam>=c.feSteamThrottle or
+      t.snaMaxOutputFill>=0.94 then
+    if elapsed>=12 then
+      target=math.max(0.01,t.burn-downStep)
+      reason="THROTTLE: THERMAL / WASTE / FLOW"
+    else
+      reason="HOLD: PROTECTION COOLDOWN"
+    end
+  elseif tankFill and tankFill<c.fuelLimitStart and t.fuelNetPerTick and
+      t.fuelNetPerTick<0 and elapsed>=8 then
+    target=math.min(t.burn,math.max(0.01,t.burn-downStep))
+    reason="THROTTLE: FISSILE FUEL FALLING"
+  elseif desired<t.burn-0.009 then
+    if elapsed>=12 then
+      target=math.max(desired,t.burn-downStep)
+      reason=spsOutputHold and "THROTTLE: ANTIMATTER BUFFER" or
+        "TRIM: SPS USES LESS POLONIUM"
+    else reason="HOLD: SETTLING BEFORE TRIM" end
+  elseif desired>t.burn+0.009 then
+    if elapsed>=c.spsRampSeconds and
+        t.coolant>=c.coolantWarn and
+        not (t.coolantDelta and t.coolantDelta< -0.002) and
+        not (t.heatedDelta and t.heatedDelta>0.002) and
+        not (tankFill and tankFill<c.fuelLimitStart) and
+        not (t.fuelNetPerTick and t.fuelNetPerTick< -0.005) then
+      -- Without a fuel estimate, probe only after a stable observation.
+      local ready=t.fuelCapFresh or
+        (tankFill and tankFill>=c.fuelLimitRelease and
+          t.fuelSampleSeconds and t.fuelSampleSeconds>=c.fuelRapidSeconds and
+          t.fuelNetPerTick and t.fuelNetPerTick>=-0.001)
+      if ready then
+        target=math.min(desired,t.burn+upStep)
+        reason="RAMP: SPS PRODUCTION DEMAND"
+      else
+        reason="HOLD: FUEL CALIBRATION / RESERVE"
+      end
+    else reason="HOLD: RAMP / COOLANT STABILIZATION" end
+  end
+  target=clamp(target,0.01,cap)
   if math.abs(target-t.burn)>=0.009 then
     local ok,err=burn(target)
     if not ok then
@@ -791,12 +847,13 @@ local function autoSPS(t)
     lastChange=now
     spsTrendResetAt=now
     spsControlWindow={}
+    lastSpsChange=now
   end
   t.limit=reason
   lastSpsDecision=reason
-  if math.abs(target-t.burn)>=0.009 then lastSpsChange=now end
-  info=reason.." | AM "..n(t.spRate,3).."/"..n(t.spsTargetRate,3).." mB/t"
+  info=reason.." | AM "..n(t.spRate,4).." | target burn "..n(desired,2)
 end
+
 local function auto(t)
   if mode=="MANUAL" or latched or t.on~=true then return end
   if mode=="SPS" then autoSPS(t);return end
