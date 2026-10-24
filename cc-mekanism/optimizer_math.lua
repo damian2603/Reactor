@@ -126,12 +126,19 @@ function M.spsPressure(o)
     return {state="TRIM",reason="TURBINE STEAM HIGH",level=steam,slope=slope}
   end
   if slope then
+    -- Predictive emergency: steam is heading for the RPS trip threshold
+    -- within 25 seconds. This CAN require an early measured reduction.
+    if steam>=0.60 and slope>trendFast and
+        (criticalLevel-steam)/slope<25 then
+      return {state="TRIM_FAST",reason="STEAM RISING TOWARD RPS TRIP",
+        level=steam,slope=slope,
+        secondsToCritical=math.max(0,(criticalLevel-steam)/slope)}
+    end
     if steam>=holdLevel and slope>trendWarn then
       return {state="HOLD",reason="STEAM BUFFER GROWING",level=steam,slope=slope}
     end
-    -- Extremely rapid growth predicts an overflow within 35 seconds.
     if steam>=0.55 and slope>trendFast and
-        (criticalLevel-steam)/slope<35 then
+        (criticalLevel-steam)/slope<45 then
       return {state="HOLD",reason="STEAM FILL RISING FAST",level=steam,slope=slope}
     end
   end
