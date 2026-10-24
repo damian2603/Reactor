@@ -80,6 +80,19 @@ function M.assessFE(o)
       (not num(spEnergy) or spEnergy<0.10) then
     res.state="SPS_INPUT_BACKLOG"
     res.text="POLONIUM BACKLOG; CHECK ACTUAL SPS FE DELIVERY"
+  elseif needed<ref*0.70 and used<ref*0.70 and
+      not (num(o.opportunityFE) and o.opportunityFE>ref*1.10) then
+    res.state="REFERENCE_HEADROOM"
+    res.text="FE REF ABOVE CURRENT NEED; NOT WASTED POWER"
+  elseif num(o.opportunityFE) and o.opportunityFE>ref*1.10 and
+      num(input) and input<0.25 and
+      (not num(slope) or slope<=0.000025) then
+    res.state=o.fuelVerified and "FE_GROWTH_LIMIT" or
+      "FE_GROWTH_POSSIBLE"
+    res.text=o.fuelVerified and
+      "MORE FE MAY INCREASE AM; TRY +1M FE/T" or
+      "MORE FE MAY HELP; FIRST VERIFY FISSILE FUEL SUPPLY"
+    res.trialFE=ref+1000000
   elseif needed<ref*0.70 and used<ref*0.70 then
     res.state="REFERENCE_HEADROOM"
     res.text="FE REF ABOVE CURRENT NEED; NOT WASTED POWER"
