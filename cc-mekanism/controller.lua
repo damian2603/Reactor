@@ -1335,6 +1335,90 @@ local function inputLoop()
     display()
   end
 end
+-- Independent fast reactor protection loop, inspired by cc-mek-scada RPS.
+-- Optimizer and display may be slow, but this loop runs in its own coroutine.
+local function fastSafetyLoop()
+  local badReads=0
+  local lastActive=false
+  local previousCoolant=nil
+  local previousTime=nil
+  while active do
+    local r,u,b=names.reactor,names.turbine,names.boiler
+    local q={}
+    local tasks={}
+    local function ask(field,dev,method)
+      tasks[#tasks+1]=function() q[field]=pcRaw(dev,method) end
+    end
+    ask("on",r,"getStatus")
+    ask("formed",r,"isFormed")
+    ask("temp",r,"getTemperature")
+    ask("damage",r,"getDamagePercent")
+    ask("coolant",r,"getCoolantFilledPercentage")
+    ask("heated",r,"getHeatedCoolantFilledPercentage")
+    ask("waste",r,"getWasteFilledPercentage")
+    ask("disabled",r,"isForceDisabled")
+    if c.requireTurbine then ask("steam",u,"getSteamFilledPercentage") end
+    if b then
+      ask("bSteam",b,"getSteamFilledPercentage")
+      ask("bHot",b,"getHeatedCoolantFilledPercentage")
+    end
+    parallel.waitForAll(table.unpack(tasks))
+    local now=os.epoch("utc")/1000
+    local activeNow=q.on==true or (q.on==nil and lastActive)
+    if q.on~=nil then lastActive=q.on end
+    local reason=nil
+    if q.formed==false then reason="RPS: reactor not formed"
+    elseif q.disabled==true then reason="RPS: reactor disabled"
+    elseif q.temp and q.temp>=c.tempTrip then reason="RPS: high temperature"
+    elseif q.damage and q.damage>c.damageTrip then reason="RPS: reactor damage"
+    elseif q.coolant and q.coolant<c.coolantTrip then reason="RPS: low coolant"
+    elseif q.heated and q.heated>=c.heatedTrip then reason="RPS: heated coolant full"
+    elseif q.waste and q.waste>=c.wasteTrip then reason="RPS: nuclear waste full"
+    elseif q.steam and q.steam>=c.steamTrip then reason="RPS: turbine steam full"
+    elseif q.bSteam and q.bSteam>=c.steamTrip then reason="RPS: boiler steam full"
+    elseif q.bHot and q.bHot>=c.heatedTrip then reason="RPS: boiler heated coolant full"
+    end
+    if q.coolant and previousCoolant and previousTime and now>previousTime then
+      local drop=(q.coolant-previousCoolant)/(now-previousTime)
+      if drop<=-c.coolantDropTrip then reason="RPS: coolant dropping quickly" end
+    end
+    if q.coolant then previousCoolant=q.coolant;previousTime=now end
+    if reason and activeNow and not latched then trip(reason) end
+
+    local valid=q.on~=nil and q.formed~=nil and q.temp~=nil and
+      q.damage~=nil and q.coolant~=nil and q.heated~=nil and
+      q.waste~=nil and (not c.requireTurbine or q.steam~=nil) and
+      (not b or q.bSteam~=nil and q.bHot~=nil)
+    if valid then
+      badReads=0
+      fastSafetyHealthy=true
+      fastSafetyLast=now
+    else
+      badReads=badReads+1
+      fastSafetyHealthy=false
+      if badReads>=c.safetyBadReads and activeNow and not latched then
+        trip("RPS: consecutive sensor/peripheral failures")
+      end
+    end
+    sleep(math.max(0.1,c.fastSafetySeconds))
+  end
+end
+
+-- One tick sampling for an approximate server TPS, filtered against jitter.
+local function tpsLoop()
+  local old=os.epoch("utc")/1000
+  while active do
+    sleep(0.05)
+    local now=os.epoch("utc")/1000
+    local dt=now-old
+    old=now
+    if dt>0.025 and dt<3 then
+      local observed=clamp(1/dt,1,20)
+      tpsEstimate=tpsEstimate*0.88+observed*0.12
+    end
+  end
+end
+
 local function monitorLoop()
   local lastScan=0
   while active do
@@ -1348,7 +1432,16 @@ local function monitorLoop()
     current=read()
     local good,reason=safety(current)
     if good then recentValid=recentValid+1 else recentValid=0 end
-    if not good and current.on~=false and not latched then trip(reason) end
+    local transient=not good and type(reason)=="string" and
+      (reason:find("read failed",1,true) or
+       reason:find("telemetry failed",1,true) or
+       reason:find("disconnected",1,true))
+    if transient then telemetryBadCount=telemetryBadCount+1
+    else telemetryBadCount=0 end
+    if not good and current.on~=false and not latched and
+        (not transient or telemetryBadCount>=c.safetyBadReads) then
+      trip(reason)
+    end
     if latched and current.on==true then
       pcall(peripheral.call,names.reactor,"scram")
     end
@@ -1362,7 +1455,9 @@ local function monitorLoop()
     sleep(math.max(0.2,c.sampleSeconds))
   end
 end
-local ok,err=xpcall(function() parallel.waitForAny(monitorLoop,inputLoop) end,
+local ok,err=xpcall(function()
+  parallel.waitForAny(monitorLoop,fastSafetyLoop,tpsLoop,inputLoop)
+end,
   function(e) return tostring(e) end)
 if names.reactor and peripheral.isPresent(names.reactor) then
   pcall(peripheral.call,names.reactor,"scram")
