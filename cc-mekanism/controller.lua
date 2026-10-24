@@ -746,14 +746,14 @@ local function scadaDraw(dev,isMonitor)
     bar(10,"Antimatter",current.spOutput,colors.lime)
     paint(12,"Solar "..tostring(current.snaActive or 0).."/"..tostring(current.snaCount or 0)..
       "  potential "..fmt(current.snaProduction).." polonium/t")
-    paint(13,"Fission potential "..n(current.fissionAntimatterPotential,4).." AM/t")
+    paint(13,"Fission potential "..n(current.fissionAntimatterPotential,4).." AM/t (THEORY)")
     paint(14,"SPS FE demand ~"..fmt(current.spEnergyUsedFE).." FE/t (EST.)")
     paint(15,"Flux Point: MANUAL | SPS FE supply unmeasured",colors.yellow)
     paint(16,"Control: "..lastSpsDecision,colors.orange)
     paint(17,"DIAG "..tostring(current.spsDiagnosis or "--"),colors.orange)
-    if h>=30 then
+    if h>=32 then
       paint(19,"AM PRODUCTION HISTORY ("..#rateHistory.." samples)",colors.cyan)
-      local gh=math.min(5,h-27)
+      local gh=math.min(5,h-30)
       if gh>0 and #rateHistory>0 then
         local graphWidth=math.min(w,#rateHistory)
         local peak=0
@@ -818,7 +818,7 @@ local function scadaDraw(dev,isMonitor)
   end
   if isMonitor then
     local nav={"SPS","REACTOR","FE","DIAG","LOG"}
-    local yNav=h-5
+    local yNav=h-6
     local width=math.floor(w/5)
     for i,label in ipairs(nav) do
       local x=(i-1)*width+1
@@ -1059,8 +1059,10 @@ local function monitorLoop()
     current=read()
     local good,reason=safety(current)
     if good then recentValid=recentValid+1 else recentValid=0 end
-    if not good and current.on~=false then trip(reason) end
-    if latched and current.on==true then trip(alarm) end
+    if not good and current.on~=false and not latched then trip(reason) end
+    if latched and current.on==true then
+      pcall(peripheral.call,names.reactor,"scram")
+    end
     if good and not latched then auto(current) end
     if current.safeCap==nil then current.safeCap=safeCap(current) end
     -- Preserve the chosen control action instead of overwriting it
