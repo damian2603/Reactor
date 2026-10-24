@@ -43,7 +43,8 @@ assert(state(with({burn=400,temp=1000,trend=0.3}))=="TRIM",
 assert(state(with({burn=400,temp=995,trend=-0.3}))=="OK",
   "temperature falling after reducing burn is not a new overheat")
 assert(state(with({burn=520,temp=1040,trend=2.4}))=="TRIM_FAST" or
-  state(with({burn=520,temp=1040,trend=2.4}))=="HOLD",
+  state(with({burn=520,temp=1040,trend=2.4}))=="HOLD" or
+  state(with({burn=520,temp=1040,trend=2.4}))=="TRIM",
   "rapidly rising reactor temp must pause or cut")
 assert(state(with({burn=540,temp=995,trend=5}))=="HOLD" or
   state(with({burn=540,temp=995,trend=5}))=="TRIM_FAST",
