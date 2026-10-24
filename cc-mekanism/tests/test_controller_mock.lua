@@ -507,4 +507,57 @@ do
   assert(x.limit:find("COOLANT FALLING WHILE DUMPING STEAM",1,true),
     "report exact water-loss protection cause, not generic thermal hold")
 end
+-- Regression: operator presses C in the computer, previously the editor
+-- was invisible because display() printed an eight-line status dump.
+-- This now verifies an explicit edit pane and live keyboard characters.
+do
+  local oldCurrent=term.current
+  colors=colors or {black=1,white=2,cyan=3,lightBlue=4,
+    gray=5,blue=6,red=7,lime=8,yellow=9,orange=10,lightGray=11}
+  local rows,cy={},1
+  local terminal={clears=0,writes=0}
+  terminal.getSize=function() return 51,19 end
+  terminal.setCursorPos=function(_,y) cy=y end
+  terminal.setBackgroundColor=function() end
+  terminal.setTextColor=function() end
+  terminal.clear=function()
+    terminal.clears=terminal.clears+1
+    rows={}
+  end
+  terminal.write=function(v)
+    terminal.writes=terminal.writes+1
+    rows[cy]=v
+  end
+  term.current=function() return terminal end
+  local ctl=newController()
+  ctl.drawConsole()
+  assert(terminal.clears==1,"computer initial terminal clear")
+  assert(rows[10]:find("C - Edit AUTO burn ceiling",1,true),
+    "main computer panel must show shortcut C")
+  ctl.consoleEdit("cap","")
+  assert(rows[10]:find("AUTO BURN CEILING",1,true),
+    "pressing C must show an explicit editor")
+  assert(rows[11]:find("Current: AUTO MAX",1,true),
+    "original limit visible in edit mode")
+  assert(rows[12]:find("> _",1,true),
+    "empty editable input has a visible placeholder")
+  ctl.consoleType("5")
+  assert(rows[12]:find("> 5",1,true),"live typing appears immediately")
+  ctl.consoleType("5")
+  ctl.consoleType("0")
+  assert(rows[12]:find("> 550",1,true),"complete typed number visible")
+  assert(terminal.clears==1,"typing must not clear computer screen")
+  assert(ctl.consoleSave(),"enter saves the typed ceiling")
+  assert(ctl.consoleState().ceiling==550)
+  assert(ctl.consoleState().edit==nil,"successful save closes editor")
+  assert(rows[4]:find("550.00",1,true),"saved ceiling shown in status")
+  ctl.consoleEdit("cap","invalid")
+  assert(not ctl.consoleSave(),"bad text should not exit the edit pane")
+  assert(ctl.consoleState().edit=="cap","invalid edit can be corrected")
+  ctl.consoleEdit("flux","22000000")
+  assert(ctl.consoleSave(),"flux reference can also be edited")
+  assert(ctl.getFluxReference()==22000000)
+  term.current=oldCurrent
+end
+
 print("controller headless scenarios: OK")
