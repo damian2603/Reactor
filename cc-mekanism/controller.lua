@@ -8,6 +8,8 @@ local CONF, CSV = ROOT.."/settings", ROOT.."/history.csv"
 if not fs.exists(ROOT) then fs.makeDir(ROOT) end
 local defaults = {
   reactor="", turbine="", sps="", boiler="", matrix="", monitor="",
+  fuelTank="", fluxLimitFE=16000000, fuelReserve=0.15,
+  fuelMargin=0.90, fuelTrendSeconds=180,
   sampleSeconds=1, logSeconds=10,
   maxAutoBurn=1.0, step=0.1, stepSeconds=15,
   autoBurnCeiling=0, -- 0=use detected reactor maximum; manual override only
@@ -98,8 +100,9 @@ local schema={
   boiler={"getBoilCapacity","getSteamFilledPercentage"},
   matrix={"getLastInput","getLastOutput","getEnergyFilledPercentage"},
   monitor={"setTextScale","getSize"},
+  fuelTank={"getStored","getCapacity"},
 }
-local order={"reactor","turbine","sps","boiler","matrix","monitor"}
+local order={"reactor","turbine","sps","boiler","matrix","monitor","fuelTank"}
 local SPS_POLONIUM_PER_ANTIMATTER=1000
 local WASTE_PER_POLONIUM=10
 local SPS_JOULES_PER_POLONIUM=1000000
@@ -163,6 +166,8 @@ local spsEMA=nil
 local spsWindow={}
 local spsInputWindow={}
 local spsBaseline=nil
+local fuelWindow={}
+local fuelCap=nil
 local lastSpsDecision="WAITING FOR SAMPLES"
 local lastSpsChange=0
 local latched=false
@@ -324,6 +329,11 @@ local function read()
       t.spRate/t.fissionAntimatterPotential or nil
   -- This is the equivalent SPS FE spent on observed processing;
   -- it is NOT a direct measurement of incoming FE at the SPS coils.
+  local ft=names.fuelTank
+  t.fuelStored=N(pc(ft,"getStored"))
+  t.fuelTankCapacity=N(pc(ft,"getCapacity"))
+  t.fuelTankFill=t.fuelStored and t.fuelTankCapacity and t.fuelTankCapacity>0 and
+    clamp(t.fuelStored/t.fuelTankCapacity,0,1) or nil
   t.imEnergy=N(pc(im,"getEnergyFilledPercentage"))
   t.imIn=N(pc(im,"getLastInput"));t.imOut=N(pc(im,"getLastOutput"))
   t.imInFE=t.imIn and t.imIn/JOULES_PER_FE
@@ -392,6 +402,33 @@ local function read()
     t.spRateAverage=total/#rateHistory
     t.spRateTrend=t.spRate-first.rate
   end
+  if t.fuelStored~=nil then
+    fuelWindow[#fuelWindow+1]={ts=t.ts,stored=t.fuelStored}
+    while #fuelWindow>1 and t.ts-fuelWindow[1].ts>c.fuelTrendSeconds do
+      table.remove(fuelWindow,1)
+    end
+    local first=fuelWindow[1]
+    local dt=t.ts-first.ts
+    if dt>=60 then
+      t.fuelNetPerTick=(t.fuelStored-first.stored)/dt/20
+      if t.actual and t.actual>0 and t.fuelTankFill and
+          t.fuelTankFill>0.10 and t.fuelTankFill<0.90 then
+        local estimate=t.actual+t.fuelNetPerTick
+        if estimate>0 then fuelCap=fuelCap and
+          (fuelCap*0.9+estimate*0.1) or estimate end
+      end
+    end
+  end
+  t.fuelCap=fuelCap
+  if t.spWindowSeconds and t.spWindowSeconds>=45 and t.spInputTrend120 then
+    if t.spInput<c.spsBufferLow and t.spInputTrend120< -c.spsTrendDeadband then
+      t.feAdvice="HOLD FE: POLONIUM SHORTAGE"
+    elseif t.spInput>c.spsBufferHigh and t.spInputTrend120>c.spsTrendDeadband then
+      t.feAdvice="TRY +FE; CHECK AM GAIN"
+    else
+      t.feAdvice="HOLD FE: NO PROVEN BENEFIT"
+    end
+  else t.feAdvice="WAIT: COLLECTING BASELINE" end
   previous=t
   return t
 end
@@ -500,6 +537,10 @@ local function autoSPS(t)
     cap=math.min(cap,t.snaWasteCapacity*
       clamp(c.spsSolarUtilization,0.5,1))
   end
+  if t.fuelCap then cap=math.min(cap,t.fuelCap*c.fuelMargin) end
+  if t.fuelTankFill and t.fuelTankFill<c.fuelReserve then
+    cap=math.min(cap,math.max(0,(t.actual or t.burn)*0.8))
+  end
   cap=math.max(0,math.floor(cap*100+0.5)/100)
   t.safeCap=cap
   t.spsTargetRate=cap/(WASTE_PER_POLONIUM*SPS_POLONIUM_PER_ANTIMATTER)
@@ -586,7 +627,7 @@ local function autoSPS(t)
   end
   -- Prevent twitchy feedback on every tick; pauses and cap drops
   -- bypass the timer, but normal increases cannot.
-  if not stabilized then target=t.burn end
+  if not stabilized and target>t.burn then target=t.burn end
   target=math.max(0,math.min(target,cap))
   if math.abs(target-t.burn)>=0.009 then
     local ok,err=burn(target)
@@ -772,10 +813,11 @@ local function scadaDraw(dev,isMonitor)
       "  potential "..fmt(current.snaProduction).." polonium/t")
     paint(13,"Fission potential "..n(current.fissionAntimatterPotential,4).." AM/t (THEORY)")
     paint(14,"SPS FE demand ~"..fmt(current.spEnergyUsedFE).." FE/t (EST.)")
-    paint(15,"Flux Point: MANUAL | SPS FE supply unmeasured",colors.yellow)
+    paint(15,"Flux limit "..fmt(c.fluxLimitFE).." FE/t (manual)",colors.yellow)
     paint(16,"Control: "..lastSpsDecision,colors.orange)
     paint(18,"Polonium buffer trend "..n(current.spInputTrend120 and current.spInputTrend120*100*60,2).."%/min",colors.lightBlue)
     paint(17,"DIAG "..tostring(current.spsDiagnosis or "--"),colors.orange)
+    paint(19,"FE "..tostring(current.feAdvice or "--"),colors.lightBlue)
     if h>=33 then
       paint(20,"AM PRODUCTION HISTORY ("..#rateHistory.." samples)",colors.cyan)
       local gh=math.min(5,h-31)
@@ -817,12 +859,15 @@ local function scadaDraw(dev,isMonitor)
     paint(12,"Matrix IN "..fmt(current.imInFE).." FE/t")
     paint(13,"Matrix OUT "..fmt(current.imOutFE).." FE/t")
     paint(15,"FE delivery to SPS: NOT MEASURED",colors.yellow)
-    paint(16,"Flux Point limit: set manually",colors.yellow)
+    paint(16,"Flux limit "..fmt(c.fluxLimitFE).." FE/t (key L)",colors.yellow)
+    paint(17,"Advice "..tostring(current.feAdvice or "--"),colors.lime)
   elseif uiPage==4 then
     title("DIAGNOSTICS / ALARMS")
     paint(6,"SPS: "..tostring(current.spsDiagnosis or "--"),colors.yellow)
     paint(7,"Safety: "..(latched and alarm or "NO LATCHED ALARM"),
       latched and colors.red or colors.lime)
+    paint(8,"Fuel tank "..p(current.fuelTankFill).." net "..n(current.fuelNetPerTick,2).." mB/t")
+    paint(10,"Fuel cap ~"..n(current.fuelCap,2).." mB/t")
     paint(9,"Data: SPS "..tostring(names.sps or "MISSING")..
       " | SNA "..tostring(current.snaCount or 0))
     paint(11,"Recent alarms:",colors.cyan)
@@ -1022,6 +1067,9 @@ local function setTyped()
     -- Enter 0 to restore automatic cap from detected structure.
     c.autoBurnCeiling=math.floor(v*100+0.5)/100
     save();info="AUTO ceiling "..(v==0 and "DETECTED MAX" or n(v,2))
+  elseif edit=="flux" then
+    c.fluxLimitFE=math.floor(v+0.5)
+    save();info="Flux limit recorded "..fmt(c.fluxLimitFE).." FE/t"
   elseif edit=="target" then
     if v<20 or v>100 then
       info="Target must be between 20 and 100 percent"
@@ -1054,6 +1102,8 @@ local function inputLoop()
       elseif a=="q" then active=false;return
       elseif a=="b" then edit="burn";buffer=tostring(current.burn or 0);info="Enter burn: "..buffer
       elseif a=="c" then edit="cap";buffer=tostring(c.autoBurnCeiling);info="Enter ceiling (0=automatic): "..buffer
+      elseif a=="l" then edit="flux";buffer=tostring(c.fluxLimitFE)
+        info="Enter Flux Point FE/t: "..buffer
       elseif a=="t" then edit="target";buffer=tostring(math.floor(c.feTarget*1000+0.5)/10)
         info="Target turbine output % (20..100): "..buffer
       else
