@@ -67,6 +67,27 @@ If more than one chemical tank is visible, edit `/cc-mekanism/settings`
 and set `fuelTank` to its exact wired peripheral name. The probe writes
 `/cc-mekanism/probe.txt`. Fuel estimates are labelled as estimates.
 
+### Touchscreen Flux Point reference and smoother monitor (v4 UI)
+
+The full SCADA touchscreen now has two always-visible touch controls near the
+bottom of **every page**: **[-1M]** and **[+1M]**. Each press updates the saved
+`fluxLimitFE` reference by exactly **1,000,000 FE/t**, including the SPS
+optimizer's manually configured FE ceiling. Repeated touches may be grouped
+as a single FE A/B trial. The UI displays the current value as `FLUX REF`.
+
+**This changes the saved value in the CC controller only.** The computer
+does **not** change the physical Flux Point automatically. Match its transfer
+limit manually; otherwise the program's FE estimate is no longer valid. The
+touch minus button stops at 1 MFE/t to avoid accidentally setting 0, which
+would disable the soft FE cap. Press `L` on the computer to enter an exact
+FE/t number (the editor now starts empty), if needed.
+
+Monitor redraw now skips unchanged text rows, avoids clearing the entire monitor
+every telemetry cycle, avoids resetting text scale unnecessarily, and draws
+only from the main monitor loop rather than racing input and telemetry
+coroutines. A full clear happens only on page, monitor or resolution changes.
+The first draw after installing remains a full redraw.
+
 ### FE Advisor — manual A/B comparison
 
 Flux Point is **not** directly adjustable or measured through the current
