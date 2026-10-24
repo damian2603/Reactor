@@ -73,6 +73,14 @@ rounded up) could help **if enough Polonium and Fissile Fuel are available**.
 An FE reference above the current SPS use is not proof of wasted FE: it may
 simply be unused transfer capacity.
 
+If FE currently sustains the chosen burn rate but the reactor and SNA have
+unused capacity, an additional `FE_GROWTH_POSSIBLE` message can recommend
+a careful **+1M FE/t trial**. It labels the opportunity *conditional* while
+Fissile Fuel production remains uncalibrated (for example, a tank that stays
+100% full). Once fuel production is measured, `FE_GROWTH_LIMIT` indicates
+the verified fuel ceiling supports a higher test. This is a suggestion,
+not a command that modifies physical Flux Point hardware.
+
 New diagnostics classify `FE_LIMIT_LIKELY`,
 `FE_BELOW_BURN_REQUIREMENT`, `SPS_INPUT_BACKLOG`,
 `REFERENCE_HEADROOM`, `FE_REF_SUFFICIENT`, and measurement/configuration
@@ -98,16 +106,24 @@ The controller reads the turbine's `getDumpingMode()` and recognizes
 `DUMPING_EXCESS` (or a compatible mode string containing `excess`).
 When that is active, a falling reactor coolant buffer prevents ramping.
 Rising steam/heated coolant continues to force throttling. A coolant level
-below `spsDumpCoolantTrip=0.92` triggers a latched software SCRAM from
+below `spsDumpCoolantTrip=0.98` triggers a latched software SCRAM from
 both the main safety checks and the independent RPS checks.
 
 This is a **backup guard, not a water-supply guarantee**. Verify a capable
 water makeup system and independent Fission Logic Adapter protections
-before increasing burn. Optional settings `spsDumpCoolantWarn=0.995`,
-`spsDumpCoolantDropWarn=0.0002`, and `spsDumpCoolantTrip=0.92`
+before increasing burn. Optional settings `spsDumpCoolantWarn=0.997`,
+`spsDumpCoolantDropWarn=0.0002`, and `spsDumpCoolantTrip=0.98`
 control the water-loss safeguards. Lowering these thresholds is unsafe
 unless you understand the consequences. The logic depends on the actual
 dumping-mode value exposed by CC:Mekanism.
+
+The controller also estimates the difference between reactor
+`getHeatingRate()` and turbine `getFlowRate()` during steam dumping.
+This is only a **possible missing water-return rate**, not an actual vent
+or pump-output meter. If it is positive, verify makeup water capacity.
+For standard water cooling, 525 mB/t burn can boil roughly **10.5 million
+mB of water into Steam every tick**. If the turbine is consuming less than
+that, the deficit can be severe.
 
 Telemetry schema changed, so new log samples go to
 `/cc-mekanism/history_v4_fe.csv`; older `history_v4.csv` remains intact.
