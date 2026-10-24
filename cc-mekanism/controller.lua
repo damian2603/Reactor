@@ -6,6 +6,7 @@
 local ROOT = "/cc-mekanism"
 local CONF, CSV = ROOT.."/settings", ROOT.."/history.csv"
 if not fs.exists(ROOT) then fs.makeDir(ROOT) end
+local optimizerMath=dofile(ROOT.."/optimizer_math.lua")
 local defaults = {
   reactor="", turbine="", sps="", boiler="", matrix="", monitor="",
   fuelTank="", fluxLimitFE=16000000, fuelReserve=0.15,
@@ -537,8 +538,8 @@ local function read()
     local ticks=seconds*tpsEstimate
     if seconds>=c.fuelRapidSeconds and ticks>0 then
       t.fuelNetPerTick=(t.fuelAvailable-first.amount)/ticks
-      t.fuelProducedEstimate=(fuelCumulative-first.consumed+
-        (t.fuelAvailable-first.amount))/ticks
+      t.fuelProducedEstimate=optimizerMath.fuelProduction(
+        fuelCumulative-first.consumed,t.fuelAvailable-first.amount,ticks)
       t.fuelSampleSeconds=seconds
       -- A full or empty tank hides true inflow: do not treat it as
       -- a reliable calibrated production cap near either boundary.
@@ -725,10 +726,10 @@ local function autoSPS(t)
       clamp(c.spsSolarUtilization,0.5,1))
   end
   if c.fluxLimitFE>0 then
-    local feBurn=c.fluxLimitFE*JOULES_PER_FE*
-      WASTE_PER_POLONIUM/(SPS_JOULES_PER_POLONIUM)
-    -- FE/t * 2.5 J/FE * 10 waste/polonium / 1MJ = burn mB/t
-    cap=math.min(cap,feBurn*c.spsManualFeCapMargin)
+    local feBurn=optimizerMath.feBurnLimit(c.fluxLimitFE,
+      JOULES_PER_FE,WASTE_PER_POLONIUM,SPS_JOULES_PER_POLONIUM,
+      c.spsManualFeCapMargin)
+    cap=math.min(cap,feBurn)
   end
   if t.fuelCapFresh and t.fuelCap then
     cap=math.min(cap,t.fuelCap*c.fuelMargin)
@@ -754,21 +755,14 @@ local function autoSPS(t)
   -- Critically, a low-but-stable 2% Polonium buffer is NOT starvation.
   local amRate=(t.spWindowSeconds and t.spWindowSeconds>=45 and t.spRate120)
       or t.spRateEMA or t.spRate or 0
-  local base=math.max(0,amRate*WASTE_PER_POLONIUM*
+  local base=optimizerMath.spsBurn(amRate,WASTE_PER_POLONIUM,
     SPS_POLONIUM_PER_ANTIMATTER)
   local bootstrap=math.min(cap,math.max(2,math.min(25,cap*0.06)))
   local desired=base>0 and base*(1+c.spsFeedForwardMargin) or bootstrap
   local trend=t.spInputControlTrend
   if trend and t.spControlSeconds and t.spControlSeconds>=c.spsMinTrendSeconds*0.9 then
-    local correction
-    if t.spInputCapacity and t.spInputCapacity>0 then
-      correction= -trend*t.spInputCapacity/
-        math.max(1,t.tps or 20)*WASTE_PER_POLONIUM*c.spsFeedbackGain
-    else
-      correction= -math.max(-0.05,math.min(0.05,trend*250))*
-        math.max(10,base)
-    end
-    correction=clamp(correction,-math.max(2,base*0.10),math.max(2,base*0.10))
+    local correction=optimizerMath.feedback(trend,t.spInputCapacity,
+      t.tps or 20,WASTE_PER_POLONIUM,c.spsFeedbackGain,base)
     desired=desired+correction
   end
   -- Small depleted-buffer reserve can be rebuilt, but only after actual
