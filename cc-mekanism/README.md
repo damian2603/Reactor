@@ -4,6 +4,77 @@ Standalone ComputerCraft / CC:Tweaked controller for **Mekanism Fission Reactor 
 
 **Status: v4 beta experimental (autodetection of multiblock sizes).** Tested against inspected Mekanism API source, **not yet validated in an actual running Project Infinity world**. Do not rely on this program as your only reactor safety mechanism.
 
+## Fix: steam dumping excess retains 90%; do not throttle at 82% (2026-10-24)
+
+**Cause confirmed in Mekanism 1.20.x source and Project Infinity config.**
+The prior SPS controller incorrectly treated steam rising through **78%** as
+backpressure and began trimming at **88%**, even when the Industrial Turbine
+was already set to `DUMPING_EXCESS`. The user's screenshots showed the
+expected rise through ~82–84% with a healthy reactor, but AUTO SPS became
+stuck on `HOLD: STEAM BUFFER GROWING`.
+
+In **`config/Mekanism/general.toml`**,
+`dumpExcessKeepRatio = 0.9`. Mekanism's Industrial Turbine:
+1. Converts stored Steam to FE and condensed Water when it can.
+2. When `DUMPING_EXCESS` is enabled, **only dumps Steam above 90%**.
+3. Limits dumped amount each tick to
+   `min(storedAboveKeep, max(stored / 50, lastSteamInput * 2))`
+   (bounded by stored amount). This means it **can** approach 100% if
+   excess Steam arrives faster than the relief system can dump. The code
+   does not imply an unconditional guarantee that the tank cannot fill.
+
+See the
+[Mekanism turbine source (1.20.x)](https://github.com/mekanism/Mekanism/blob/1.20.x/src/generators/java/mekanism/generators/common/content/turbine/TurbineMultiblockData.java#L149-L178),
+[Project Infinity general.toml](https://github.com/BOLTMAGIC/Project-Infinity-0.1/blob/main/config/Mekanism/general.toml),
+and
+[cc-mek-scada turbine logic](https://github.com/MikaylaFischler/cc-mek-scada/blob/main/supervisor/unit_logic.lua#L400-L424).
+SCADA reports `DUMPING_EXCESS` as a **partially open relief valve**,
+looks for saturated maximum turbine flow **combined with rising stored
+Steam**, and separately detects a turbine trip when Steam exists but
+flow is zero; it does not consider a normal 82% fill to be an overload.
+
+The revised SPS controller changes behavior **only when the turbine
+actually reports `DUMPING_EXCESS`**:
+
+| Steam tank | SPS AUTO behavior |
+| --- | --- |
+| 0–93% | Normal operation; the expected climb toward 90% does not block ramping |
+| 93%+ and sustained rising trend | Hold further increases, without immediate burn reduction |
+| 95.5%+ | Gentle throttling, with cooldown |
+| 97.5%+ | Stronger throttling to avoid overflow |
+| 98.5%+ | Latched SCRAM through both safety paths |
+
+A pressure trim now recovers once the buffer returns to ~92.5% and
+is stable, or drops to/below 90%, **rather than waiting for 83%**:
+under `DUMPING_EXCESS` a stable 90% may be the normal steady state.
+Without this mode, the existing conservative turbine steam thresholds
+remain unchanged, including SCRAM at 95%.
+
+The settings `spsDumpKeepRatio=0.90`,
+`spsDumpPressureHoldLevel=0.93`,
+`spsDumpPressureTrimLevel=0.955`,
+`spsDumpPressureCriticalLevel=0.975`,
+`spsDumpPressureRecoverLevel=0.925` and
+`spsDumpSteamTrip=0.985` can be overridden to match a different
+server-side Mekanism `dumpExcessKeepRatio` or safety preference.
+
+**Low-disk delivery:** The existing 72KB checksummed packed controller
+is **not redownloaded**. Instead `controller-launcher.lua` is a
+~3.7KB verified delta applied to the unpacked Lua **in RAM** before
+execution. The installer temporarily stages only this small launcher
+(with a 512B staging buffer) and skips optional probe files if disk
+is low. The full readable `controller.lua` is the authoritative
+source. Tests assert that the patched running code matches its bytes
+exactly, check 83.4% normal steam, 93.5% HOLD, 96% trim, and
+mode-specific SCRAM handling, and reproduce a ComputerCraft disk with
+exactly 6,420 bytes of initial free space.
+
+As before, `DUMPING_EXCESS` wastes the fraction of Steam vented and
+can reduce the amount of condensed Water returned. **Keep the
+independent Fission Logic Adapter SCRAM and adequate makeup water
+supply.** All coolant, heated-coolant, reactor-temperature, waste and
+Fissile Fuel safety checks remain in place.
+
 ## Fix: `install.lua: Out of space` on ComputerCraft (2026-10-24)
 
 After multiple beta upgrades, the user's CC computer ran out of storage while
