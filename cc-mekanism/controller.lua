@@ -1152,7 +1152,7 @@ local function autoSPS(t)
   local dump=t.dumpExcess==true
   local pressure=optimizerMath.spsPressure({
     steam=t.steam,
-    slope=(dump and t.steam and t.steam<c.spsDumpKeepRatio)
+    slope=(dump and t.steam and t.steam<c.spsDumpPressureHoldLevel)
         and 0 or t.steamTrend,
     holdLevel=dump and c.spsDumpPressureHoldLevel or c.spsPressureHoldLevel,
     trimLevel=dump and c.spsDumpPressureTrimLevel or c.spsPressureTrimLevel,
