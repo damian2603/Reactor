@@ -2,7 +2,7 @@
 
 Standalone ComputerCraft / CC:Tweaked controller for **Mekanism Fission Reactor + Industrial Turbine + SPS**, developed for Minecraft 1.20.1 / Project Infinity 0.1. The separate NuclearCraft optimizer in this repository is untouched.
 
-**Status: v3.0 experimental (autodetection of multiblock sizes).** Tested against inspected Mekanism API source, **not yet validated in an actual running Project Infinity world**. Do not rely on this program as your only reactor safety mechanism.
+**Status: Beta 1 experimental (autodetection of multiblock sizes).** Tested against inspected Mekanism API source, **not yet validated in an actual running Project Infinity world**. Do not rely on this program as your only reactor safety mechanism.
 
 ## Install in ComputerCraft
 
@@ -147,3 +147,21 @@ Mekanism API references:
 - [Fission](https://github.com/mekanism/Mekanism/blob/1.20.x/src/generators/java/mekanism/generators/common/content/fission/FissionReactorMultiblockData.java)
 - [Turbine](https://github.com/mekanism/Mekanism/blob/1.20.x/src/generators/java/mekanism/generators/common/content/turbine/TurbineMultiblockData.java)
 - [SPS](https://github.com/mekanism/Mekanism/blob/1.20.x/src/main/java/mekanism/common/content/sps/SPSMultiblockData.java)
+
+## Beta 1: SPS-first fuel efficiency (experimental)
+
+This beta uses a measured SPS Polonium input buffer trend to seek a sustainable minimum fission burn rate. It **does not** automatically change Flux Point settings.
+
+Optional Fissile Fuel tank: connect a Mekanism Chemical Tank to the wired modem network, with fuel routed through it. The experimental tank adapter expects `getStored()` and `getCapacity()`; verify the methods and returned units with `peripheral.getMethods(name)` and the probe before enabling fuel-based AUTO. If autodetection does not find it, set `fuelTank="peripheral_name"` in `/cc-mekanism/settings`. **The beta does not yet calibrate the hidden fuel buffers in Mekanism pipes.** A measured fuel balance is only approximate and should never be treated as a safety guarantee.
+
+New settings:
+- `fluxLimitFE=16000000`: **manual reference value**, not a measured FE draw; press **L** on the computer to update it after changing the Flux Point.
+- `fuelReserve=0.15`: soft fuel reserve.
+- `fuelMargin=0.90`: margin on inferred sustainable fuel supply.
+- `fuelTrendSeconds=180`: measurement horizon.
+
+The FE advisor uses SPS production and Polonium buffer trends. It provides **qualitative trial recommendations**, not measured FE savings or a proven optimal Flux Point value. Only increase FE manually if the power network can support it; compare stabilized antimatter production before and after.
+
+Safety: independent hardware Fission Logic Adapters are still strongly recommended. The program does not automatically start the reactor. Test the tank peripheral API, pipe buffering, alarm behavior, and rate changes at a conservative manual cap before trusting automatic control.
+
+**Beta limitations:** no independent Reactor PLC implementation; no actual SPS FE input metering; no automatic Flux Point adjustment; no validated closed-loop maximum fuel-production search; no in-game test yet. These are future improvements, not completed features.
