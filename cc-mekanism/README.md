@@ -49,6 +49,70 @@ The regression scenario reproduces the screenshots, verifies that
 the controller ramps **above 123 mB/t**, and separately verifies that
 **rising steam backpressure still throttles the reactor**.
 
+### SPS AUTO and FE diagnosis at 525 mB/t (2026-10-24)
+
+The controller now compares three separate quantities in the **SPS** and **FE**
+pages and `history_v4_fe.csv`:
+
+* **Observed FE equivalent**: calculated from actual SPS `getProcessRate()`
+  and the default Mekanism recipe (approximately 400 MFE per 1 mB
+  Antimatter). This is **not** a direct FE meter.
+* **FE required for current burn rate**: how much power SPS would need to
+  consume the Polonium implied by `getBurnRate()` if all Nuclear Waste is
+  converted with normal 10:1 and Polonium 1000:1 recipes.
+* **Flux Point FE reference**: the number the operator set on the physical
+  Flux Point and entered in CC with `L` or the monitor's `+1M/-1M` buttons.
+  The program **cannot change or directly read the Flux Point**.
+
+At **525 mB/t burn** the default recipe implies **0.0525 mB/t Antimatter**
+and **21 MFE/t** demand. With the configured limit at **20 MFE/t**, the
+theoretical maximum is **0.0500 mB/t Antimatter**, so there may be an
+FE bottleneck. Increasing the *real* Flux Point limit and the CC reference
+toward at least 21 MFE/t (about 23 MFE/t for a 5% experimental allowance
+rounded up) could help **if enough Polonium and Fissile Fuel are available**.
+An FE reference above the current SPS use is not proof of wasted FE: it may
+simply be unused transfer capacity.
+
+New diagnostics classify `FE_LIMIT_LIKELY`,
+`FE_BELOW_BURN_REQUIREMENT`, `SPS_INPUT_BACKLOG`,
+`REFERENCE_HEADROOM`, `FE_REF_SUFFICIENT`, and measurement/configuration
+mismatches. A low SPS internal FE buffer *alone* does not prove shortage;
+the algorithm also considers Polonium trends, configured energy ceiling,
+observed conversion and Antimatter output fill.
+
+**Burn regulation still primarily maximizes sustained Antimatter**.
+It probes higher burn only when the SPS consumes supplied Polonium, and
+uses thermal, Solar Activator, Fissile Fuel production and manually recorded
+FE constraints to hold or trim burn. It does not deliberately produce
+unused excess Polonium indefinitely.
+
+### Turbine Dumping Excess / makeup water safety
+
+Turning on `Dumping Excess` can prevent steam accumulation, allowing the
+SPS controller to optimize the reactor without prioritizing turbine FE
+production. **However, excess steam vented from the turbine is not condensed
+into water and is not returned to the reactor.** Without a reliable
+independent water source, reactor coolant can deplete very quickly.
+
+The controller reads the turbine's `getDumpingMode()` and recognizes
+`DUMPING_EXCESS` (or a compatible mode string containing `excess`).
+When that is active, a falling reactor coolant buffer prevents ramping.
+Rising steam/heated coolant continues to force throttling. A coolant level
+below `spsDumpCoolantTrip=0.92` triggers a latched software SCRAM from
+both the main safety checks and the independent RPS checks.
+
+This is a **backup guard, not a water-supply guarantee**. Verify a capable
+water makeup system and independent Fission Logic Adapter protections
+before increasing burn. Optional settings `spsDumpCoolantWarn=0.995`,
+`spsDumpCoolantDropWarn=0.0002`, and `spsDumpCoolantTrip=0.92`
+control the water-loss safeguards. Lowering these thresholds is unsafe
+unless you understand the consequences. The logic depends on the actual
+dumping-mode value exposed by CC:Mekanism.
+
+Telemetry schema changed, so new log samples go to
+`/cc-mekanism/history_v4_fe.csv`; older `history_v4.csv` remains intact.
+Run `cc-mekanism/probe` to confirm `getDumpingMode` is available.
+
 ### Controller operation
 
 1. `AUTO SPS` estimates the burn needed for observed antimatter production:
