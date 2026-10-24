@@ -146,9 +146,10 @@ assert(disk["/cc-mekanism/settings"]==savedSettings)
 -- Second real screenshot: compressed payload and launcher already present;
 -- only 6,420 B remain, while staging the optional probe needs ~8,597 B.
 -- The valid core must be considered INSTALLED, not UPDATE INCOMPLETE.
-local requiredTotal=#savedSettings
+local previousLauncher=string.rep("L",416) -- old, tiny, unpack-only launcher
+local requiredTotal=#savedSettings+#previousLauncher
 for _,name in ipairs({"optimizer_math.lua","thermal_model.lua",
-  "controller.packed.lua","controller-launcher.lua"}) do
+  "controller.packed.lua"}) do
   requiredTotal=requiredTotal+#filesOnHost[name]
 end
 local previousProbe=string.rep("P",300)
@@ -158,19 +159,23 @@ for _,name in ipairs({"optimizer_math.lua","thermal_model.lua",
   "controller.packed.lua"}) do
   disk["/cc-mekanism/"..name]=filesOnHost[name]
 end
-disk["/cc-mekanism/controller.lua"]=filesOnHost["controller-launcher.lua"]
+disk["/cc-mekanism/controller.lua"]=previousLauncher
 disk["/cc-mekanism/probe.lua"]=previousProbe
 assert(fs.getFreeSpace()==6420,"mock has exactly 6420 B remaining")
 local optionalOkay,optionalError=pcall(runSource)
 assert(optionalOkay,
-  "optional probe must not abort valid core with 6420B free: "..tostring(optionalError))
-assert(prompts==0,"no cleanup prompt for optional tool")
+  "tiny delta launcher must update with 6420B free: "..tostring(optionalError))
+assert(prompts==0,"no history cleanup prompt for RAM-only patch")
 assert(disk["/cc-mekanism/probe.lua"]==previousProbe,
   "optional probe preserved unchanged on insufficient storage")
-assert(disk["/cc-mekanism/controller.lua"]==filesOnHost["controller-launcher.lua"])
-assert(disk["/cc-mekanism/controller.packed.lua"]==filesOnHost["controller.packed.lua"])
+assert(disk["/cc-mekanism/controller.lua"]==filesOnHost["controller-launcher.lua"],
+  "new RAM-only turbine fix launcher correctly replaces old launcher")
+assert(disk["/cc-mekanism/controller.packed.lua"]==filesOnHost["controller.packed.lua"],
+  "large packed payload remains unchanged (no 72KB download)")
 assert(disk["/cc-mekanism/settings"]==savedSettings)
-assert(fs.getFreeSpace()==6420,"optional skips do not consume scarce space")
+assert(fs.getFreeSpace()==6420+#previousLauncher-
+  #filesOnHost["controller-launcher.lua"],
+  "free disk reduced only by incremental 3.7KB launcher delta")
 
 -- Fully up-to-date installation should not duplicate large files,
 -- even when less than 4K remains free.
