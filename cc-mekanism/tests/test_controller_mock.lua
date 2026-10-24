@@ -159,6 +159,60 @@ do
   near(burnRate,324,0.01,"early deficit forces burn cap")
   assert(t.fuelRapidLimited==true,"rapid deficit flag")
 end
+-- Real screenshots: at ~123 mB/t, ~0.012 AM/t and 6 SNA, the
+-- turbine flow cap must NOT throttle SPS AUTO to 123 mB/t.
+-- 20 MFE/t is recorded manually; the old flow-capped controller stalled
+-- at ~123.02 mB/t even with coolant, waste and fuel buffers healthy.
+do
+  local ctl=newController()
+  for _=1,4 do ctl.command("fluxplus") end
+  near(ctl.getFluxReference(),20000000,0.01,"screenshot Flux reference")
+  local t=sample()
+  t.maxBurn=1920
+  t.burn=123.02
+  t.actual=123.02
+  t.spRate=0.012
+  t.spRateEMA=0.012
+  t.spRate120=0.012
+  t.spsEfficiency=0.012/(123.02/10000)
+  t.spInput=0.007
+  t.spOutput=0
+  t.spInputTrend120=0.000005
+  t.snaCount=6
+  t.snaProduction=280.3
+  t.snaWasteCapacity=2803
+  t.fuelFillForControl=1
+  t.fuelCap=nil
+  t.fuelCapFresh=false
+  t.fuelRapidNet=0
+  t.fuelRapidProduction=123.02
+  t.steamMade=10598400
+  t.maxFlow=11040000
+  t.bFormed=false
+  t.steam=0.01
+  local result=ctl.exerciseSPS(t)
+  assert(result.mode=="SPS")
+  near(result.cap,550,0.01,"Flux-derived SPS cap, NOT turbine cap")
+  assert(burnRate>123.02 and burnRate<200,
+    "healthy reactor should probe above 123 despite turbine flow limit")
+  assert(t.spsTurbineFlowHardCap==false)
+end
+
+-- Disabling the turbine hard cap must NOT disable overpressure protection.
+do
+  local ctl=newController()
+  local t=sample()
+  t.fuelCapFresh=false
+  t.fuelCap=nil
+  t.steam=0.65
+  t.steamDelta=0.003
+  local result=ctl.exerciseSPS(t)
+  assert(result.mode=="SPS")
+  assert(burnRate<400,"rising high turbine steam must throttle burn")
+  assert(result.limit:find("THERMAL",1,true),
+    "steam pressure growth should trigger thermal throttling")
+end
+
 -- Integrated fuel estimate must continue across burn rate changes:
 -- 90s at 300 mB/t, then 90s at 450 mB/t, 400 mB/t production.
 do
