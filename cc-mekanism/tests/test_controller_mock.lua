@@ -199,4 +199,13 @@ do
   data.sna.canSeeSun=true
   data.sna.getProductionRate=100
 end
+-- A failed boolean API read (nil) is not the same as a valid false response.
+do
+  local original=data.sna.canSeeSun
+  data.sna.canSeeSun=function() return nil end
+  local ctl=newController()
+  local t=ctl.read()
+  assert(t.snaBroken==1,"missing canSeeSun reading must mark SNA telemetry broken")
+  data.sna.canSeeSun=original
+end
 print("controller headless scenarios: OK")
